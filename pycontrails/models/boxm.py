@@ -101,26 +101,7 @@ class Boxm(Model):
 
     def process_datasets(self):
         """Process the met, bg_chem, and emi datasets to prepare them for the box model."""
-        # create lists for lats, lons, alts, and times
-        lats_chem = np.arange(
-            self.params.lat_bounds[0], self.params.lat_bounds[1], self.params.hres_chem
-        )
-
-        lons_chem = np.arange(
-            self.params.lon_bounds[0], self.params.lon_bounds[1], self.params.hres_chem
-        )
-
-        alts_chem = np.arange(
-            self.params.alt_bounds[0], self.params.alt_bounds[1], self.params.vres_chem
-        )
-
-        times_chem = pd.date_range(
-            start=self.params.t0_chem,
-            end=self.params.t0_chem + self.params.rt_chem,
-            freq=self.params.ts_chem,
-        )
-
-        self.chem_dict = dict(lats=lats_chem, lons=lons_chem, alts=alts_chem, times=times_chem)
+        
 
         # chunk met and emi data
         self.met.data = self.met.data.chunk(
