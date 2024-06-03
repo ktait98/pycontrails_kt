@@ -9,8 +9,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-import xarray as xr
-import dask as da
 from boxm_f2py import boxm_f2py
 
 from pycontrails.core.met import MetDataset
