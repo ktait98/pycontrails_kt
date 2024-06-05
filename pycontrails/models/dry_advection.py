@@ -47,6 +47,8 @@ class DryAdvectionParams(models.ModelParams):
     # If None, only pointwise advection is simulated without wind shear effects.
     azimuth: float | None = 0.0
 
+    shear: float | None = None
+
 
 class DryAdvection(models.Model):
     """Simulate "dry advection" of an emissions plume with an elliptical cross section.
@@ -126,7 +128,7 @@ class DryAdvection(models.Model):
         max_age = self.params["max_age"]
         dz_m = self.params["dz_m"]
         max_depth = self.params["max_depth"]
-        wind_shear = self.params["wind_shear"]
+        shear = self.params["shear"]
 
         source_time = self.source["time"]
         t0 = source_time.min()
@@ -145,7 +147,7 @@ class DryAdvection(models.Model):
                 t,
                 dz_m=dz_m,
                 max_depth=max_depth,
-                wind_shear=wind_shear,
+                shear=shear,
                 **interp_kwargs,
             )
 
@@ -328,7 +330,7 @@ def _calc_geometry(
     dz_m: float,
     dt: np.timedelta64,
     max_depth: float | None,
-    wind_shear: float | None,
+    shear: float | None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Calculate wind-shear-derived geometry of evolved plume."""
 
@@ -353,8 +355,8 @@ def _calc_geometry(
     sigma_yz = vector["sigma_yz"]
     area_eff = vector["area_eff"]
 
-    if wind_shear is not None:
-        dsn_dz = np.full_like(u_wind, wind_shear)
+    if shear is not None:
+        dsn_dz = np.full_like(u_wind, shear)
     else:
         dsn_dz = wind_shear.wind_shear_normal(
         u_wind_top=u_wind,
@@ -440,7 +442,7 @@ def _evolve_one_step(
     *,
     dz_m: float,
     max_depth: float | None,
-    wind_shear: float | None,
+    shear: float | None,
     **interp_kwargs: Any,
 ) -> GeoVectorDataset:
     """Evolve plume geometry by one step."""
@@ -477,7 +479,7 @@ def _evolve_one_step(
 
     # Attach wind-shear-derived geometry to output vector
     azimuth_2, width_2, depth_2, sigma_yy_2, sigma_zz_2, sigma_yz_2, area_eff_2, dsn_dz = _calc_geometry(
-        met, vector, dz_m, dt, max_depth, wind_shear  # type: ignore[arg-type]
+        vector, dz_m, dt, max_depth, shear  # type: ignore[arg-type]
         )
     
     out["azimuth"] = azimuth_2
