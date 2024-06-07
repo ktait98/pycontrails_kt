@@ -1598,7 +1598,7 @@ def contrails_to_hi_res_grid(
         contrail_segment = GeoVectorDataset(
             pd.concat([heads_t[cols_req].loc[i], tails_t[cols_req].loc[i]], axis=1).T, copy=True
         )
-
+        
         segment_grid = segment_property_to_hi_res_grid(
             contrail_segment, var_name=var_name, spatial_grid_res=spatial_grid_res
         )
@@ -1689,6 +1689,9 @@ def segment_property_to_hi_res_grid(
         contrail_segment["width"],
     )
 
+    # print(contrail_segment["longitude"])
+    # print(contrail_segment["latitude"])
+
     # Initialise contrail segment grid with spatial domain that covers the contrail area.
     lon_edges = np.concatenate(
         [contrail_segment["lon_edge_l"], contrail_segment["lon_edge_r"]], axis=0
@@ -1696,7 +1699,10 @@ def segment_property_to_hi_res_grid(
     lat_edges = np.concatenate(
         [contrail_segment["lat_edge_l"], contrail_segment["lat_edge_r"]], axis=0
     )
-    spatial_bbox = geo.spatial_bounding_box(lon_edges, lat_edges, buffer=0.5)
+    #print(f"longitude edges {lon_edges}, latitude edges {lat_edges}")
+
+    spatial_bbox = geo.spatial_bounding_box(lon_edges, lat_edges, buffer=0.01)
+    #print(spatial_bbox)
     segment_grid = _initialise_longitude_latitude_grid(spatial_bbox, spatial_grid_res)
 
     # Calculate gridded contrail segment properties
@@ -1868,8 +1874,11 @@ def _add_segment_to_main_grid(main_grid: xr.DataArray, segment_grid: xr.DataArra
         the `main_grid` which is expected to have a larger spatial domain than the `segment_grid`.
     - This architecture is used to reduce the computational resources.
     """
-    lon_main = main_grid["longitude"].values
-    lat_main = main_grid["latitude"].values
+    lon_main = np.round(main_grid["longitude"].values, decimals=2)
+    lat_main = np.round(main_grid["latitude"].values, decimals=2)
+
+    # lon_main = main_grid["longitude"].values
+    # lat_main = main_grid["latitude"].values
 
     lon_segment_grid = np.round(segment_grid["longitude"].values, decimals=2)
     lat_segment_grid = np.round(segment_grid["latitude"].values, decimals=2)
@@ -1887,6 +1896,11 @@ def _add_segment_to_main_grid(main_grid: xr.DataArray, segment_grid: xr.DataArra
             "Contrail segment ignored as it is outside spatial bounding box of the main grid. "
         )
     else:
+        #print(segment_grid)
+        # print(lon_main)
+        # print(lat_main)
+        # print(lon_segment_grid[0], lon_segment_grid[-1], lat_segment_grid[0], lat_segment_grid[-1])
+        # print(main_grid_arr[ix_:ix, iy_:iy].shape, subgrid_arr.shape)
         main_grid_arr[ix_:ix, iy_:iy] = main_grid_arr[ix_:ix, iy_:iy] + subgrid_arr
 
     return xr.DataArray(main_grid_arr, coords=main_grid.coords)

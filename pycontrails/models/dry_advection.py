@@ -446,7 +446,7 @@ def _evolve_one_step(
     **interp_kwargs: Any,
 ) -> GeoVectorDataset:
     """Evolve plume geometry by one step."""
-
+    
     _perform_interp_for_step(met, vector, dz_m, **interp_kwargs)
     u_wind = vector["u_wind"]
     v_wind = vector["v_wind"]
