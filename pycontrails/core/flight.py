@@ -728,8 +728,16 @@ class Flight(GeoVectorDataset):
         """
         return units.tas_to_mach_number(true_airspeed, air_temperature)
 
-    def segment_rocd(self) -> npt.NDArray[np.float64]:
+    def segment_rocd(
+        self,
+        air_temperature: None | npt.NDArray[np.float64] = None,
+    ) -> npt.NDArray[np.float64]:
         """Calculate the rate of climb and descent (ROCD).
+
+        Parameters
+        ----------
+        air_temperature: None | npt.NDArray[np.float64]
+            Air temperature of each flight waypoint, [:math:`K`]
 
         Returns
         -------
@@ -740,12 +748,13 @@ class Flight(GeoVectorDataset):
         --------
         :func:`segment_rocd`
         """
-        return segment_rocd(self.segment_duration(), self.altitude_ft)
+        return segment_rocd(self.segment_duration(), self.altitude_ft, air_temperature)
 
     def segment_phase(
         self,
         threshold_rocd: float = 250.0,
         min_cruise_altitude_ft: float = 20000.0,
+        air_temperature: None | npt.NDArray[np.float64] = None,
     ) -> npt.NDArray[np.uint8]:
         """Identify the phase of flight (climb, cruise, descent) for each segment.
 
@@ -759,6 +768,8 @@ class Flight(GeoVectorDataset):
             This is specific for each aircraft type,
             and can be approximated as 50% of the altitude ceiling.
             Defaults to 20000 ft.
+        air_temperature: None | npt.NDArray[np.float64]
+            Air temperature of each flight waypoint, [:math:`K`]
 
         Returns
         -------
@@ -773,7 +784,7 @@ class Flight(GeoVectorDataset):
         :func:`segment_rocd`
         """
         return segment_phase(
-            self.segment_rocd(),
+            self.segment_rocd(air_temperature),
             self.altitude_ft,
             threshold_rocd=threshold_rocd,
             min_cruise_altitude_ft=min_cruise_altitude_ft,
@@ -1952,6 +1963,7 @@ def filter_altitude(
     altitude_ft: npt.NDArray[np.float64],
     kernel_size: int = 17,
     cruise_threshold: float = 120,
+    air_temperature: None | npt.NDArray[np.float64] = None,
 ) -> npt.NDArray[np.float64]:
     """
     Filter noisy altitude on a single flight.
@@ -1971,6 +1983,8 @@ def filter_altitude(
         Passed also to :func:`scipy.signal.medfilt`
     cruise_theshold : int, optional
         Minimal length of time, in seconds, for a flight to be in cruise to apply median filter
+    air_temperature: None | npt.NDArray[np.float64]
+        Air temperature of each flight waypoint, [:math:`K`]
 
     Returns
     -------
@@ -2017,7 +2031,7 @@ def filter_altitude(
 
     # Find cruise phase in filtered profile
     seg_duration = segment_duration(time)
-    seg_rocd = segment_rocd(seg_duration, altitude_filt)
+    seg_rocd = segment_rocd(seg_duration, altitude_filt, air_temperature)
     seg_phase = segment_phase(seg_rocd, altitude_filt)
     is_cruise = seg_phase == FlightPhase.CRUISE
 
@@ -2153,7 +2167,9 @@ def segment_phase(
 
 
 def segment_rocd(
-    segment_duration: npt.NDArray[np.float64], altitude_ft: npt.NDArray[np.float64]
+    segment_duration: npt.NDArray[np.float64],
+    altitude_ft: npt.NDArray[np.float64],
+    air_temperature: None | npt.NDArray[np.float64] = None,
 ) -> npt.NDArray[np.float64]:
     """Calculate the rate of climb and descent (ROCD).
 
@@ -2165,11 +2181,21 @@ def segment_rocd(
         See output from :func:`segment_duration`.
     altitude_ft: npt.NDArray[np.float64]
         Altitude of each waypoint, [:math:`ft`]
+    air_temperature: None | npt.NDArray[np.float64]
+        Air temperature of each flight waypoint, [:math:`K`]
 
     Returns
     -------
     npt.NDArray[np.float64]
         Rate of climb and descent over segment, [:math:`ft min^{-1}`]
+
+    Notes
+    -----
+    The hydrostatic equation will be used to estimate the ROCD if `air_temperature` is provided.
+    This will improve the accuracy of the estimated ROCD with a temperature correction. The
+    estimated ROCD with the temperature correction are expected to differ by up to +-5% compared to
+    those without the correction. These differences are important when the ROCD estimates are used
+    as inputs to aircraft performance models.
 
     See Also
     --------
@@ -2181,7 +2207,19 @@ def segment_rocd(
     out[:-1] = np.diff(altitude_ft) / dt_min[:-1]
     out[-1] = np.nan
 
-    return out
+    if air_temperature is None:
+        return out
+
+    else:
+        altitude_m = units.ft_to_m(altitude_ft)
+        T_isa = units.m_to_T_isa(altitude_m)
+
+        T_correction = np.empty_like(altitude_ft)
+        T_correction[:-1] = (0.5 * (air_temperature[:-1] + air_temperature[1:])) / (
+            0.5 * (T_isa[:-1] + T_isa[1:])
+        )
+        T_correction[-1] = np.nan
+        return T_correction * out
 
 
 def _resample_to_freq(df: pd.DataFrame, freq: str) -> tuple[pd.DataFrame, pd.DatetimeIndex]:
