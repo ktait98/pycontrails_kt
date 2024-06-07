@@ -31,7 +31,7 @@ class BoxmParams(ModelParams):
     lat_bounds: tuple[float, float] | None = None  # latmin, latmax [deg]
     lon_bounds: tuple[float, float] | None = None  # lonmin, lonmax [deg]
     alt_bounds: tuple[float, float] | None = None  # altmin, altmax [m]
-    hres_chem: float = 1.0  # chemistry horizontal resolution [deg]
+    hres_chem: float = 0.5  # chemistry horizontal resolution [deg]
     vres_chem: float = 500  # chemistry vertical resolution [m]
 
     t0_chem: datetime | None = None  # chemistry start time
