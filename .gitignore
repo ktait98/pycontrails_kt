@@ -61,3 +61,8 @@ bada/
 
 # docker
 id_rsa
+
+# chem
+pycontrails/models/boxmodel/*.OUT
+pycontrails/models/boxmodel/species.nc
+pycontrails/models/boxmodel/*.csv

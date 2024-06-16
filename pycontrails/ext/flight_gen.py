@@ -3,6 +3,9 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import dask.array as da
+import pathlib
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation, PillowWriter
 import dataclasses
 
 from pyproj import Geod
@@ -19,7 +22,6 @@ class FlightGen:
     name = "traj_gen"
     long_name = "Formation Flight Trajectory Generator"
     
-
     def __init__(self, 
                  met: MetDataset,
                  fl_params: dict,
@@ -171,17 +173,17 @@ class FlightGen:
                     fl_df[['flight_id', 'waypoint', 'fuel_flow', 'true_airspeed', 'co2_m', 'h2o_m',
                     'so2_m', 'nox_m', 'co_m', 'hcho_m', 'ch3cho_m', 'c2h4_m', 'c3h6_m', 'c2h2_m', 'benzene_m', 'nvpm_m']],
                     pl_df[['flight_id', 'waypoint', 'time', 'longitude', 'latitude', 'level', 'width', 'heading']], on=['flight_id', 'waypoint']).sort_values(by=['time', 'flight_id', 'waypoint'])
-    
+
         pl_df['sin_a'] = np.sin(np.radians(pl_df['heading']))
         pl_df['cos_a'] = np.cos(np.radians(pl_df['heading']))
 
         pl_df['altitude'] = units.pl_to_m(pl_df['level'])
         
         self.plumes = pl_df
-
-        return pl_df
+        
+        return fl_df, pl_df
     
-    def plume_to_grid(self):
+    def plume_to_grid(self) -> MetDataset:
         """Convert plume data to a grid."""
         chem_params = self.chem_params
         pl_df = self.plumes
@@ -210,13 +212,14 @@ class FlightGen:
                     )
             
             for i, p in enumerate(['nox_m', 
-                                'co_m', 
-                                'hcho_m', 
-                                'ch3cho_m',
-                                'c2h4_m',
-                                'c3h6_m',
-                                'c2h2_m',
-                                'benzene_m']):
+                                'co_m']):
+                                # ,
+                                # 'hcho_m', 
+                                # 'ch3cho_m',
+                                # 'c2h4_m',
+                                # 'c3h6_m',
+                                # 'c2h2_m',
+                                # 'benzene_m']):
 
                 # call contrails_to_hi_res_grid
                 plume_property_data = contrails_to_hi_res_grid(time=time, 
@@ -233,10 +236,53 @@ class FlightGen:
         # Convert plume_data dict to list so that it can be concatenated
         plume_data_list = [ds.assign_coords(time=key) for key, ds in plume_data.items()]
         plume_data = xr.concat(plume_data_list, dim="time")
-        
-        return plume_data
-    
 
+        plume_data = plume_data.expand_dims({'level': [-1]})
+        
+        return MetDataset(plume_data)
+    
+    def anim_fl(self, fl_df: pd.DataFrame, pl_df: pd.DataFrame) -> None:
+        """Animate formation flight trajectories and associated plume dispersion/advection."""
+
+        fig1, ax1 = plt.subplots()
+
+        scat_fl = ax1.scatter([], [], s=5, c="red", label="Flight path")
+        scat_pl = ax1.scatter([], [], s=0.1, c="blue", label="Plume evolution")
+        ax1.legend(loc="upper left")
+        ax1.set_xlim([self.chem_params["lon_bounds"][0], self.chem_params["lon_bounds"][1]])
+        ax1.set_ylim([self.chem_params["lat_bounds"][0], self.chem_params["lat_bounds"][1]])
+
+        fl_frames = fl_df.groupby(fl_df["time"].dt.ceil(self.plume_params["dt_integration"]))
+        pl_frames = pl_df.groupby(pl_df["time"].dt.ceil(self.plume_params["dt_integration"]))
+
+        times = pl_frames.indices
+
+        def animate(t):
+            ax1.set_title(f"Time: {t}")
+
+            try:
+                group = fl_frames.get_group(t)
+            except KeyError:
+                offsets = [[None, None]]
+            else:
+                offsets = group[["longitude", "latitude"]]
+        
+            scat_fl.set_offsets(offsets)
+
+            group = pl_frames.get_group(t)
+            offsets = group[["longitude", "latitude"]]
+            width = 10E-3 * group["width"]
+            scat_pl.set_offsets(offsets)
+            scat_pl.set_sizes(width)
+
+            return scat_fl, scat_pl
+        
+        plt.close()
+        anim = FuncAnimation(fig1, animate, frames=times)
+        filename = pathlib.Path("plumes.gif")
+        anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
+
+# functions used in flight gen
 def calc_heading(pl_df: pd.DataFrame) -> pd.DataFrame:
     """Calculate heading for each plume."""
     # Sort the dataframe by time and waypoint
@@ -284,3 +330,7 @@ def calc_continuous(plume: GeoVectorDataset):
     continuous[:-1] = same_flight & consecutive_waypoint
     continuous[-1] = False  # This fails if contrail is empty
     plume.update(continuous=continuous)  # overwrite continuous     
+
+
+
+
