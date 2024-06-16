@@ -14,7 +14,7 @@ import pandas as pd
 from pycontrails.physics import constants as c
 
 #: Path to the Poll-Schumann aircraft parameters CSV file.
-PS_FILE_PATH = pathlib.Path(__file__).parent / "static" / "ps-aircraft-params-20240417.csv"
+PS_FILE_PATH = pathlib.Path(__file__).parent / "static" / "ps-aircraft-params-20240524.csv"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -192,8 +192,23 @@ def _row_to_aircraft_engine_params(tup: Any) -> tuple[str, PSAircraftEngineParam
 
 
 @functools.cache
-def load_aircraft_engine_params() -> Mapping[str, PSAircraftEngineParams]:
-    """Extract aircraft-engine parameters for each aircraft type supported by the PS model."""
+def load_aircraft_engine_params(
+    engine_deterioration_factor: float = 0.025,
+) -> Mapping[str, PSAircraftEngineParams]:
+    """
+    Extract aircraft-engine parameters for each aircraft type supported by the PS model.
+
+    Parameters
+    ----------
+    engine_deterioration_factor: float
+        Account for "in-service" engine deterioration between maintenance cycles.
+        Default value reduces `eta_1` by 2.5%, which increases the fuel flow estimates by 2.5%.
+
+    Returns
+    -------
+    Mapping[str, PSAircraftEngineParams]
+        Aircraft-engine parameters for each aircraft type supported by the PS model.
+    """
     dtypes = {
         "ICAO": object,
         "Manufacturer": object,
@@ -239,6 +254,7 @@ def load_aircraft_engine_params() -> Mapping[str, PSAircraftEngineParams]:
     }
 
     df = pd.read_csv(PS_FILE_PATH, dtype=dtypes)
+    df["eta_1"] = df["eta_1"] * (1.0 - engine_deterioration_factor)
 
     return dict(_row_to_aircraft_engine_params(tup) for tup in df.itertuples(index=False))
 

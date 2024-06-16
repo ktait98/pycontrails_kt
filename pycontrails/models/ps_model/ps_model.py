@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import dataclasses
+import functools
+import pathlib
 from collections.abc import Mapping
 from typing import Any, NoReturn, overload
 
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 from overrides import overrides
 
 from pycontrails.core import flight
@@ -30,6 +33,9 @@ from pycontrails.utils.types import ArrayOrFloat
 
 # mypy: disable-error-code = "type-var, arg-type"
 
+#: Path to the Poll-Schumann aircraft parameters CSV file.
+PS_SYNONYM_FILE_PATH = pathlib.Path(__file__).parent / "static" / "ps-synonym-list-20240524.csv"
+
 
 @dataclasses.dataclass
 class PSFlightParams(AircraftPerformanceParams):
@@ -38,6 +44,13 @@ class PSFlightParams(AircraftPerformanceParams):
     #: Clip the ratio of the overall propulsion efficiency to the maximum propulsion
     #: efficiency to always exceed this value.
     eta_over_eta_b_min: float | None = 0.5
+
+    #: Account for "in-service" engine deterioration between maintenance cycles.
+    #: Default value is set to +2.5% increase in fuel consumption.
+    # Reference:
+    # Gurrola Arrieta, M.D.J., Botez, R.M. and Lasne, A., 2024. An Engine Deterioration Model for
+    # Predicting Fuel Consumption Impact in a Regional Aircraft. Aerospace, 11(6), p.426.
+    engine_deterioration_factor: float = 0.025
 
 
 class PSFlight(AircraftPerformance):
@@ -68,7 +81,10 @@ class PSFlight(AircraftPerformance):
         **params_kwargs: Any,
     ) -> None:
         super().__init__(met=met, params=params, **params_kwargs)
-        self.aircraft_engine_params = load_aircraft_engine_params()
+        self.aircraft_engine_params = load_aircraft_engine_params(
+            self.params["engine_deterioration_factor"]
+        )
+        self.synonym_dict = get_aircraft_synonym_dict_ps()
 
     def check_aircraft_type_availability(
         self, aircraft_type: str, raise_error: bool = True
@@ -92,7 +108,7 @@ class PSFlight(AircraftPerformance):
         KeyError
             raises KeyError if the aircraft type is not covered by database
         """
-        if aircraft_type in self.aircraft_engine_params:
+        if aircraft_type in self.aircraft_engine_params or aircraft_type in self.synonym_dict:
             return True
         if raise_error:
             msg = f"Aircraft type {aircraft_type} not covered by the PS model."
@@ -125,13 +141,15 @@ class PSFlight(AircraftPerformance):
             raise KeyError(msg) from exc
 
         try:
-            aircraft_params = self.aircraft_engine_params[aircraft_type]
+            atyp_ps = self.synonym_dict.get(aircraft_type) or aircraft_type
+            aircraft_params = self.aircraft_engine_params[atyp_ps]
         except KeyError as exc:
             msg = f"Aircraft type {aircraft_type} not covered by the PS model."
             raise KeyError(msg) from exc
 
         # Set flight attributes based on engine, if they aren't already defined
         self.source.attrs.setdefault("aircraft_performance_model", self.name)
+        self.source.attrs.setdefault("aircraft_type_ps", atyp_ps)
         self.source.attrs.setdefault("n_engine", aircraft_params.n_engine)
 
         self.source.attrs.setdefault("wingspan", aircraft_params.wing_span)
@@ -148,7 +166,7 @@ class PSFlight(AircraftPerformance):
 
         # Run the simulation
         aircraft_performance = self.simulate_fuel_and_performance(
-            aircraft_type=aircraft_type,
+            aircraft_type=atyp_ps,
             altitude_ft=self.source.altitude_ft,
             time=self.source["time"],
             true_airspeed=true_airspeed,
@@ -242,7 +260,7 @@ class PSFlight(AircraftPerformance):
 
         elif isinstance(time, np.ndarray):
             dt_sec = flight.segment_duration(time, dtype=altitude_ft.dtype)
-            rocd = flight.segment_rocd(dt_sec, altitude_ft)
+            rocd = flight.segment_rocd(dt_sec, altitude_ft, air_temperature)
             dv_dt = jet.acceleration(true_airspeed, dt_sec)
             theta = jet.climb_descent_angle(true_airspeed, rocd)
 
@@ -299,7 +317,7 @@ class PSFlight(AircraftPerformance):
 
         # Flight phase
         segment_duration = flight.segment_duration(time, dtype=altitude_ft.dtype)
-        rocd = flight.segment_rocd(segment_duration, altitude_ft)
+        rocd = flight.segment_rocd(segment_duration, altitude_ft, air_temperature)
 
         if correct_fuel_flow:
             flight_phase = flight.segment_phase(rocd, altitude_ft)
@@ -980,3 +998,20 @@ def fuel_flow_correction(
     descent = flight_phase == flight.FlightPhase.DESCENT
     ff_max[descent] = 0.3 * fuel_flow_max_sls
     return np.clip(fuel_flow, ff_min, ff_max)
+
+
+@functools.cache
+def get_aircraft_synonym_dict_ps() -> dict[str, str]:
+    """Read `ps-synonym-list-20240524.csv` from the static directory.
+
+    Returns
+    -------
+    dict[str, str]
+        Dictionary of the form ``{"icao_aircraft_type": "ps_aircraft_type"}``.
+    """
+    # get path to static PS synonym list
+    synonym_path = pathlib.Path(__file__).parent / "static" / "ps-synonym-list-20240524.csv"
+    df_atyp_icao_to_ps = pd.read_csv(
+        synonym_path, usecols=["ICAO Aircraft Code", "PS ATYP"], index_col=0
+    )
+    return df_atyp_icao_to_ps.squeeze("columns").to_dict()

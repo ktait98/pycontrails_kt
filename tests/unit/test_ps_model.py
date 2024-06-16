@@ -21,7 +21,7 @@ def test_aircraft_type_coverage() -> None:
     ps_model = ps.PSFlight()
 
     # There are currently 63 aircraft types supported by the PS model
-    assert len(ps_model.aircraft_engine_params) == 63
+    assert len(ps_model.aircraft_engine_params) == 67
 
     # Test PS model coverage: commonly used aircraft types
     aircraft_types = ["A320", "A332", "A359", "A388", "B737", "B763", "B77L", "B789"]
@@ -30,17 +30,30 @@ def test_aircraft_type_coverage() -> None:
         assert atyp in ps_model.aircraft_engine_params
 
     # Test unsupported aircraft types
-    aircraft_types = ["AT76", "E75L"]
+    aircraft_types = ["AT76", "GLEX"]
 
     for atyp in aircraft_types:
         with pytest.raises(KeyError, match=f"Aircraft type {atyp} not covered by the PS model."):
             ps_model.check_aircraft_type_availability(atyp)
 
 
+def test_synonym_list() -> None:
+    ps_model = ps.PSFlight()
+
+    # PS model now supports 102 aircraft types with the synonym list
+    assert len(ps_model.synonym_dict) == 102
+
+    # There are 67 unique aircraft types supported by the PS model
+    assert len(set(ps_model.synonym_dict.values())) == 67
+    assert len(ps_model.aircraft_engine_params) == len(set(ps_model.synonym_dict.values()))
+
+    # Check aircraft type availability
+    assert ps_model.check_aircraft_type_availability("C919")
+    assert ps_model.synonym_dict.get("C919") == "A20N"
+
+
 def test_derived_aircraft_engine_params() -> None:
-    """
-    Test derived aircraft-engine parameters for PS model.
-    """
+    """Test derived aircraft-engine parameters for PS model."""
     # Input parameters are for the following aircraft types: A320, A359
 
     # Test turbine entry temperature at maximum take-off rating
@@ -80,7 +93,7 @@ def test_ps_model() -> None:
     dv_dt = np.array([0.0, 0.0])
 
     # Extract aircraft properties for aircraft type
-    ps_model = ps.PSFlight()
+    ps_model = ps.PSFlight(params={"engine_deterioration_factor": 0.0})
     atyp_param = ps_model.aircraft_engine_params[aircraft_type_icao]
 
     # Test Reynolds Number
@@ -197,7 +210,7 @@ def test_mach_number_limits():
     )
 
     np.testing.assert_array_almost_equal(
-        mmax, [0.645, 0.703, 0.770, 0.84, 0.84, 0.84, 0.830], decimal=3
+        mmax, [0.645, 0.703, 0.770, 0.84, 0.84, 0.84, 0.84], decimal=3
     )
 
 
@@ -218,7 +231,7 @@ def test_thrust_coefficient_limits():
         air_temperature, mach_number, c_t_eta_b, atyp_param
     )
     np.testing.assert_array_almost_equal(
-        c_t_max_avail, [0.055, 0.050, 0.045, 0.041, 0.037], decimal=3
+        c_t_max_avail, [0.070, 0.065, 0.060, 0.055, 0.051], decimal=3
     )
 
 
@@ -367,13 +380,13 @@ def test_total_fuel_burn(load_factor: float) -> None:
     out = ps_model.eval(flight)
 
     if load_factor == 0.5:
-        assert out.attrs["total_fuel_burn"] == pytest.approx(4711, abs=1.0)
+        assert out.attrs["total_fuel_burn"] == pytest.approx(4966, abs=1.0)
     elif load_factor == 0.6:
-        assert out.attrs["total_fuel_burn"] == pytest.approx(4808, abs=1.0)
+        assert out.attrs["total_fuel_burn"] == pytest.approx(5288, abs=1.0)
     elif load_factor == 0.7:
-        assert out.attrs["total_fuel_burn"] == pytest.approx(4893, abs=1.0)
+        assert out.attrs["total_fuel_burn"] == pytest.approx(5434, abs=1.0)
     elif load_factor == 0.8:
-        assert out.attrs["total_fuel_burn"] == pytest.approx(4976, abs=1.0)
+        assert out.attrs["total_fuel_burn"] == pytest.approx(5549, abs=1.0)
     else:
         pytest.fail("Unexpected load factor")
 
@@ -468,14 +481,14 @@ def test_ps_grid_met_source(met_era5_fake: MetDataset) -> None:
 
     # Pin some output values
     abs = 1e-2
-    assert ds["fuel_flow"].min() == pytest.approx(0.56, abs=abs)
-    assert ds["fuel_flow"].max() == pytest.approx(0.78, abs=abs)
-    assert ds["fuel_flow"].mean() == pytest.approx(0.66, abs=abs)
+    assert ds["fuel_flow"].min() == pytest.approx(0.58, abs=abs)
+    assert ds["fuel_flow"].max() == pytest.approx(0.80, abs=abs)
+    assert ds["fuel_flow"].mean() == pytest.approx(0.68, abs=abs)
 
     abs = 1e-3
-    assert ds["engine_efficiency"].min() == pytest.approx(0.269, abs=abs)
-    assert ds["engine_efficiency"].max() == pytest.approx(0.279, abs=abs)
-    assert ds["engine_efficiency"].mean() == pytest.approx(0.275, abs=abs)
+    assert ds["engine_efficiency"].min() == pytest.approx(0.262, abs=abs)
+    assert ds["engine_efficiency"].max() == pytest.approx(0.272, abs=abs)
+    assert ds["engine_efficiency"].mean() == pytest.approx(0.269, abs=abs)
 
     abs = 1e3
     assert ds["aircraft_mass"].min() == pytest.approx(53000, abs=abs)

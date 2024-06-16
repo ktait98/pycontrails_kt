@@ -1,5 +1,32 @@
-
 # Changelog
+
+## v0.51.2
+
+### Features
+
+- Add functionality to automatically compare  simulated contrails from `cocip.Cocip` with GOES satellite imagery (`compare_cocip_with_goes`)
+
+### Internals
+
+- Fix documentation build in CI
+
+## v0.51.1
+
+### Breaking changes
+
+- Average fuel burn in the PS model is increased by 2.5\% unless `engine_deterioration_factor` is overriden.
+
+### Features
+
+- PS model: Support four aircraft types, including `E75L`, `E75S`, `E290`, and `E295`
+- PS model: Integrate `ps_synonym_list` to increase PS model aircraft type coverage to 102
+- PS model: Account for increase in fuel consumption due to engine deterioration between maintenance cycle
+
+### Internals
+
+- Calculate rate of climb and descent (ROCD) using hydrostatic equation to improve accuracy.
+- PS model: Move engine performance buffer from `c_t_available` to `tr_max`.
+- Set `tr_max` buffer to +20%, as recommended by Ian Poll.
 
 ## v0.51.0
 
