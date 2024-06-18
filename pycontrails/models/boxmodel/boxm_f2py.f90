@@ -1,8 +1,13 @@
 MODULE BOXM_F2PY
+    USE NETCDF
     IMPLICIT NONE
 
     INTEGER :: IOSTAT, MONTH_DUMMY
     REAL :: PPB, PI, TIME1, TSTORE
+
+    INTEGER :: NCID, DIMID_TIME, DIMID_CELL, DIMID_NS, DIMID_NPP, DIMID_NPC, DIMID_NTC, DIMID_NEMI
+    INTEGER :: VARID_Y, VARID_SZA, VARID_J, VARID_DJ, VARID_RC, VARID_EMI, VARID_TEMP, VARID_LEVEL, VARID_LON, VARID_LAT
+    INTEGER :: IERR
 
     ! DEFINE MET INPUTS
     CHARACTER(10) :: DATE
@@ -55,12 +60,12 @@ MODULE BOXM_F2PY
     
 CONTAINS
     ! PRE INTEGRATION
-    SUBROUTINE INIT(NCELL)
+    SUBROUTINE INIT(NCELL, NTS)
         IMPLICIT NONE
-        INTEGER :: NCELL
+        INTEGER :: NCELL, NTS
 
         ! DEFINE CONSTANTS
-        NS = 217
+        NS = 218
         NTC = 510
         NPC = 96
         NPP = 57
@@ -81,43 +86,6 @@ CONTAINS
         OPEN(UNIT=11, FILE='emi_df.csv', STATUS='OLD', ACTION='READ')
         READ(11, '(A)') EMI_HEADER
 
-        517 FORMAT(ES9.3, 50(",", ES16.9e3))
-        519 FORMAT(A, 52(",", A))
-        520 FORMAT(A, 22(",", A))
-        530 FORMAT(A, 4(",", A))
-        521 FORMAT(ES9.3, 4(",", ES16.9e3))
-
-        ! OPEN OUTPUT FILES
-        OPEN(15, FILE ='Y_F2PY.OUT', STATUS = 'UNKNOWN')
-        OPEN(16, FILE ='ZEN_F2PY.OUT', STATUS = 'UNKNOWN')
-        OPEN(17, FILE ='J_F2PY.OUT', STATUS = 'UNKNOWN')
-        OPEN(18, FILE ='DJ_F2PY.OUT', STATUS = 'UNKNOWN')
-        OPEN(19, FILE ='RC_F2PY.OUT', STATUS = 'UNKNOWN') 
-
-        WRITE(15,520) 'time', 'latitude', 'longitude', 'Y1', 'Y2', 'Y3', 'Y4', 'Y5', 'Y6', 'Y7', &
-        'Y8', 'Y9', 'Y10', 'Y11', 'Y12', 'Y13', 'Y14', 'Y15', 'Y16', 'Y17', 'Y18', 'Y19', 'Y20'
-
-        ! 'Y1', 'Y2', 'Y3', 'Y4', 'Y5', 'Y6', 'Y7', 'Y8', 'Y9', 'Y10', 'Y11', 'Y12', &
-        ! 'Y13', 'Y14', 'Y15', 'Y16', 'Y17', 'Y18', 'Y19', 'Y20', 'Y21', 'Y22', 'Y23', 'Y24', 'Y25', 'Y26', &
-        ! 'Y27', 'Y28', 'Y29', 'Y30', 'Y31', 'Y32', 'Y33', 'Y34', 'Y35', 'Y36', 'Y37', 'Y38', 'Y39', 'Y40', &
-        ! 'Y41', 'Y42', 'Y43', 'Y44', 'Y45', 'Y46', 'Y47', 'Y48', 'Y49', 'Y50'
-
-        WRITE(16,530) 'time', 'latitude', 'longitude', 'ZEN', 'TEMP'
-
-        WRITE(17,519) 'time', 'latitude', 'longitude', 'J1', 'J2', 'J3', 'J4', 'J5', 'J6', 'J7', 'J8', 'J9', 'J10', 'J11', &
-        'J12', 'J13','J14', 'J15', 'J16', 'J17', 'J18', 'J19', 'J20', 'J21', 'J22', 'J23', 'J24', 'J25', 'J26', &
-        'J27', 'J28', 'J29', 'J30', 'J31', 'J32', 'J33', 'J34', 'J35', 'J36', 'J37', 'J38', 'J39', 'J40', &
-        'J41', 'J42', 'J43', 'J44', 'J45', 'J46', 'J47', 'J48', 'J49', 'J50'
-
-        WRITE(18,519) 'time', 'latitude', 'longitude', 'DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6', 'DJ7', 'DJ8', 'DJ9', 'DJ10', &
-        'DJ11', 'DJ12', 'DJ13','DJ14', 'DJ15', 'DJ16', 'DJ17', 'DJ18', 'DJ19', 'DJ20', 'DJ21', 'DJ22', 'DJ23', 'DJ24', &
-        'DJ25', 'DJ26', 'DJ27', 'DJ28', 'DJ29', 'DJ30', 'DJ31', 'DJ32', 'DJ33', 'DJ34', 'DJ35', 'DJ36', 'DJ37', &
-        'DJ38', 'DJ39', 'DJ40', 'DJ41', 'DJ42', 'DJ43', 'DJ44', 'DJ45', 'DJ46', 'DJ47', 'DJ48', 'DJ49', 'DJ50'
-
-        WRITE(19,519) 'time', 'latitude', 'longitude', 'RC1', 'RC2', 'RC3', 'RC4', 'RC5', 'RC6', 'RC7', 'RC8', 'RC9', 'RC10', &
-        'RC11', 'RC12', 'RC13','RC14', 'RC15', 'RC16', 'RC17', 'RC18', 'RC19', 'RC20', 'RC21', 'RC22', 'RC23', 'RC24', &
-        'RC25', 'RC26', 'RC27', 'RC28', 'RC29', 'RC30', 'RC31', 'RC32', 'RC33', 'RC34', 'RC35', 'RC36', 'RC37', &
-        'RC38', 'RC39', 'RC40', 'RC41', 'RC42', 'RC43', 'RC44', 'RC45', 'RC46', 'RC47', 'RC48', 'RC49', 'RC50'
 
         ! ALLOCATE MET DATA STRUCTURE
         IF (.NOT. ALLOCATED(TEMP)) THEN
@@ -656,10 +624,107 @@ CONTAINS
             ALLOCATE(KMT17(NCELL))
             KMT17(:) = 0.0
         END IF
-       
-        DO CELL = 1,NCELL
-            
-        END DO
+  
+        ! DEFINE OUTPUT NC FILE
+        IERR = NF90_CREATE('chem.nc', NF90_CLOBBER, NCID)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, 'ERROR: CANNOT CREATE OUTPUT FILE'
+            STOP
+        END IF
+
+        ! DEFINE DIMS
+        IERR = NF90_DEF_DIM(NCID, 'time', NTS, DIMID_TIME)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, 'ERROR: CANNOT DEFINE TIME DIM'
+            STOP
+        END IF
+        IERR = NF90_DEF_DIM(NCID, 'cell', NCELL, DIMID_CELL)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, 'ERROR: CANNOT DEFINE CELL DIM'
+            STOP
+        END IF
+        IERR = NF90_DEF_DIM(NCID, 'species', NS, DIMID_NS)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, 'ERROR: CANNOT DEFINE NS DIM'
+            STOP
+        END IF
+        IERR = NF90_DEF_DIM(NCID, 'photol_params', NPP, DIMID_NPP)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, 'ERROR: CANNOT DEFINE NPP DIM'
+            STOP
+        END IF
+        IERR = NF90_DEF_DIM(NCID, 'photol_coeffs', NPC, DIMID_NPC)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, 'ERROR: CANNOT DEFINE NPC DIM'
+            STOP
+        END IF
+        IERR = NF90_DEF_DIM(NCID, 'therm_coeffs', NTC, DIMID_NTC)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, 'ERROR: CANNOT DEFINE NTC DIM'
+            STOP
+        END IF
+        IERR = NF90_DEF_DIM(NCID, 'emissions', NEMI, DIMID_NEMI)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, 'ERROR: CANNOT DEFINE NEMI DIM'
+            STOP
+        END IF
+
+
+        ! DEFINE VARS
+        IERR = NF90_DEF_VAR(NCID, 'level', NF90_DOUBLE, [DIMID_TIME, DIMID_CELL], VARID_LEVEL)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, 'ERROR: CANNOT DEFINE LEVEL VAR'
+            STOP
+        END IF
+        IERR = NF90_DEF_VAR(NCID, 'longitude', NF90_DOUBLE, [DIMID_TIME, DIMID_CELL], VARID_LON)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, 'ERROR: CANNOT DEFINE LON VAR'
+            STOP
+        END IF
+        IERR = NF90_DEF_VAR(NCID, 'latitude', NF90_DOUBLE, [DIMID_TIME, DIMID_CELL], VARID_LAT)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, 'ERROR: CANNOT DEFINE LAT VAR'
+            STOP
+        END IF
+        IERR = NF90_DEF_VAR(NCID, 'Y', NF90_DOUBLE, [DIMID_TIME, DIMID_CELL, DIMID_NS], VARID_Y)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, 'ERROR: CANNOT DEFINE Y VAR'
+            STOP
+        END IF
+        IERR = NF90_DEF_VAR(NCID, 'SZA', NF90_DOUBLE, [DIMID_TIME, DIMID_CELL], VARID_SZA)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, 'ERROR: CANNOT DEFINE SZA VAR'
+            STOP
+        END IF
+        IERR = NF90_DEF_VAR(NCID, 'J', NF90_DOUBLE, [DIMID_TIME, DIMID_CELL, DIMID_NPP], VARID_J)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, 'ERROR: CANNOT DEFINE J VAR'
+            STOP
+        END IF
+        IERR = NF90_DEF_VAR(NCID, 'DJ', NF90_DOUBLE, [DIMID_TIME, DIMID_CELL, DIMID_NPC], VARID_DJ)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, 'ERROR: CANNOT DEFINE DJ VAR'
+            STOP
+        END IF
+        IERR = NF90_DEF_VAR(NCID, 'RC', NF90_DOUBLE, [DIMID_TIME, DIMID_CELL, DIMID_NTC], VARID_RC)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, 'ERROR: CANNOT DEFINE RC VAR'
+            STOP
+        END IF
+        IERR = NF90_DEF_VAR(NCID, 'EMI', NF90_DOUBLE, [DIMID_TIME, DIMID_CELL, DIMID_NEMI], VARID_EMI)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, 'ERROR: CANNOT DEFINE EMI VAR'
+            STOP
+        END IF
+
+
+        ! END DEF
+        IERR = NF90_ENDDEF(NCID)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, trim(NF90_STRERROR(IERR))
+            PRINT *, 'ERROR: CANNOT END DEF'
+            STOP
+        END IF
 
     END SUBROUTINE INIT
 
@@ -699,45 +764,6 @@ CONTAINS
 
             READ(EMI_LINE, *) DATE, TIME, LEVEL(CELL), LON(CELL), LAT(CELL), &
             (EMI(CELL,S), S=1, NEMI)
-
-            ! ! INIT EMI
-            ! Y(CELL,4) = Y(CELL,4) + EMI(CELL,1)
-            ! Y(CELL,11) = Y(CELL,11) + EMI(CELL,2)
-            ! Y(CELL,39) = Y(CELL,39) + EMI(CELL,3)
-            ! Y(CELL,42) = Y(CELL,42) + EMI(CELL,4)
-            ! Y(CELL,73) = Y(CELL,73) + EMI(CELL,5)
-            ! Y(CELL,23) = Y(CELL,23) + EMI(CELL,6)
-            ! Y(CELL,30) = Y(CELL,30) + EMI(CELL,7)
-            ! Y(CELL,25) = Y(CELL,25) + EMI(CELL,8)
-            ! Y(CELL,32) = Y(CELL,32) + EMI(CELL,9)
-            ! Y(CELL,59) = Y(CELL,59) + EMI(CELL,10)
-            ! Y(CELL,61) = Y(CELL,61) + EMI(CELL,11)
-            ! Y(CELL,64) = Y(CELL,64) + EMI(CELL,12)
-            ! Y(CELL,71) = Y(CELL,71) + EMI(CELL,13)
-
-
-
-
-
-
-
-
-
-            ! READ MET DATA FOR CURRENT TS
-            ! READ(9, '(A)') MET_LINE
-            ! READ(MET_LINE, *) DATE, TIME, LEVEL(CELL), LON(CELL), LAT(CELL), TEMP(CELL), SPEC_HUM(CELL), &   
-            ! U_WIND, V_WIND, VERT_V, SHEAR, GEO, &
-            ! REL_HUM(CELL), PRESSURE(CELL), ALT(CELL), M(CELL), H2O(CELL), O2(CELL), &
-            ! N2(CELL), SZA(CELL)
-
-            ! ! SET PREVIOUS EMI TO EMIP
-            ! EMIP(CELL,:) = EMI(CELL,:)
-            
-            ! ! READ EMI DATA FOR CURRENT TS
-            ! READ(11, '(A)') EMI_LINE
-            ! READ(EMI_LINE, *) DATE, TIME, LON(CELL), LAT(CELL), (EMI(CELL,S), S=1, NEMI)
-        
-            ! EMI(CELL,:) = EMI(CELL,:) * PPB
 
         END DO
     END SUBROUTINE READ
@@ -5161,66 +5187,38 @@ CONTAINS
 
     END SUBROUTINE DERIV
 
-    SUBROUTINE WRITE(DTS, NCELL)
+    SUBROUTINE WRITE(TS, DTS, NCELL)
         IMPLICIT NONE
         REAL :: DTS
-        INTEGER :: NCELL, PP, PC, TC, S
+        INTEGER :: TS, NCELL, PP, PC, TC, S
 
-        517 FORMAT(ES9.3, 2(",", F6.3), 50(",", ES16.9e3))
-        519 FORMAT(A, 50(",", A))
-        520 FORMAT(A, 4(",", A))
-        521 FORMAT(ES9.3, 2(",", F6.3), 2(",", ES16.9e3))
-        522 FORMAT(ES9.3, 2(",", F6.3), 20(",", ES19.9e3))
-        
         PI = 4.0*ATAN(1.0)
         
-        ! WRITE OUTPUT TO FILE
-        DO CELL = 1,NCELL
+        TS = TS + 1
 
-            WRITE(15,522) TIME1,LAT(CELL),LON(CELL),(Y(CELL,S)/M(CELL)*1.0E9, S=1,20)
-            WRITE(16, 521) TIME1,LAT(CELL),LON(CELL),SZA(CELL)*(180/PI),TEMP(CELL)
-            WRITE(17, 517) TIME1,LAT(CELL), LON(CELL),(J(CELL,PP), PP=1,50)
-            WRITE(18, 517) TIME1,LAT(CELL), LON(CELL),(DJ(CELL,PC),PC=1,50)
-            WRITE(19, 517) TIME1,LAT(CELL), LON(CELL),(RC(CELL,TC),TC=1,50)
-
-        END DO
+        IERR = NF90_PUT_VAR(NCID, VARID_LEVEL, LEVEL(:), START=[TS, 1], COUNT=[1, NCELL])
+        IERR = NF90_PUT_VAR(NCID, VARID_LON, LON(:), START=[TS, 1], COUNT=[1, NCELL])
+        IERR = NF90_PUT_VAR(NCID, VARID_LAT, LAT(:), START=[TS, 1], COUNT=[1, NCELL])
+        IERR = NF90_PUT_VAR(NCID, VARID_Y, Y(:, :), START=[TS, 1, 1], COUNT=[1, NCELL, NS])
+        IERR = NF90_PUT_VAR(NCID, VARID_SZA, SZA(:), START=[TS, 1], COUNT=[1, NCELL])
+        IERR = NF90_PUT_VAR(NCID, VARID_J, J(:, :), START=[TS, 1, 1], COUNT=[1, NCELL, 20])
+        IERR = NF90_PUT_VAR(NCID, VARID_DJ, DJ(:, :), START=[TS, 1, 1], COUNT=[1, NCELL, 20])
+        IERR = NF90_PUT_VAR(NCID, VARID_RC, RC(:, :), START=[TS, 1, 1], COUNT=[1, NCELL, 20])
+        IERR = NF90_PUT_VAR(NCID, VARID_EMI, EMI(:, :), START=[TS, 1, 1], COUNT=[1, NCELL, NEMI])
 
         TIME1 = TIME1 + DTS
 
-        ! IF(TSTORE.LT.1.0.OR.(TIME1-TSTORE).EQ.(600-DTS)) THEN
-        !     ! WRITE OUTPUT TO FILE
-        !     DO CELL = 1,NCELL
-
-        !         WRITE(15,522) TIME1,LAT(CELL),LON(CELL),(Y(CELL,S)/M(CELL)*1.0E9, S=1,20)
-        !         WRITE(16, 521) TIME1,LAT(CELL),LON(CELL),SZA(CELL)*(180/PI),TEMP(CELL)
-        !         WRITE(17, 517) TIME1,LAT(CELL), LON(CELL),(J(CELL,PP), PP=1,50)
-        !         WRITE(18, 517) TIME1,LAT(CELL), LON(CELL),(DJ(CELL,PC),PC=1,50)
-        !         WRITE(19, 517) TIME1,LAT(CELL), LON(CELL),(RC(CELL,TC),TC=1,50)
-
-        !     END DO
-
-            
-        !     TIME1 = TIME1 + DTS
-        !     TSTORE = TIME1
-        ! ELSE
-        !     TIME1 = TIME1 + DTS
-        ! END IF
- 
     END SUBROUTINE WRITE
     
     ! POST INTEGRATION
     SUBROUTINE DEALLOCATE
         IMPLICIT NONE
-
+        
+        IERR = NF90_CLOSE(NCID)
         ! CLOSE FILES
         CLOSE(9)
         CLOSE(10)
         CLOSE(11)
-        CLOSE(15)
-        CLOSE(16)
-        CLOSE(17)
-        CLOSE(18)
-        CLOSE(19)
 
     END SUBROUTINE DEALLOCATE
 

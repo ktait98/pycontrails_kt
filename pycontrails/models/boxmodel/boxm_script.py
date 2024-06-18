@@ -37,7 +37,7 @@ met_params = {
 
 # flight trajectory parameters
 fl_params = {
-    "t0_fl": pd.to_datetime("2022-03-02 14:00:00"),  # flight start time
+    "t0_fl": pd.to_datetime("2022-03-02 08:00:00"),  # flight start time
     "rt_fl": pd.Timedelta(minutes=30),  # flight run time
     "ts_fl": pd.Timedelta(minutes=2),  # flight time step
     "ac_type": "A320",  # aircraft type
@@ -59,14 +59,14 @@ plume_params = {
 
 # chemistry sim parameters
 chem_params = {
-    "t0_chem": pd.to_datetime("2022-03-01 21:00:00"),  # chemistry start time
+    "t0_chem": pd.to_datetime("2022-03-02 07:00:00"),  # chemistry start time
     "rt_chem": pd.Timedelta(days=1),  # chemistry runtime
     "ts_chem": pd.Timedelta(minutes=5),  # chemistry time step
     "lat_bounds": (-1.0, 0.0),  # lat bounds [deg]
     "lon_bounds": (-1.0, 0.0),  # lon bounds [deg]
     "alt_bounds": (11000, 12500),  # alt bounds [m]
-    "hres_chem": 0.1,  # horizontal resolution [deg]
-    "vres_chem": 100,  # vertical resolution [m]
+    "hres_chem": 0.2,  # horizontal resolution [deg]
+    "vres_chem": 500,  # vertical resolution [m]
 }
 
 # create lists for lats, lons, alts, and times based on chem params
@@ -132,11 +132,9 @@ emi = fl_gen.plume_to_grid()
 # init boxm simulation and generate chemistry dataset
 boxm = Boxm(met=met, params=chem_params)
 
-print(boxm.bg_chem)
-
 # run boxm simulation
-
 chem = boxm.eval(emi)
+#chem.to_netcdf("chem.nc")
 
 
 

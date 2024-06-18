@@ -106,7 +106,9 @@ class Boxm(Model):
 
         self.process_datasets()
         self.to_csvs()
-        self.run_boxm()
+        chem = self.run_boxm()
+
+        return chem
 
     def process_datasets(self):
         met = self.met
@@ -165,7 +167,7 @@ class Boxm(Model):
         )
         bg_chem_df["latitude"] = bg_chem_df["latitude"].map("{:+08.3f}".format, meta=('latitude', 'object'))
         bg_chem_df["longitude"] = bg_chem_df["longitude"].map("{:+08.3f}".format, meta=('longitude', 'object'))
-        bg_chem_df["month"] = bg_chem_df["month"].map("{:02d}".format)
+        bg_chem_df["month"] = bg_chem_df["month"].map("{:02d}".format, meta=('month', 'object'))
         bg_chem_df = bg_chem_df.apply(
             (lambda x: x.map("{:0.3e}".format) if x.dtype in ["float32", "float64"] else x), axis=1,
             meta={col: 'object' if dtype in ["float32", "float64"] else dtype for col, dtype in bg_chem_df.dtypes.items()}
@@ -213,12 +215,14 @@ class Boxm(Model):
         nts = len(self.met["time"]) - 1
 
         dts = self.params["ts_chem"].total_seconds()
-        
-        boxm_f2py.boxm_f2py.init(ncell)
 
-        for t in range(nts):
+        print(ncell, nts, dts)
+        
+        boxm_f2py.boxm_f2py.init(ncell, nts)
+
+        for ts in range(nts):
             # if t*dts % 3600 == 0:
-            print("Time: ", t)
+            print("Time: ", self.met["time"].data[ts].values)
 
             boxm_f2py.boxm_f2py.read(ncell)
             boxm_f2py.boxm_f2py.calc_aerosol()
@@ -226,15 +230,27 @@ class Boxm(Model):
             boxm_f2py.boxm_f2py.calc_j(ncell)
             boxm_f2py.boxm_f2py.photol()
 
-            if t != 0:
+            if ts != 0:
                 boxm_f2py.boxm_f2py.deriv(dts)
 
-            boxm_f2py.boxm_f2py.write(dts, ncell)
+            boxm_f2py.boxm_f2py.write(ts, dts, ncell)
 
         boxm_f2py.boxm_f2py.deallocate()
 
-        # generate empty chemdataset
-        chem = xr.Dataset(
+        # open chem dataset
+        chem = xr.open_dataset("/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/chem.nc")
+
+        # # convert lat lon to coords
+        # chem.set_coords(("level", "longitude", "latitude"))
+
+        # chem.assign_coords(
+        #     {"time": self.met["time"].data.values[:chem.dims["time"]],
+        #     "level": self.met["level"].data.values,
+        #     "longitude": self.met["longitude"].data.values,
+        #     "latitude": self.met["latitude"].data.values}
+        # )
+
+        return chem
             
 
     # animate chemdataset
@@ -263,7 +279,7 @@ class Boxm(Model):
 
         anim = FuncAnimation(fig, heatmap_func, frames = times, blit = False)
 
-        filename = pathlib.Path("plume" + repr(i) + ".gif")
+        filename = pathlib.Path("plume.gif")
     
         anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
 
