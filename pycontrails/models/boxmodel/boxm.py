@@ -3,18 +3,16 @@
 from __future__ import annotations
 
 import os
+import pathlib
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
-import sys
-import pathlib
-import numpy as np
-import pandas as pd
-import xarray as xr
+
 import matplotlib.pyplot as plt
+import numpy as np
+import xarray as xr
 from matplotlib.animation import FuncAnimation, PillowWriter
 
-from pycontrails.models.boxmodel import boxm_f2py
 from pycontrails.core.met import MetDataArray, MetDataset
 from pycontrails.core.met_var import (
     AirPressure,
@@ -25,7 +23,8 @@ from pycontrails.core.met_var import (
     SpecificHumidity,
 )
 from pycontrails.core.models import Model, ModelParams
-from pycontrails.physics import constants, geo, units
+from pycontrails.models.boxmodel import boxm_f2py
+from pycontrails.physics import constants, geo
 
 
 @dataclass
@@ -69,7 +68,7 @@ class Boxm(Model):
     def __init__(
         self,
         met: MetDataset,
-        #bg_chem: MetDataset,
+        # bg_chem: MetDataset,
         params: dict[str, Any] | None = None,
         **params_kwargs: Any,
     ) -> None:
@@ -80,7 +79,7 @@ class Boxm(Model):
         # check if met and chem datasets are provided
         if met:
             self.met = met
-        
+
         # if bg_chem:
         #     self.bg_chem = bg_chem
         # else:
@@ -114,7 +113,7 @@ class Boxm(Model):
         met = self.met
 
         """Process the met, bg_chem, and emi datasets to prepare them for the box model."""
-        
+
         # chunk met and emi data
         self.met.data = self.met.data.chunk(
             {"longitude": "auto", "latitude": "auto", "level": "auto", "time": "auto"}
@@ -127,21 +126,24 @@ class Boxm(Model):
         met = calc_M_H2O(met)
 
         print(met["time"].data)
-        met.data["sza"] = (('latitude', 'longitude', 'time'), calc_sza(met["latitude"].data, met["longitude"].data, met["time"].data))
+        met.data["sza"] = (
+            ("latitude", "longitude", "time"),
+            calc_sza(met["latitude"].data, met["longitude"].data, met["time"].data),
+        )
 
         # interpolate and downselect bg_chem to chem grid
         self.bg_chem = self.bg_chem.interp(
-            longitude=met["longitude"].data,  
-            latitude=met["latitude"].data, 
-            level=met["level"].data, 
-            method="linear"
+            longitude=met["longitude"].data,
+            latitude=met["latitude"].data,
+            level=met["level"].data,
+            method="linear",
         )
 
         # interpolate and downselect emi to chem grid
         self.source.data = self.source.data.interp(
-            longitude=met["longitude"].data,  
-            latitude=met["latitude"].data, 
-            level=met["level"].data, 
+            longitude=met["longitude"].data,
+            latitude=met["latitude"].data,
+            level=met["level"].data,
             time=met["time"].data,
             method="linear",
         )
@@ -152,40 +154,62 @@ class Boxm(Model):
         met_df = self.met.data.to_dask_dataframe(
             dim_order=["time", "level", "longitude", "latitude"]
         )
-        met_df["latitude"] = met_df["latitude"].map("{:+08.3f}".format, meta=('latitude', 'object'))
-        met_df["longitude"] = met_df["longitude"].map("{:+08.3f}".format, meta=('longitude', 'object'))
-        met_df["sza"] = met_df["sza"].map("{:+0.3e}".format, meta=('sza', 'object'))
-        met_df = met_df.apply(
-            (lambda x: x.map("{:0.3e}".format) if x.dtype in ["float32", "float64"] else x), axis=1, 
-            meta={col: 'object' if dtype in ["float32", "float64"] else dtype for col, dtype in met_df.dtypes.items()}
+        met_df["latitude"] = met_df["latitude"].map("{:+08.3f}".format, meta=("latitude", "object"))
+        met_df["longitude"] = met_df["longitude"].map(
+            "{:+08.3f}".format, meta=("longitude", "object")
         )
-        
+        met_df["sza"] = met_df["sza"].map("{:+0.3e}".format, meta=("sza", "object"))
+        met_df = met_df.apply(
+            (lambda x: x.map("{:0.3e}".format) if x.dtype in ["float32", "float64"] else x),
+            axis=1,
+            meta={
+                col: "object" if dtype in ["float32", "float64"] else dtype
+                for col, dtype in met_df.dtypes.items()
+            },
+        )
+
         # met_df = met_df.drop(columns=['air_pressure', 'altitude'])
 
-        bg_chem_df = self.bg_chem.to_dask_dataframe(
-            dim_order=["level", "longitude", "latitude"]
+        bg_chem_df = self.bg_chem.to_dask_dataframe(dim_order=["level", "longitude", "latitude"])
+        bg_chem_df["latitude"] = bg_chem_df["latitude"].map(
+            "{:+08.3f}".format, meta=("latitude", "object")
         )
-        bg_chem_df["latitude"] = bg_chem_df["latitude"].map("{:+08.3f}".format, meta=('latitude', 'object'))
-        bg_chem_df["longitude"] = bg_chem_df["longitude"].map("{:+08.3f}".format, meta=('longitude', 'object'))
-        bg_chem_df["month"] = bg_chem_df["month"].map("{:02d}".format, meta=('month', 'object'))
+        bg_chem_df["longitude"] = bg_chem_df["longitude"].map(
+            "{:+08.3f}".format, meta=("longitude", "object")
+        )
+        bg_chem_df["month"] = bg_chem_df["month"].map("{:02d}".format, meta=("month", "object"))
         bg_chem_df = bg_chem_df.apply(
-            (lambda x: x.map("{:0.3e}".format) if x.dtype in ["float32", "float64"] else x), axis=1,
-            meta={col: 'object' if dtype in ["float32", "float64"] else dtype for col, dtype in bg_chem_df.dtypes.items()}
+            (lambda x: x.map("{:0.3e}".format) if x.dtype in ["float32", "float64"] else x),
+            axis=1,
+            meta={
+                col: "object" if dtype in ["float32", "float64"] else dtype
+                for col, dtype in bg_chem_df.dtypes.items()
+            },
         )
 
-        bg_chem_df = bg_chem_df.drop(columns=['time', 'air_pressure', 'altitude'])
+        bg_chem_df = bg_chem_df.drop(columns=["time", "air_pressure", "altitude"])
 
         emi_df = self.source.data.to_dask_dataframe(
-            dim_order=["time", "level", "longitude", "latitude", ]
+            dim_order=[
+                "time",
+                "level",
+                "longitude",
+                "latitude",
+            ]
         ).fillna(0)
-        emi_df["latitude"] = emi_df["latitude"].map("{:+08.3f}".format, meta=('latitude', 'object'))
-        emi_df["longitude"] = emi_df["longitude"].map("{:+08.3f}".format, meta=('longitude', 'object'))
-        emi_df = emi_df.apply(
-            (lambda x: x.map("{:0.3e}".format) if x.dtype in ["float32", "float64"] else x), axis=1,
-            meta={col: 'object' if dtype in ["float32", "float64"] else dtype for col, dtype in
-        emi_df.dtypes.items()}
+        emi_df["latitude"] = emi_df["latitude"].map("{:+08.3f}".format, meta=("latitude", "object"))
+        emi_df["longitude"] = emi_df["longitude"].map(
+            "{:+08.3f}".format, meta=("longitude", "object")
         )
-        emi_df = emi_df.drop(columns=['air_pressure', 'altitude'])
+        emi_df = emi_df.apply(
+            (lambda x: x.map("{:0.3e}".format) if x.dtype in ["float32", "float64"] else x),
+            axis=1,
+            meta={
+                col: "object" if dtype in ["float32", "float64"] else dtype
+                for col, dtype in emi_df.dtypes.items()
+            },
+        )
+        emi_df = emi_df.drop(columns=["air_pressure", "altitude"])
 
         path = "/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/"
 
@@ -208,16 +232,14 @@ class Boxm(Model):
 
     def run_boxm(self):
         """Run the box model in fortran using f2py interface."""
-        ncell = (
-            len(self.met["latitude"]) * len(self.met["longitude"]) * len(self.met["altitude"])
-        )
+        ncell = len(self.met["latitude"]) * len(self.met["longitude"]) * len(self.met["altitude"])
 
         nts = len(self.met["time"]) - 1
 
         dts = self.params["ts_chem"].total_seconds()
 
         print(ncell, nts, dts)
-        
+
         boxm_f2py.boxm_f2py.init(ncell, nts)
 
         for ts in range(nts):
@@ -240,48 +262,45 @@ class Boxm(Model):
         # open chem dataset
         chem = xr.open_dataset("/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/chem.nc")
 
-        # # convert lat lon to coords
-        # chem.set_coords(("level", "longitude", "latitude"))
+        # convert lat lon to coords
+        # chem = chem.set_coords(("level", "longitude", "latitude"))
 
-        # chem.assign_coords(
-        #     {"time": self.met["time"].data.values[:chem.dims["time"]],
-        #     "level": self.met["level"].data.values,
-        #     "longitude": self.met["longitude"].data.values,
-        #     "latitude": self.met["latitude"].data.values}
-        # )
+        chem = chem.assign_coords(
+            time=self.met["time"].data.values[:chem.dims["time"]],
+            level=chem.level,
+            longitude=chem.longitude,
+            latitude=chem.latitude
+
+            # "level": self.met["level"].data.values,
+            # "longitude": self.met["longitude"].data.values,
+            # "latitude": self.met["latitude"].data.values}
+        )
 
         return chem
-            
 
     # animate chemdataset
     def anim_chem(self, mda: MetDataArray):
         """Animate the chemical concentrations."""
-        fig, (ax, cbar_ax) = plt.subplots(1,
-                                        2,
-                                        gridspec_kw = {'width_ratios': (0.9, 0.05), 
-                                                        'wspace': 0.2}, 
-                                        figsize = (12, 8)
-                                        )
-        
+        fig, (ax, cbar_ax) = plt.subplots(
+            1, 2, gridspec_kw={"width_ratios": (0.9, 0.05), "wspace": 0.2}, figsize=(12, 8)
+        )
+
         times = list(self.chem["time"])
-        
+
         def heatmap_func(t):
             ax.cla()
             ax.set_title(t)
 
             mda.sel(time=t).transpose("latitude", "longitude").plot(
-            ax = ax,
-            cbar_ax = cbar_ax,
-            add_colorbar = True,
-            vmin = mda.min(),
-            vmax = mda.max()
+                ax=ax, cbar_ax=cbar_ax, add_colorbar=True, vmin=mda.min(), vmax=mda.max()
             )
 
-        anim = FuncAnimation(fig, heatmap_func, frames = times, blit = False)
+        anim = FuncAnimation(fig, heatmap_func, frames=times, blit=False)
 
         filename = pathlib.Path("plume.gif")
-    
+
         anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
+
 
 # functions used in boxm
 def calc_sza(latitudes, longitudes, timesteps):
@@ -297,6 +316,7 @@ def calc_sza(latitudes, longitudes, timesteps):
                 geo.cosine_solar_zenith_angle(lonval, latval, timesteps, theta_rad)
             )
     return sza
+
 
 # calculate number density of air molecules and H2O
 def calc_M_H2O(met):
@@ -321,6 +341,7 @@ def calc_M_H2O(met):
 
     return met
 
+
 # grab bg chem data
 def grab_bg_chem(met):
     # month = met["time"].data[0].astype("datetime64[M]").astype(int) % 12 + 1
@@ -328,24 +349,53 @@ def grab_bg_chem(met):
 
     month = met["time"].data[0].dt.month
 
-    bg_chem = xr.open_dataset("/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/species.nc").sel(month=month-1)
+    bg_chem = xr.open_dataset(
+        "/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/species.nc"
+    ).sel(month=month - 1)
 
-    species = np.loadtxt("/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/species_num.txt", dtype=str)
+    species = np.loadtxt(
+        "/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/species_num.txt", dtype=str
+    )
 
-    species_nums = [4,8,6,11,21,39,42,73,23,30,25,32,59,28,34,61,64,67,43,12,14,71,76,101,144,198,202]
+    species_nums = [
+        4,
+        8,
+        6,
+        11,
+        21,
+        39,
+        42,
+        73,
+        23,
+        30,
+        25,
+        32,
+        59,
+        28,
+        34,
+        61,
+        64,
+        67,
+        43,
+        12,
+        14,
+        71,
+        76,
+        101,
+        144,
+        198,
+        202,
+    ]
     all_nums = set(range(1, 219))  # Generate all numbers from 1 to 220
-    
-    missing_nums = (all_nums - set(species_nums))
-    missing_nums = [x - 1 for x in missing_nums]
-    
-    for i in missing_nums:
-            bg_chem[species[i]] = 0
 
-    bg_chem = bg_chem * 1E+09 # convert mixing ratio to ppb
-    
+    missing_nums = all_nums - set(species_nums)
+    missing_nums = [x - 1 for x in missing_nums]
+
+    for i in missing_nums:
+        bg_chem[species[i]] = 0
+
+    bg_chem = bg_chem * 1e09  # convert mixing ratio to ppb
+
     print(bg_chem)
 
     return bg_chem
-
-
-

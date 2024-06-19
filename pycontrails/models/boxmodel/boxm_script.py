@@ -1,29 +1,20 @@
+import dask.array as da
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import xarray as xr
-import dask.array as da
-import pyproj
-pd.set_option("display.max_rows", 200)
-import pdb
 
-from pycontrails import Flight, Fleet, MetDataset
-from pycontrails.core import datalib, models
-from pycontrails.datalib.ecmwf import ERA5
-from pycontrails.physics import geo, thermo, units, constants
-#from pycontrails.models.ps_model import PSFlight 
-#from pycontrails.models.emissions import Emissions
+pd.set_option("display.max_rows", 200)
+
+from pycontrails import MetDataset
+
+# from pycontrails.models.ps_model import PSFlight
+# from pycontrails.models.emissions import Emissions
 from pycontrails.ext.flight_gen import FlightGen
 from pycontrails.models.boxmodel.boxm import Boxm
-#from pycontrails.models.dry_advection import DryAdvection
-from pycontrails.core.met_var import (
-    AirTemperature,
-    RelativeHumidity,
-    SpecificHumidity,
-    EastwardWind,
-    NorthwardWind,
-    VerticalVelocity,
-)
+from pycontrails.physics import units
+
+# from pycontrails.models.dry_advection import DryAdvection
 
 # meteorological parameters
 met_params = {
@@ -50,11 +41,11 @@ fl_params = {
 
 # plume dispersion parameters
 plume_params = {
-    "dt_integration": pd.Timedelta(minutes=5), # integration time step
-    "max_age": pd.Timedelta(hours=0.25), # maximum age of the plume
+    "dt_integration": pd.Timedelta(minutes=5),  # integration time step
+    "max_age": pd.Timedelta(hours=0.25),  # maximum age of the plume
     "depth": 50.0,  # initial plume depth, [m]
     "width": 40.0,  # initial plume width, [m]
-    "shear": 0.005 # wind shear [1/s]
+    "shear": 0.005,  # wind shear [1/s]
 }
 
 # chemistry sim parameters
@@ -102,7 +93,8 @@ data_vars = {
 }
 
 met = xr.Dataset(
-    data_vars, coords={"longitude": lons, "latitude": lats, "level": units.m_to_pl(alts), "time": times}
+    data_vars,
+    coords={"longitude": lons, "latitude": lats, "level": units.m_to_pl(alts), "time": times},
 )
 
 met = MetDataset(met)
@@ -126,7 +118,7 @@ flights = fl_gen.calc_fb_emissions()
 # simulate plume dispersion/advection using dry advection model
 pl_df = fl_gen.sim_plumes()
 
-# convert plume dataframe to EMI geospatial xarray dataset 
+# convert plume dataframe to EMI geospatial xarray dataset
 emi = fl_gen.plume_to_grid()
 
 # init boxm simulation and generate chemistry dataset
@@ -134,7 +126,4 @@ boxm = Boxm(met=met, params=chem_params)
 
 # run boxm simulation
 chem = boxm.eval(emi)
-#chem.to_netcdf("chem.nc")
-
-
-
+chem.to_netcdf("chem.nc")
