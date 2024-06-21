@@ -1,14 +1,53 @@
 # Changelog
 
+## v0.52.0
+
+### Breaking changes
+
+- The `_antimeridian_index` helper method in the `flight` module now returns a list of integers rather than an integer. This allows `Flight.to_geojson_multilinestring` to support multiple antimeridian crossings (see below).
+
+### Features
+
+- Add tools for running [APCEMM](https://github.com/MIT-LAE/APCEMM) from within pycontrails. This includes:
+    - utilities for generating APCEMM input files and running APCEMM (`pycontrails.models.apcemm.utils`)
+    - an interface (`pycontrails.models.apcemm.apcemm`) that allows users to run APCEMM as a pycontrails `Model`.
+- Add [APCEMM tutorial notebook](https://py.contrails.org/integrations/APCEMM.html).
+- Add prescribed sedimentation rate to `DryAdvection` model.
+- Add `Landsat` and `Sentinel` datalibs for searching, retrieving, and visualizing Landsat 8-9 and Sentinel-2 imagery. The datalibs include:
+    - Tools for querying Landsat and Sentinel-2 imagery for intersections with user-defined regions (`landsat.query`, `sentinel.query`) or flights (`landsat.intersect`, `sentinel.intersect`). These tools use BigQuery tables and require a Google Cloud Platform account with access to the BigQuery API.
+    - Tools for downloading and visualizing imagery from Landsat (`Landsat`) and Sentinel-2 (`Sentinel`). These tools retrieve data anonymously from Google Cloud Platform storage buckets and can be used without a Google Cloud Platform account.
+- Add tutorial notebooks demonstrating how to use `Landsat` and `Sentinel` datalibs to find flights in high-resolution satellite imagery.
+- Modify `Flight.to_geojson_multilinestring` to make grouping key optional and to support multiple antimeridian crossings.
+- Update the `pycontrails` build system to require `numpy 2.0` per the [official numpy guidelines](https://numpy.org/devdocs/dev/depending_on_numpy.html#numpy-2-0-specific-advice). Note that the runtime requirement for `pycontrails` remains `numpy>=1.22`.
+- Update `pycontrails` for breaking changes introduced in `numpy 2.0` (e.g., [NEP 50](https://numpy.org/neps/nep-0050-scalar-promotion.html)). All changes are backward compatible with `numpy>=1.22`.
+
+### Fixes
+
+- Ensure width and depth are never attached to `DryAdvection` source when running pointwise-only model.
+- Ensure that azimuth is not dropped when present in `DryAdvection` input source.
+- Exclude netCDF version 1.7.0, which causes non-deterministic failures in unit tests primarily due to segmentation faults.
+- Pin numpy to 1.x in runtime dependencies until a working numpy 2.x-compatible netCDF4 release is available.
+
+### Internals
+
+- Create unit tests for the `APCEMM` interface that run if an `APCEMM` executable is found on the `PATH` inside a clean APCEMM git repository with a pinned git hash. These tests will be skipped unless users carefully configure their local test environment and will not run in CI.
+- Exclude APCEMM tutorial notebook from notebook tests.
+- Add unit tests for Landsat and Sentinel search tools and datalibs, but disable any tests that retrieve imagery data when running tests in GitHub Actions to limit resource consumption in GitHub runners. Users can disable these units tests locally by setting the environment variable `GITHUB_ACTIONS=true`.
+- Ensure `GITHUB_ACTIONS` environment variable is available when building and testing wheels on linux.
+- Skip cells that retrieve imagery data when running tests on Landsat and Sentinel tutorial notebooks.
+- Add tests for `Flight.to_geojson_multilinestring` with grouping key omitted and update tests with multiple antimeridian crossings.
+- Minimum pandas version is bumped to 2.2 to ensure the the `include_groups` keyword argument used in `Flight.to_geojson_multilinestring` is available.
+- Upgrade minimum `mypy` dependencies
+
 ## v0.51.2
 
 ### Features
 
-- Add functionality to automatically compare  simulated contrails from `cocip.Cocip` with GOES satellite imagery (`compare_cocip_with_goes`)
+- Add functionality to automatically compare  simulated contrails from `cocip.Cocip` with GOES satellite imagery (`compare_cocip_with_goes`).
 
 ### Internals
 
-- Fix documentation build in CI
+- Fix documentation build in CI.
 
 ## v0.51.1
 
@@ -18,9 +57,9 @@
 
 ### Features
 
-- PS model: Support four aircraft types, including `E75L`, `E75S`, `E290`, and `E295`
-- PS model: Integrate `ps_synonym_list` to increase PS model aircraft type coverage to 102
-- PS model: Account for increase in fuel consumption due to engine deterioration between maintenance cycle
+- PS model: Support four aircraft types, including `E75L`, `E75S`, `E290`, and `E295`.
+- PS model: Integrate `ps_synonym_list` to increase PS model aircraft type coverage to 102.
+- PS model: Account for increase in fuel consumption due to engine deterioration between maintenance cycle.
 
 ### Internals
 

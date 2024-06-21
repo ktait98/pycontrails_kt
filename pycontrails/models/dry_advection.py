@@ -27,6 +27,9 @@ class DryAdvectionParams(models.ModelParams):
     #: Max age of plume evolution.
     max_age: np.timedelta64 = np.timedelta64(20, "h")
 
+    #: Rate of change of pressure due to sedimentation [:math:`Pa/s`]
+    sedimentation_rate: float = 0.0
+
     #: Difference in altitude between top and bottom layer for stratification calculations,
     #: [:math:`m`]. Used to approximate derivative of "lagrangian_tendency_of_air_pressure"
     #: (upward component of air velocity) with respect to altitude.
@@ -126,6 +129,7 @@ class DryAdvection(models.Model):
 
         dt_integration = self.params["dt_integration"]
         max_age = self.params["max_age"]
+        sedimentation_rate = self.params["sedimentation_rate"]
         dz_m = self.params["dz_m"]
         max_depth = self.params["max_depth"]
         shear = self.params["shear"]
@@ -145,6 +149,7 @@ class DryAdvection(models.Model):
                 self.met,
                 vector,
                 t,
+                sedimentation_rate=sedimentation_rate,
                 dz_m=dz_m,
                 max_depth=max_depth,
                 shear=shear,
@@ -175,9 +180,11 @@ class DryAdvection(models.Model):
         """
 
         self.source.setdefault("level", self.source.level)
-        self.source = GeoVectorDataset(
-            self.source.select(("longitude", "latitude", "level", "time"), copy=False)
-        )
+
+        columns: tuple[str, ...] = ("longitude", "latitude", "level", "time")
+        if "azimuth" in self.source:
+            columns += ("azimuth",)
+        self.source = GeoVectorDataset(self.source.select(columns, copy=False))
 
         # Get waypoint index if not already set
         self.source.setdefault("waypoint", np.arange(self.source.size))
@@ -216,7 +223,8 @@ class DryAdvection(models.Model):
             if val is not None and pointwise_only:
                 raise ValueError(f"Cannot specify '{key}' without specifying 'azimuth'.")
 
-            self.source[key] = np.full_like(self.source["longitude"], val)
+            if not pointwise_only:
+                self.source[key] = np.full_like(self.source["longitude"], val)
 
         if pointwise_only:
             return
@@ -440,6 +448,7 @@ def _evolve_one_step(
     vector: GeoVectorDataset,
     t: np.datetime64,
     *,
+    sedimentation_rate: float,
     dz_m: float,
     max_depth: float | None,
     shear: float | None,
@@ -450,7 +459,7 @@ def _evolve_one_step(
     _perform_interp_for_step(met, vector, dz_m, **interp_kwargs)
     u_wind = vector["u_wind"]
     v_wind = vector["v_wind"]
-    vertical_velocity = vector["vertical_velocity"]
+    vertical_velocity = vector["vertical_velocity"] + sedimentation_rate
 
     latitude = vector["latitude"]
     longitude = vector["longitude"]

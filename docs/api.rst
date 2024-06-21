@@ -92,6 +92,16 @@ GOES
     datalib.goes
 
 
+Low Earth Orbit Satellites
+""""""""""""""""""""""""""
+
+.. autosummary::
+    :toctree: api/
+
+    datalib.landsat
+    datalib.sentinel
+
+
 Models
 ------
 
@@ -151,6 +161,18 @@ ACCF
 
     models.accf.ACCF
     models.accf.ACCFParams
+
+
+APCEMM
+""""""
+
+    This model is an interface to the MIT `APCEMM <https://github.com/MIT-LAE/APCEMM>`__ plume model.
+
+.. autosummary::
+    :toctree: api/
+
+    models.apcemm.APCEMM
+    models.apcemm.APCEMMParams
 
 
 Aircraft Performance
@@ -227,7 +249,6 @@ Core
     core.airports
     core.cache
     core.coordinates
-    core.datalib
     core.fleet
     core.flight
     core.fuel
