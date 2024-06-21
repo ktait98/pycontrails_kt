@@ -266,41 +266,22 @@ class Boxm(Model):
         # chem = chem.set_coords(("level", "longitude", "latitude"))
 
         chem = chem.assign_coords(
-            time=self.met["time"].data.values[:chem.dims["time"]],
+            time=self.met["time"].data.values[: chem.dims["time"]],
             level=chem.level,
             longitude=chem.longitude,
-            latitude=chem.latitude
-
+            latitude=chem.latitude,
+            cell=range(ncell)
             # "level": self.met["level"].data.values,
             # "longitude": self.met["longitude"].data.values,
             # "latitude": self.met["latitude"].data.values}
         )
 
+        chem = chem.set_index(cell=["level", "longitude", "latitude"])
+        chem = chem.unstack("cell")
+
+        # chem = chem.set_coords(['level', 'longitude', 'latitude'])
+
         return chem
-
-    # animate chemdataset
-    def anim_chem(self, mda: MetDataArray):
-        """Animate the chemical concentrations."""
-        fig, (ax, cbar_ax) = plt.subplots(
-            1, 2, gridspec_kw={"width_ratios": (0.9, 0.05), "wspace": 0.2}, figsize=(12, 8)
-        )
-
-        times = list(self.chem["time"])
-
-        def heatmap_func(t):
-            ax.cla()
-            ax.set_title(t)
-
-            mda.sel(time=t).transpose("latitude", "longitude").plot(
-                ax=ax, cbar_ax=cbar_ax, add_colorbar=True, vmin=mda.min(), vmax=mda.max()
-            )
-
-        anim = FuncAnimation(fig, heatmap_func, frames=times, blit=False)
-
-        filename = pathlib.Path("plume.gif")
-
-        anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
-
 
 # functions used in boxm
 def calc_sza(latitudes, longitudes, timesteps):
@@ -399,3 +380,28 @@ def grab_bg_chem(met):
     print(bg_chem)
 
     return bg_chem
+
+# animate chemdataset
+def anim_chem(mda):
+    """Animate the chemical concentrations."""
+    fig, (ax, cbar_ax) = plt.subplots(
+        1, 2, gridspec_kw={"width_ratios": (0.9, 0.05), "wspace": 0.2}, figsize=(12, 8)
+    )
+
+    times = mda["time"].values
+
+    def heatmap_func(t):
+        ax.cla()
+        ax.set_title(t)
+
+        mda.sel(time=t).transpose("latitude", "longitude").plot(
+            ax=ax, cbar_ax=cbar_ax, add_colorbar=True, vmin=mda.min(), vmax=mda.max()
+        )
+
+    anim = FuncAnimation(fig, heatmap_func, frames=times, blit=False)
+
+    filename = pathlib.Path("plume.gif")
+
+    anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
+
+

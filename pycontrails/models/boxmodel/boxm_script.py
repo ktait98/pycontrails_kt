@@ -29,7 +29,7 @@ met_params = {
 # flight trajectory parameters
 fl_params = {
     "t0_fl": pd.to_datetime("2022-03-02 08:00:00"),  # flight start time
-    "rt_fl": pd.Timedelta(minutes=30),  # flight run time
+    "rt_fl": pd.Timedelta(hours=1),  # flight run time
     "ts_fl": pd.Timedelta(minutes=2),  # flight time step
     "ac_type": "A320",  # aircraft type
     "fl0_speed": 100.0,  # m/s
@@ -42,10 +42,10 @@ fl_params = {
 # plume dispersion parameters
 plume_params = {
     "dt_integration": pd.Timedelta(minutes=5),  # integration time step
-    "max_age": pd.Timedelta(hours=0.25),  # maximum age of the plume
+    "max_age": pd.Timedelta(hours=1),  # maximum age of the plume
     "depth": 50.0,  # initial plume depth, [m]
     "width": 40.0,  # initial plume width, [m]
-    "shear": 0.005,  # wind shear [1/s]
+    "shear": 0.01,  # wind shear [1/s]
 }
 
 # chemistry sim parameters
@@ -116,7 +116,12 @@ flights = fl_gen.calc_fb_emissions()
 
 
 # simulate plume dispersion/advection using dry advection model
-pl_df = fl_gen.sim_plumes()
+fl_df, pl_df = fl_gen.sim_plumes()
+
+print(pl_df["time"].values)
+
+# visualise plumes
+fl_gen.anim_fl(fl_df, pl_df)
 
 # convert plume dataframe to EMI geospatial xarray dataset
 emi = fl_gen.plume_to_grid()
@@ -127,3 +132,5 @@ boxm = Boxm(met=met, params=chem_params)
 # run boxm simulation
 chem = boxm.eval(emi)
 chem.to_netcdf("chem.nc")
+
+
