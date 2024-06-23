@@ -106,10 +106,8 @@ class Boxm(Model):
         self.process_datasets()
         # self.to_netcdfs()
         chem = self.run_boxm()
-        
-        
+
         self.to_csvs()
-        
 
         return chem
 
