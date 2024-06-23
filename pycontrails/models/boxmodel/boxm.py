@@ -13,7 +13,7 @@ import numpy as np
 import xarray as xr
 from matplotlib.animation import FuncAnimation, PillowWriter
 
-from pycontrails.core.met import MetDataArray, MetDataset
+from pycontrails.core.met import MetDataset
 from pycontrails.core.met_var import (
     AirPressure,
     AirTemperature,
@@ -104,8 +104,12 @@ class Boxm(Model):
         self.source = self.require_source_type(MetDataset)
 
         self.process_datasets()
-        self.to_csvs()
+        # self.to_netcdfs()
         chem = self.run_boxm()
+        
+        
+        self.to_csvs()
+        
 
         return chem
 
@@ -270,7 +274,7 @@ class Boxm(Model):
             level=chem.level,
             longitude=chem.longitude,
             latitude=chem.latitude,
-            cell=range(ncell)
+            cell=range(ncell),
             # "level": self.met["level"].data.values,
             # "longitude": self.met["longitude"].data.values,
             # "latitude": self.met["latitude"].data.values}
@@ -282,6 +286,7 @@ class Boxm(Model):
         # chem = chem.set_coords(['level', 'longitude', 'latitude'])
 
         return chem
+
 
 # functions used in boxm
 def calc_sza(latitudes, longitudes, timesteps):
@@ -381,6 +386,7 @@ def grab_bg_chem(met):
 
     return bg_chem
 
+
 # animate chemdataset
 def anim_chem(mda):
     """Animate the chemical concentrations."""
@@ -403,5 +409,3 @@ def anim_chem(mda):
     filename = pathlib.Path("plume.gif")
 
     anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
-
-

@@ -132,5 +132,3 @@ boxm = Boxm(met=met, params=chem_params)
 # run boxm simulation
 chem = boxm.eval(emi)
 chem.to_netcdf("chem.nc")
-
-

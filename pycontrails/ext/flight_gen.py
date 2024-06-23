@@ -229,7 +229,7 @@ class FlightGen:
                 
                 plume_data[time][p] = (plume_property_data / 1E+03) * NA / mm[i] # convert to molecules/cm^3
             
-                #np.savetxt("plumes/plume_data_" + repr(t) + "_" + repr(p) + ".csv", plume_property_data, delimiter=",")    
+                np.savetxt("/home/ktait98/pycontrails_kt/pycontrails/ext/plumes/plume_data_" + repr(t) + "_" + repr(p) + ".csv", plume_property_data, delimiter=",")    
 
             plume_data[time] = xr.Dataset(plume_data[time])
         
