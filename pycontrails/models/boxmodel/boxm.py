@@ -13,7 +13,7 @@ import numpy as np
 import xarray as xr
 from matplotlib.animation import FuncAnimation, PillowWriter
 
-from pycontrails.core.met import MetDataset
+from pycontrails.core.met import MetDataArray, MetDataset
 from pycontrails.core.met_var import (
     AirPressure,
     AirTemperature,
@@ -23,7 +23,7 @@ from pycontrails.core.met_var import (
     SpecificHumidity,
 )
 from pycontrails.core.models import Model, ModelParams
-from pycontrails.models.boxmodel import boxm_f2py
+from pycontrails.models.boxmodel import boxm
 from pycontrails.physics import constants, geo
 
 
@@ -104,12 +104,10 @@ class Boxm(Model):
         self.source = self.require_source_type(MetDataset)
 
         self.process_datasets()
-        # self.to_netcdfs()
-        chem = self.run_boxm()
+        self.to_netcdfs()
+        #chem = self.run_boxm()
 
-        self.to_csvs()
-
-        return chem
+        #return chem
 
     def process_datasets(self):
         met = self.met
@@ -150,87 +148,17 @@ class Boxm(Model):
             method="linear",
         )
 
-    def to_csvs(self):
+
+    def to_netcdfs(self):
         """Convert the met, bg_chem, and emi datasets to csv files for use in the box model."""
-        # send dfs to csvs for chem analysis
-        met_df = self.met.data.to_dask_dataframe(
-            dim_order=["time", "level", "longitude", "latitude"]
-        )
-        met_df["latitude"] = met_df["latitude"].map("{:+08.3f}".format, meta=("latitude", "object"))
-        met_df["longitude"] = met_df["longitude"].map(
-            "{:+08.3f}".format, meta=("longitude", "object")
-        )
-        met_df["sza"] = met_df["sza"].map("{:+0.3e}".format, meta=("sza", "object"))
-        met_df = met_df.apply(
-            (lambda x: x.map("{:0.3e}".format) if x.dtype in ["float32", "float64"] else x),
-            axis=1,
-            meta={
-                col: "object" if dtype in ["float32", "float64"] else dtype
-                for col, dtype in met_df.dtypes.items()
-            },
-        )
-
-        # met_df = met_df.drop(columns=['air_pressure', 'altitude'])
-
-        bg_chem_df = self.bg_chem.to_dask_dataframe(dim_order=["level", "longitude", "latitude"])
-        bg_chem_df["latitude"] = bg_chem_df["latitude"].map(
-            "{:+08.3f}".format, meta=("latitude", "object")
-        )
-        bg_chem_df["longitude"] = bg_chem_df["longitude"].map(
-            "{:+08.3f}".format, meta=("longitude", "object")
-        )
-        bg_chem_df["month"] = bg_chem_df["month"].map("{:02d}".format, meta=("month", "object"))
-        bg_chem_df = bg_chem_df.apply(
-            (lambda x: x.map("{:0.3e}".format) if x.dtype in ["float32", "float64"] else x),
-            axis=1,
-            meta={
-                col: "object" if dtype in ["float32", "float64"] else dtype
-                for col, dtype in bg_chem_df.dtypes.items()
-            },
-        )
-
-        bg_chem_df = bg_chem_df.drop(columns=["time", "air_pressure", "altitude"])
-
-        emi_df = self.source.data.to_dask_dataframe(
-            dim_order=[
-                "time",
-                "level",
-                "longitude",
-                "latitude",
-            ]
-        ).fillna(0)
-        emi_df["latitude"] = emi_df["latitude"].map("{:+08.3f}".format, meta=("latitude", "object"))
-        emi_df["longitude"] = emi_df["longitude"].map(
-            "{:+08.3f}".format, meta=("longitude", "object")
-        )
-        emi_df = emi_df.apply(
-            (lambda x: x.map("{:0.3e}".format) if x.dtype in ["float32", "float64"] else x),
-            axis=1,
-            meta={
-                col: "object" if dtype in ["float32", "float64"] else dtype
-                for col, dtype in emi_df.dtypes.items()
-            },
-        )
-        emi_df = emi_df.drop(columns=["air_pressure", "altitude"])
 
         path = "/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/"
 
-        # Remove temporary files if they exist
-        if os.path.exists(path + "met_df.csv"):
-            os.remove(path + "met_df.csv")
-        if os.path.exists(path + "bg_chem_df.csv"):
-            os.remove(path + "bg_chem_df.csv")
-        if os.path.exists("emi_df.csv"):
-            os.remove(path + "emi_df.csv")
+        # Convert DataFrames to Datasets and write to netCDF
+        self.met.data.to_netcdf(path + "met.nc", mode="w")
+        self.bg_chem.to_netcdf(path + "bg_chem.nc", mode="w")
+        self.source.data.to_netcdf(path + "emi.nc", mode="w")
 
-        # Write DataFrame 1 to the temporary file
-        met_df.to_csv(path + "met_df.csv", single_file=True, index=False)
-
-        # Write DataFrame 2 to the temporary file
-        bg_chem_df.to_csv(path + "bg_chem_df.csv", single_file=True, index=False)
-
-        # Write DataFrame 3 to the temporary file
-        emi_df.to_csv(path + "emi_df.csv", single_file=True, index=False)
 
     def run_boxm(self):
         """Run the box model in fortran using f2py interface."""
@@ -242,24 +170,24 @@ class Boxm(Model):
 
         print(ncell, nts, dts)
 
-        boxm_f2py.boxm_f2py.init(ncell, nts)
+        boxm.boxm.init(ncell, nts)
 
         for ts in range(nts):
             # if t*dts % 3600 == 0:
             print("Time: ", self.met["time"].data[ts].values)
 
-            boxm_f2py.boxm_f2py.read(ncell)
-            boxm_f2py.boxm_f2py.calc_aerosol()
-            boxm_f2py.boxm_f2py.chemco()
-            boxm_f2py.boxm_f2py.calc_j(ncell)
-            boxm_f2py.boxm_f2py.photol()
+            boxm.boxm.read(ncell)
+            boxm.boxm.calc_aerosol()
+            boxm.boxm.chemco()
+            boxm.boxm.calc_j(ncell)
+            boxm.boxm.photol()
 
             if ts != 0:
-                boxm_f2py.boxm_f2py.deriv(dts)
+                boxm.boxm.deriv(dts)
 
-            boxm_f2py.boxm_f2py.write(ts, dts, ncell)
+            boxm.boxm.write(ts, dts, ncell)
 
-        boxm_f2py.boxm_f2py.deallocate()
+        boxm.boxm.deallocate()
 
         # open chem dataset
         chem = xr.open_dataset("/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/chem.nc")
@@ -272,7 +200,7 @@ class Boxm(Model):
             level=chem.level,
             longitude=chem.longitude,
             latitude=chem.latitude,
-            cell=range(ncell),
+            cell=range(ncell)
             # "level": self.met["level"].data.values,
             # "longitude": self.met["longitude"].data.values,
             # "latitude": self.met["latitude"].data.values}
@@ -384,7 +312,6 @@ def grab_bg_chem(met):
 
     return bg_chem
 
-
 # animate chemdataset
 def anim_chem(mda):
     """Animate the chemical concentrations."""
@@ -406,4 +333,4 @@ def anim_chem(mda):
 
     filename = pathlib.Path("plume.gif")
 
-    anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
+    anim.save(filename, dpi=300, writer=PillowWriter(fps=8)) 
