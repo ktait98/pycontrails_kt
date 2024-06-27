@@ -150,15 +150,20 @@ class Boxm(Model):
 
 
     def to_netcdfs(self):
-        """Convert the met, bg_chem, and emi datasets to csv files for use in the box model."""
+        """Convert the met, bg_chem, and emi datasets to boxm_input.nc for use in the box model."""
 
         path = "/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/"
 
-        # Convert DataFrames to Datasets and write to netCDF
-        self.met.data.to_netcdf(path + "met.nc", mode="w")
-        self.bg_chem.to_netcdf(path + "bg_chem.nc", mode="w")
-        self.source.data.to_netcdf(path + "emi.nc", mode="w")
+        self.boxm_input = xr.merge([self.met.data, self.bg_chem, self.source.data])
 
+        print(self.boxm_input)
+
+        # stack datasets to get cell index for fortran
+        self.boxm_input = self.boxm_input.stack({"cell": ["level", "longitude", "latitude"]})
+        self.boxm_input = self.boxm_input.reset_index("cell")
+
+        # Convert DataFrames to Datasets and write to netCDF
+        self.boxm_input.to_netcdf(path + "boxm_input.nc", mode="w")
 
     def run_boxm(self):
         """Run the box model in fortran using f2py interface."""
@@ -176,16 +181,16 @@ class Boxm(Model):
             # if t*dts % 3600 == 0:
             print("Time: ", self.met["time"].data[ts].values)
 
-            boxm.boxm.read(ncell)
+            boxm.boxm.read()
             boxm.boxm.calc_aerosol()
             boxm.boxm.chemco()
-            boxm.boxm.calc_j(ncell)
+            boxm.boxm.calc_j()
             boxm.boxm.photol()
 
             if ts != 0:
-                boxm.boxm.deriv(dts)
+                boxm.boxm.deriv()
 
-            boxm.boxm.write(ts, dts, ncell)
+            boxm.boxm.write()
 
         boxm.boxm.deallocate()
 
@@ -229,7 +234,6 @@ def calc_sza(latitudes, longitudes, timesteps):
             )
     return sza
 
-
 # calculate number density of air molecules and H2O
 def calc_M_H2O(met):
     """Calculate number density of air molecules at each pressure level M."""
@@ -253,62 +257,16 @@ def calc_M_H2O(met):
 
     return met
 
-
 # grab bg chem data
 def grab_bg_chem(met):
-    # month = met["time"].data[0].astype("datetime64[M]").astype(int) % 12 + 1
-    # print(met["time"].data[0].astype("datetime64[M]").astype(int))
-
+    """Grab the background chemistry data for the month of the met data."""
     month = met["time"].data[0].dt.month
 
     bg_chem = xr.open_dataset(
         "/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/species.nc"
     ).sel(month=month - 1)
 
-    species = np.loadtxt(
-        "/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/species_num.txt", dtype=str
-    )
-
-    species_nums = [
-        4,
-        8,
-        6,
-        11,
-        21,
-        39,
-        42,
-        73,
-        23,
-        30,
-        25,
-        32,
-        59,
-        28,
-        34,
-        61,
-        64,
-        67,
-        43,
-        12,
-        14,
-        71,
-        76,
-        101,
-        144,
-        198,
-        202,
-    ]
-    all_nums = set(range(1, 219))  # Generate all numbers from 1 to 220
-
-    missing_nums = all_nums - set(species_nums)
-    missing_nums = [x - 1 for x in missing_nums]
-
-    for i in missing_nums:
-        bg_chem[species[i]] = 0
-
     bg_chem = bg_chem * 1e09  # convert mixing ratio to ppb
-
-    print(bg_chem)
 
     return bg_chem
 
@@ -334,3 +292,4 @@ def anim_chem(mda):
     filename = pathlib.Path("plume.gif")
 
     anim.save(filename, dpi=300, writer=PillowWriter(fps=8)) 
+    
