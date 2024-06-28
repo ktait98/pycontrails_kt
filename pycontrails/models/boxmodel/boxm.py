@@ -153,17 +153,16 @@ class Boxm(Model):
         """Convert the met, bg_chem, and emi datasets to boxm_input.nc for use in the box model."""
 
         path = "/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/"
-
+        print(self.source.data)
         self.boxm_input = xr.merge([self.met.data, self.bg_chem, self.source.data])
-
-        print(self.boxm_input)
+        self.boxm_input = self.boxm_input.drop_vars(["specific_humidity", "relative_humidity", "eastward_wind", "northward_wind", "lagrangian_tendency_of_air_pressure", "month"])
 
         # stack datasets to get cell index for fortran
-        self.boxm_input = self.boxm_input.stack({"cell": ["level", "longitude", "latitude"]})
-        self.boxm_input = self.boxm_input.reset_index("cell")
+        self.boxm_input_stacked = self.boxm_input.stack({"cell": ["level", "longitude", "latitude"]})
+        self.boxm_input_stacked = self.boxm_input_stacked.reset_index("cell")
 
         # Convert DataFrames to Datasets and write to netCDF
-        self.boxm_input.to_netcdf(path + "boxm_input.nc", mode="w")
+        self.boxm_input_stacked.to_netcdf(path + "boxm_input.nc", mode="w")
 
     def run_boxm(self):
         """Run the box model in fortran using f2py interface."""
@@ -219,6 +218,29 @@ class Boxm(Model):
         return chem
 
 
+    # animate chemdataset
+    def anim_chem(mda):
+        """Animate the chemical concentrations."""
+        fig, (ax, cbar_ax) = plt.subplots(
+            1, 2, gridspec_kw={"width_ratios": (0.9, 0.05), "wspace": 0.2}, figsize=(12, 8)
+        )
+
+        times = mda["time"].values
+
+        def heatmap_func(t):
+            ax.cla()
+            ax.set_title(t)
+
+            mda.sel(time=t).transpose("latitude", "longitude").plot(
+                ax=ax, cbar_ax=cbar_ax, add_colorbar=True, vmin=mda.min(), vmax=mda.max()
+            )
+
+        anim = FuncAnimation(fig, heatmap_func, frames=times, blit=False)
+
+        filename = pathlib.Path("plume.gif")
+
+        anim.save(filename, dpi=300, writer=PillowWriter(fps=8)) 
+
 # functions used in boxm
 def calc_sza(latitudes, longitudes, timesteps):
     """Calculate szas for each cell at all timesteps."""
@@ -262,7 +284,7 @@ def grab_bg_chem(met):
     """Grab the background chemistry data for the month of the met data."""
     month = met["time"].data[0].dt.month
 
-    bg_chem = xr.open_dataset(
+    bg_chem = xr.open_dataarray(
         "/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/species.nc"
     ).sel(month=month - 1)
 
@@ -270,26 +292,5 @@ def grab_bg_chem(met):
 
     return bg_chem
 
-# animate chemdataset
-def anim_chem(mda):
-    """Animate the chemical concentrations."""
-    fig, (ax, cbar_ax) = plt.subplots(
-        1, 2, gridspec_kw={"width_ratios": (0.9, 0.05), "wspace": 0.2}, figsize=(12, 8)
-    )
 
-    times = mda["time"].values
-
-    def heatmap_func(t):
-        ax.cla()
-        ax.set_title(t)
-
-        mda.sel(time=t).transpose("latitude", "longitude").plot(
-            ax=ax, cbar_ax=cbar_ax, add_colorbar=True, vmin=mda.min(), vmax=mda.max()
-        )
-
-    anim = FuncAnimation(fig, heatmap_func, frames=times, blit=False)
-
-    filename = pathlib.Path("plume.gif")
-
-    anim.save(filename, dpi=300, writer=PillowWriter(fps=8)) 
     
