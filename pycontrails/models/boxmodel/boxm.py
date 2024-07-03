@@ -125,10 +125,9 @@ class Boxm(Model):
 
         met = calc_M_H2O(met)
 
-        print(met["time"].data)
         met.data["sza"] = (
             ("latitude", "longitude", "time"),
-            calc_sza(met["latitude"].data, met["longitude"].data, met["time"].data),
+            calc_sza(met["latitude"].data.values, met["longitude"].data.values, met["time"].data.values),
         )
 
         # interpolate and downselect bg_chem to chem grid
@@ -139,21 +138,19 @@ class Boxm(Model):
             method="linear",
         )
 
-        # interpolate and downselect emi to chem grid
-        self.source.data = self.source.data.interp(
-            longitude=met["longitude"].data,
-            latitude=met["latitude"].data,
-            level=met["level"].data,
-            time=met["time"].data,
-            method="linear",
-        )
+        # # interpolate and downselect emi to chem grid
+        # self.source.data = self.source.data.interp(
+        #     longitude=met["longitude"].data,
+        #     latitude=met["latitude"].data,
+        #     time=met["time"].data,
+        #     method="linear",
+        # )
 
 
     def to_netcdfs(self):
         """Convert the met, bg_chem, and emi datasets to boxm_input.nc for use in the box model."""
 
         path = "/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/"
-        print(self.source.data)
         self.boxm_input = xr.merge([self.met.data, self.bg_chem, self.source.data])
         self.boxm_input = self.boxm_input.drop_vars(["specific_humidity", "relative_humidity", "eastward_wind", "northward_wind", "lagrangian_tendency_of_air_pressure", "month"])
 
@@ -219,7 +216,7 @@ class Boxm(Model):
 
 
     # animate chemdataset
-    def anim_chem(mda):
+    def anim_chem(self, mda):
         """Animate the chemical concentrations."""
         fig, (ax, cbar_ax) = plt.subplots(
             1, 2, gridspec_kw={"width_ratios": (0.9, 0.05), "wspace": 0.2}, figsize=(12, 8)

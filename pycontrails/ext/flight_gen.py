@@ -8,8 +8,9 @@ import pandas as pd
 import xarray as xr
 from matplotlib.animation import FuncAnimation, PillowWriter
 from pyproj import Geod
+import os
 
-from pycontrails.core import Flight, GeoVectorDataset, MetDataset, models
+from pycontrails.core import Flight, GeoVectorDataset, MetDataArray, MetDataset, models
 from pycontrails.models.cocip import contrails_to_hi_res_grid
 from pycontrails.models.dry_advection import DryAdvection
 from pycontrails.models.emissions import Emissions
@@ -55,36 +56,44 @@ class FlightGen:
 
         fl0 = Flight(df).resample_and_fill(freq=f"{ts_fl_min}min")
         fl0.attrs = {"flight_id": 0, "aircraft_type": fl_params["ac_type"]}
+        mask = (
+                    (fl0["latitude"] > self.chem_params["lat_bounds"][0] + 0.05) & (fl0["latitude"] < self.chem_params["lat_bounds"][1] - 0.05) &
+                    (fl0["longitude"] > self.chem_params["lon_bounds"][0] + 0.05) & (fl0["longitude"] < self.chem_params["lon_bounds"][1] - 0.05) &
+                    (fl0["altitude"] > self.chem_params["alt_bounds"][0]) & (fl0["altitude"] < self.chem_params["alt_bounds"][1])
 
+                )
+        
+        fl0 = fl0.filter(mask)
         flights.append(fl0)
 
         fl = fl0
 
-        # create follower flight trajectories
-        for i in range(1, fl_params["n_ac"]):
-            fl = fl.copy()
+        if fl_params["n_ac"] > 1:
+            # create follower flight trajectories
+            for i in range(1, fl_params["n_ac"]):
+                fl = fl.copy()
 
-            # calculate new coords for follower flight
-            lon_dx, lat_dx, _ = geod.fwd(lon0, lat0, heading, fl_params["sep_dist"][0])
-            lon_dx_dy, lat_dx_dy, _ = geod.fwd(
-                lon_dx, lat_dx, heading + 90, fl_params["sep_dist"][1]
-            )
-            alt_dx_dy = alt0 + fl_params["sep_dist"][2]
+                # calculate new coords for follower flight
+                lon_dx, lat_dx, _ = geod.fwd(lon0, lat0, heading, fl_params["sep_dist"][0])
+                lon_dx_dy, lat_dx_dy, _ = geod.fwd(
+                    lon_dx, lat_dx, heading + 90, fl_params["sep_dist"][1]
+                )
+                alt_dx_dy = alt0 + fl_params["sep_dist"][2]
 
-            # Calculate the differences in lat, lon, alt
-            dlat = lat_dx_dy - lat0
-            dlon = lon_dx_dy - lon0
-            dalt = alt_dx_dy - alt0
+                # Calculate the differences in lat, lon, alt
+                dlat = lat_dx_dy - lat0
+                dlon = lon_dx_dy - lon0
+                dalt = alt_dx_dy - alt0
 
-            # Update the latitude and longitude of each point in the flight path
-            fl["latitude"] += dlat
-            fl["longitude"] += dlon
-            fl["altitude"] += dalt
-            fl.attrs = {"flight_id": int(i), "aircraft_type": fl_params["ac_type"]}
-            flights.append(fl)
+                # Update the latitude and longitude of each point in the flight path
+                fl["latitude"] += dlat
+                fl["longitude"] += dlon
+                fl["altitude"] += dalt
+                fl.attrs = {"flight_id": int(i), "aircraft_type": fl_params["ac_type"]}
+                flights.append(fl)
 
-            # Update starting coordinates for next flight
-            lon0, lat0, alt0 = lon_dx_dy, lat_dx_dy, alt_dx_dy
+                # Update starting coordinates for next flight
+                lon0, lat0, alt0 = lon_dx_dy, lat_dx_dy, alt_dx_dy
 
         return flights
 
@@ -92,6 +101,7 @@ class FlightGen:
         """Calculate fuel burn and emissions for formation flights."""
         flights = self.flights
         met = self.met
+        plume_params = self.plume_params
         chem_params = self.chem_params
 
         ps_model = PSFlight()
@@ -100,42 +110,51 @@ class FlightGen:
         for i, fl in enumerate(flights):
 
             # downselect met data to the flight trajectory
-
             flights[i].downselect_met(met)
             # flights[i].intersect_met(met["specific_humidity"])
             flights[i]["air_temperature"] = models.interpolate_met(met, fl, "air_temperature")
             flights[i]["specific_humidity"] = models.interpolate_met(met, fl, "specific_humidity")
             flights[i]["true_airspeed"] = fl.segment_groundspeed()
-
+                        
             # get ac performance data using Poll-Schumann Model
             flights[i] = ps_model.eval(flights[i])
-
+            
             # get emissions data
             flights[i] = emi_model.eval(flights[i])
 
+             # Iterate over the columns in the DataFrame
+            for column in flights[i].dataframe.columns:
+                # Replace NaN values in the column with the value from the previous row
+                flights[i].dataframe[column] = flights[i].dataframe[column].fillna(method='ffill')
+
             # emission indices
             eis = {
-                "co2_m": 3.16,
-                "h2o_m": 1.23,
-                "so2_m": 0.00084,
-                "nvpm_m": flights[i]["nvpm_ei_m"],
-                "nox_m": flights[i]["nox_ei"],
-                "co_m": flights[i]["co_ei"],
+                # primary combustion products
+                "CO2": 3.16,
+                "H2O": 1.23,
+                "SO2": 0.00084,
+
+                # secondary combustion products
+                "nvPM": flights[i]["nvpm_ei_m"],
+                "NO": 0.95 * flights[i]["nox_ei"],
+                "NO2": 0.05 * flights[i]["nox_ei"],
+                "CO": flights[i]["co_ei"],
+
                 # hydrocarbon speciation
-                "hcho_m": 0.12 * flights[i]["hc_ei"],  # formaldehyde
-                "ch3cho_m": 0.04 * flights[i]["hc_ei"],  # acetaldehyde
-                "c2h4_m": 0.15 * flights[i]["hc_ei"],  # ethylene
-                "c3h6_m": 0.04 * flights[i]["hc_ei"],  # propene
-                "c2h2_m": 0.04 * flights[i]["hc_ei"],  # acetylene
-                "benzene_m": 0.02 * flights[i]["hc_ei"],  # benzene
+                "HCHO": 0.12 * flights[i]["hc_ei"],  # formaldehyde
+                "CH3CHO": 0.04 * flights[i]["hc_ei"],  # acetaldehyde
+                "C2H4": 0.15 * flights[i]["hc_ei"],  # ethylene
+                "C3H6": 0.04 * flights[i]["hc_ei"],  # propene
+                "C2H2": 0.04 * flights[i]["hc_ei"],  # acetylene
+                "BENZENE": 0.02 * flights[i]["hc_ei"],  # benzene
             }
 
             # calculate emission mass per metre squared for each species
             for species, ei in eis.items():
+               
                 flights[i][species] = (
                     (ei * flights[i]["fuel_flow"] / flights[i]["true_airspeed"])
-                    / chem_params["vres_chem"]
-                    / 1e03
+                    / chem_params["vres_chem"] / plume_params["width"]
                 )
 
         return flights
@@ -158,6 +177,10 @@ class FlightGen:
 
             # convert both flights and plumes to dataframes
             flights[i] = flights[i].dataframe
+            for column in flights[i].columns:
+                # Replace NaN values in the column with the value from the previous row
+                flights[i][column] = flights[i][column].fillna(method='ffill')
+                
             plumes[i] = plumes[i].dataframe
 
             # calc plume heading
@@ -178,18 +201,19 @@ class FlightGen:
                     "waypoint",
                     "fuel_flow",
                     "true_airspeed",
-                    "co2_m",
-                    "h2o_m",
-                    "so2_m",
-                    "nox_m",
-                    "co_m",
-                    "hcho_m",
-                    "ch3cho_m",
-                    "c2h4_m",
-                    "c3h6_m",
-                    "c2h2_m",
-                    "benzene_m",
-                    "nvpm_m",
+                    "CO2",
+                    "H2O",
+                    "SO2",
+                    "NO",
+                    "NO2",
+                    "CO",
+                    "HCHO",
+                    "CH3CHO",
+                    "C2H4",
+                    "C3H6",
+                    "C2H2",
+                    "BENZENE",
+                    "nvPM",
                 ]
             ],
             pl_df[
@@ -216,13 +240,23 @@ class FlightGen:
 
         return fl_df, pl_df
 
-    def plume_to_grid(self) -> MetDataset:
+    def plume_to_grid(self, lats, lons, alts, times) -> MetDataset:
         """Convert plume data to a grid."""
         chem_params = self.chem_params
         pl_df = self.plumes
 
         # loop over time and plume property
-        plume_data = {}
+        emi = xr.DataArray(
+            np.zeros((len(lons), len(lats), len(alts), len(times), 9)),
+        dims=["longitude", "latitude", "level", "time", "emi_species"],
+        coords={
+                "longitude": lons,
+                "latitude": lats,
+                "level": units.m_to_pl(alts),
+                "time":  times,
+                "emi_species": ["NO", "NO2", "CO", "HCHO", "CH3CHO", "C2H4", "C3H6", "C2H2", "BENZENE"],
+            }
+        )
 
         for t, time in enumerate(pl_df["time"].unique()):
             print("Processing time: ", time)
@@ -230,10 +264,8 @@ class FlightGen:
             plume_time_data = GeoVectorDataset(data=pl_df.loc[pl_df["time"] == time])
             calc_continuous(plume_time_data)
 
-            plume_data[time] = {}
-
             # define molar masses of species g/mol
-            mm = [30.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
+            mm = [30.01, 46.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
             NA = 6.022e23  # Avogadro's number
             bbox = (
                 chem_params["lon_bounds"][0],
@@ -244,7 +276,7 @@ class FlightGen:
                 chem_params["alt_bounds"][1],
             )
 
-            for i, p in enumerate(["nox_m", "co_m"]):
+            for p, property in enumerate(["NO", "NO2", "CO"]):
                 # ,
                 # 'hcho_m',
                 # 'ch3cho_m',
@@ -257,34 +289,27 @@ class FlightGen:
                 plume_property_data = contrails_to_hi_res_grid(
                     time=time,
                     contrails_t=plume_time_data,
-                    var_name=p,
+                    var_name=property,
                     spatial_bbox=bbox,
                     spatial_grid_res=chem_params["hres_chem"],
                 )
 
-                plume_data[time][p] = (
-                    (plume_property_data / 1e03) * NA / mm[i]
+                plume = (plume_property_data / 1E+03) * NA / mm[p] # kg/m^3 to molecules/cm^3 
+                # kg -> g (* 1E+03)
+                # m^3 -> cm^3 (/ 1E+06)
+
+                # Check if the 'plumes' directory exists, and create it if it does not
+                if not os.path.exists("plumes"):
+                    os.makedirs("plumes")
+                np.savetxt("plumes/plume_data_" + repr(t) + "_" + repr(property) + ".csv", plume, delimiter=",") 
+
+                # find altitude index for flight level
+                emi.loc[:, :, units.m_to_pl(self.fl_params["fl0_coords0"][2]), time, property] = (
+                    plume
                 )  # convert to molecules/cm^3
 
-                np.savetxt(
-                    "/home/ktait98/pycontrails_kt/pycontrails/ext/plumes/plume_data_"
-                    + repr(t)
-                    + "_"
-                    + repr(p)
-                    + ".csv",
-                    plume_property_data,
-                    delimiter=",",
-                )
-
-            plume_data[time] = xr.Dataset(plume_data[time])
-
-        # Convert plume_data dict to list so that it can be concatenated
-        plume_data_list = [ds.assign_coords(time=key) for key, ds in plume_data.items()]
-        plume_data = xr.concat(plume_data_list, dim="time")
-
-        plume_data = plume_data.expand_dims({"level": [-1]})
-
-        return MetDataset(plume_data)
+        return MetDataset(xr.Dataset({"emi": emi}))
+    
 
     def anim_fl(self, fl_df: pd.DataFrame, pl_df: pd.DataFrame) -> None:
         """Animate formation flight trajectories and associated plume dispersion/advection."""

@@ -68,3 +68,5 @@ pycontrails/models/boxmodel/species.nc
 pycontrails/models/boxmodel/*.csv
 pycontrails/models/boxmodel/*.gif
 pycontrails/ext/plumes
+docs/notebooks/plumes
+docs/notebooks/*.gif
