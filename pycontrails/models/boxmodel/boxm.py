@@ -146,7 +146,6 @@ class Boxm(Model):
         #     method="linear",
         # )
 
-
     def to_netcdfs(self):
         """Convert the met, bg_chem, and emi datasets to boxm_input.nc for use in the box model."""
 
