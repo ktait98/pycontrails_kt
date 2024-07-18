@@ -2,18 +2,19 @@
 
 from __future__ import annotations
 
-import os
 import pathlib
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
+import subprocess
 
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
+import dask.array as da
 from matplotlib.animation import FuncAnimation, PillowWriter
 
-from pycontrails.core.met import MetDataArray, MetDataset
+from pycontrails.core.met import MetDataset
 from pycontrails.core.met_var import (
     AirPressure,
     AirTemperature,
@@ -22,6 +23,7 @@ from pycontrails.core.met_var import (
     RelativeHumidity,
     SpecificHumidity,
 )
+
 from pycontrails.core.models import Model, ModelParams
 from pycontrails.models.boxmodel import boxm
 from pycontrails.physics import constants, geo
@@ -104,10 +106,11 @@ class Boxm(Model):
         self.source = self.require_source_type(MetDataset)
 
         self.process_datasets()
+        self.init_boxm_ds()
         self.to_netcdfs()
-        #chem = self.run_boxm()
+        self.run_boxm()
 
-        #return chem
+        # return chem
 
     def process_datasets(self):
         met = self.met
@@ -127,7 +130,9 @@ class Boxm(Model):
 
         met.data["sza"] = (
             ("latitude", "longitude", "time"),
-            calc_sza(met["latitude"].data.values, met["longitude"].data.values, met["time"].data.values),
+            calc_sza(
+                met["latitude"].data.values, met["longitude"].data.values, met["time"].data.values
+            ),
         )
 
         # interpolate and downselect bg_chem to chem grid
@@ -136,82 +141,88 @@ class Boxm(Model):
             latitude=met["latitude"].data,
             level=met["level"].data,
             method="linear",
+        ) 
+
+    def init_boxm_ds(self):
+
+        self.boxm_ds = xr.merge([self.met.data, self.bg_chem, self.source.data])
+        self.boxm_ds = self.boxm_ds.drop_vars(
+            [
+                "specific_humidity",
+                "relative_humidity",
+                "eastward_wind",
+                "northward_wind",
+                "lagrangian_tendency_of_air_pressure",
+                "month",
+            ]
         )
 
-        # # interpolate and downselect emi to chem grid
-        # self.source.data = self.source.data.interp(
-        #     longitude=met["longitude"].data,
-        #     latitude=met["latitude"].data,
-        #     time=met["time"].data,
-        #     method="linear",
-        # )
+        # self.boxm_ds = self.boxm_ds.expand_dims({"therm_coeffs":510}) 
+        # self.boxm_ds = self.boxm_ds.expand_dims({"photol_coeffs":96})
+        # self.boxm_ds = self.boxm_ds.expand_dims({"photol_params":57})
+        # self.boxm_ds = self.boxm_ds.expand_dims({"flux_rates":130})
+
+        self.boxm_ds["Y"] = (["time", "level", "longitude", "latitude", "species"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], self.boxm_ds.dims["species"])))
+                              
+        # self.boxm_ds["J"] = (["time", "level", "longitude", "latitude", "photol_params"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 57)))
+
+        # self.boxm_ds["DJ"] = (["time", "level", "longitude", "latitude", "photol_coeffs"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 96)))
+
+        # self.boxm_ds["RC"] = (["time", "level", "longitude", "latitude", "therm_coeffs"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 512)))
+
+        self.boxm_ds["FL"] = (["time", "level", "longitude", "latitude", "flux_rates"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 130)))
 
     def to_netcdfs(self):
-        """Convert the met, bg_chem, and emi datasets to boxm_input.nc for use in the box model."""
+        """Convert the met, bg_chem, and emi datasets to boxm_ds.nc for use in the box model."""
 
         path = "/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/"
-        self.boxm_input = xr.merge([self.met.data, self.bg_chem, self.source.data])
-        self.boxm_input = self.boxm_input.drop_vars(["specific_humidity", "relative_humidity", "eastward_wind", "northward_wind", "lagrangian_tendency_of_air_pressure", "month"])
 
         # stack datasets to get cell index for fortran
-        self.boxm_input_stacked = self.boxm_input.stack({"cell": ["level", "longitude", "latitude"]})
-        self.boxm_input_stacked = self.boxm_input_stacked.reset_index("cell")
+        self.boxm_ds_stacked = self.boxm_ds.stack(
+            {"cell": ["level", "longitude", "latitude"]}
+        )
+        self.boxm_ds_stacked = self.boxm_ds_stacked.reset_index("cell")
+
+        print(self.boxm_ds_stacked)
+
+        # Delete any existing netCDF files
+        if pathlib.Path(path + "boxm_ds.nc").exists():
+            pathlib.Path(path + "boxm_ds.nc").unlink()
 
         # Convert DataFrames to Datasets and write to netCDF
-        self.boxm_input_stacked.to_netcdf(path + "boxm_input.nc", mode="w")
+        self.boxm_ds_stacked.to_netcdf(path + "boxm_ds.nc", mode="w")
 
     def run_boxm(self):
-        """Run the box model in fortran using f2py interface."""
-        ncell = len(self.met["latitude"]) * len(self.met["longitude"]) * len(self.met["altitude"])
+        """Run the box model in fortran using subprocess."""
+        
+        subprocess.call(
+            ["/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/boxm"]
+        )
+        
+        # open nc file
+        self.chem = xr.open_dataset("/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/boxm_ds.nc")
+        print(self.chem)
 
-        nts = len(self.met["time"]) - 1
 
-        dts = self.params["ts_chem"].total_seconds()
-
-        print(ncell, nts, dts)
-
-        boxm.boxm.init(ncell, nts)
-
-        for ts in range(nts):
-            # if t*dts % 3600 == 0:
-            print("Time: ", self.met["time"].data[ts].values)
-
-            boxm.boxm.read()
-            boxm.boxm.calc_aerosol()
-            boxm.boxm.chemco()
-            boxm.boxm.calc_j()
-            boxm.boxm.photol()
-
-            if ts != 0:
-                boxm.boxm.deriv()
-
-            boxm.boxm.write()
-
-        boxm.boxm.deallocate()
-
-        # open chem dataset
-        chem = xr.open_dataset("/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/chem.nc")
-
+        
         # convert lat lon to coords
         # chem = chem.set_coords(("level", "longitude", "latitude"))
 
-        chem = chem.assign_coords(
-            time=self.met["time"].data.values[: chem.dims["time"]],
-            level=chem.level,
-            longitude=chem.longitude,
-            latitude=chem.latitude,
-            cell=range(ncell)
+        # chem = chem.assign_coords(
+        #     time=self.met["time"].data.values[: chem.dims["time"]],
+        #     level=chem.level,
+        #     longitude=chem.longitude,
+        #     latitude=chem.latitude,
+        #     cell=range(),
             # "level": self.met["level"].data.values,
             # "longitude": self.met["longitude"].data.values,
             # "latitude": self.met["latitude"].data.values}
-        )
+  
 
-        chem = chem.set_index(cell=["level", "longitude", "latitude"])
-        chem = chem.unstack("cell")
+        # chem = chem.set_index(cell=["level", "longitude", "latitude"])
+        # chem = chem.unstack("cell")
 
         # chem = chem.set_coords(['level', 'longitude', 'latitude'])
-
-        return chem
 
 
     # animate chemdataset
@@ -235,7 +246,8 @@ class Boxm(Model):
 
         filename = pathlib.Path("plume.gif")
 
-        anim.save(filename, dpi=300, writer=PillowWriter(fps=8)) 
+        anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
+
 
 # functions used in boxm
 def calc_sza(latitudes, longitudes, timesteps):
@@ -251,6 +263,7 @@ def calc_sza(latitudes, longitudes, timesteps):
                 geo.cosine_solar_zenith_angle(lonval, latval, timesteps, theta_rad)
             )
     return sza
+
 
 # calculate number density of air molecules and H2O
 def calc_M_H2O(met):
@@ -275,6 +288,7 @@ def calc_M_H2O(met):
 
     return met
 
+
 # grab bg chem data
 def grab_bg_chem(met):
     """Grab the background chemistry data for the month of the met data."""
@@ -287,6 +301,3 @@ def grab_bg_chem(met):
     bg_chem = bg_chem * 1e09  # convert mixing ratio to ppb
 
     return bg_chem
-
-
-    

@@ -37,7 +37,7 @@ class FlightGen:
         fl_params = self.fl_params
         flights = self.flights
 
-        lon0, lat0, alt0 = fl_params["fl0_coords0"]
+        lat0, lon0, alt0 = fl_params["fl0_coords0"]
         heading = fl_params["fl0_heading"]
         dist = fl_params["fl0_speed"] * fl_params["rt_fl"].total_seconds()
 
@@ -51,6 +51,8 @@ class FlightGen:
         df["latitude"] = [lat0, lat1]
         df["altitude"] = [alt0, alt0]
         df["time"] = [fl_params["t0_fl"], (fl_params["t0_fl"] + fl_params["rt_fl"])]
+
+        print(df)
 
         ts_fl_min = int(fl_params["ts_fl"].total_seconds() / 60)
 
