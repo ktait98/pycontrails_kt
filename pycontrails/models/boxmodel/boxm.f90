@@ -69,7 +69,7 @@ CONTAINS
     SUBROUTINE OPEN_NC
         IMPLICIT NONE
         ! OPEN BOXM INPUT NC
-        IERR = NF90_OPEN('/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/boxm_ds.nc', NF90_WRITE, NCID)
+        IERR = NF90_OPEN('/home/ktait98/pycontrails_kt/pycontrails/models/files/boxm_ds.nc', NF90_WRITE, NCID)
         IF (IERR /= NF90_NOERR) THEN
             PRINT *, NF90_STRERROR(IERR)
         END IF
@@ -5273,12 +5273,12 @@ CONTAINS
         CALL CHECK(IERR, 'Y WRITE FAILED')
         IERR = NF90_PUT_VAR(NCID, VARID_SZA, SZA(:), START=[1, TS], COUNT=[NCELL, 1])
         CALL CHECK(IERR, 'SZA WRITE FAILED')
-        ! IERR = NF90_PUT_VAR(NCID, VARID_J, J(:, :), START=[1, 1, TS], COUNT=[NCELL, 20, 1])
-        ! CALL CHECK(IERR, 'J WRITE FAILED')
-        ! IERR = NF90_PUT_VAR(NCID, VARID_DJ, DJ(:, :), START=[1, 1, TS], COUNT=[NCELL, 20, 1])
-        ! CALL CHECK(IERR, 'DJ WRITE FAILED')
-        ! IERR = NF90_PUT_VAR(NCID, VARID_RC, RC(:, :), START=[1, 1, TS], COUNT=[NCELL, 20, 1])
-        ! CALL CHECK(IERR, 'RC WRITE FAILED')
+        IERR = NF90_PUT_VAR(NCID, VARID_J, J(:, :), START=[1, 1, TS], COUNT=[NCELL, 20, 1])
+        CALL CHECK(IERR, 'J WRITE FAILED')
+        IERR = NF90_PUT_VAR(NCID, VARID_DJ, DJ(:, :), START=[1, 1, TS], COUNT=[NCELL, 20, 1])
+        CALL CHECK(IERR, 'DJ WRITE FAILED')
+        IERR = NF90_PUT_VAR(NCID, VARID_RC, RC(:, :), START=[1, 1, TS], COUNT=[NCELL, 20, 1])
+        CALL CHECK(IERR, 'RC WRITE FAILED')
         IERR = NF90_PUT_VAR(NCID, VARID_EMI, EMI_PPB(:, :), START=[1, 1, TS], COUNT=[NCELL, NEMI, 1])
         CALL CHECK(IERR, 'EMI WRITE FAILED')
 
@@ -5326,6 +5326,6 @@ PROGRAM BOXM_RUN
         CALL WRITE(DTS)
     END DO
 
-    CALL DEALLOCATE()
+    ! CALL DEALLOCATE()
 
 END PROGRAM BOXM_RUN
