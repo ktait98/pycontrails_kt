@@ -104,6 +104,7 @@ class Boxm(Model):
         of chemical concentrations, subject to emissions.
         """
         self.path = "/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/"
+        self.file_path = "/home/ktait98/pycontrails_kt/pycontrails/models/files/"
         self.update_params(params)
         self.set_source(emi)
         self.source = self.require_source_type(MetDataset)
@@ -149,6 +150,9 @@ class Boxm(Model):
     def init_boxm_ds(self):
 
         self.boxm_ds = xr.merge([self.met.data, self.bg_chem, self.source.data])
+        # self.boxm_ds.expand_dims({"photol_params": 57})
+        # self.boxm_ds.expand_dims({"photol_coeffs": 96})
+        # self.boxm_ds.expand_dims({"therm_coeffs": 512})
         self.boxm_ds = self.boxm_ds.drop_vars(
             [
                 "specific_humidity",
@@ -160,11 +164,22 @@ class Boxm(Model):
             ]
         )
 
-        self.boxm_ds["Y"] = (["time", "level", "longitude", "latitude", "species"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], self.boxm_ds.dims["species"])))
+        self.boxm_ds["ZEN_orig"] = (["time", "level", "longitude", "latitude"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"])))
 
+        self.boxm_ds["J"] = (["time", "level", "longitude", "latitude", "photol_params"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 5)))
+        self.boxm_ds["J_orig"] = (["time", "level", "longitude", "latitude", "photol_params"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 5)))
+
+        self.boxm_ds["DJ"] = (["time", "level", "longitude", "latitude", "photol_coeffs"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 5)))
+        self.boxm_ds["DJ_orig"] = (["time", "level", "longitude", "latitude", "photol_coeffs"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 5)))
+
+        self.boxm_ds["RC"] = (["time", "level", "longitude", "latitude", "therm_coeffs"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 5)))
+        self.boxm_ds["RC_orig"] = (["time", "level", "longitude", "latitude", "therm_coeffs"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 5)))
+
+        self.boxm_ds["Y"] = (["time", "level", "longitude", "latitude", "species"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], self.boxm_ds.dims["species"])))
         self.boxm_ds["Y_orig"] = (["time", "level", "longitude", "latitude", "species"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], self.boxm_ds.dims["species"])))
 
         self.boxm_ds["FL"] = (["time", "level", "longitude", "latitude", "flux_rates"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 130)))
+        self.boxm_ds["FL_orig"] = (["time", "level", "longitude", "latitude", "flux_rates"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 130)))
 
     def to_netcdfs(self):
         """Convert the met, bg_chem, and emi datasets to boxm_ds.nc for use in the box model."""
@@ -178,45 +193,45 @@ class Boxm(Model):
         print(self.boxm_ds_stacked)
 
         # Delete any existing netCDF files
-        if pathlib.Path(self.path + "boxm_ds.nc").exists():
+        if pathlib.Path(self.file_path + "boxm_ds.nc").exists():
             print("deleting boxm_ds.nc")
-            pathlib.Path(self.path + "boxm_ds.nc").unlink()
+            pathlib.Path(self.file_path + "boxm_ds.nc").unlink()
 
-        if pathlib.Path(self.path + "boxm_input.txt").exists():
+        if pathlib.Path(self.file_path + "boxm_input.txt").exists():
             print("deleting boxm_input.txt")
-            pathlib.Path(self.path + "boxm_input.txt").unlink()
+            pathlib.Path(self.file_path + "boxm_input.txt").unlink()
 
             # delete any input and output files
-        if pathlib.Path(self.path + "BACKITNE.OUT").exists():
+        if pathlib.Path(self.file_path + "BACKITNE.OUT").exists():
             print("deleting BACKITNE.OUT")
-            pathlib.Path(self.path + "BACKITNE.OUT").unlink()
+            pathlib.Path(self.file_path + "BACKITNE.OUT").unlink()
 
-        if pathlib.Path(self.path + "ZEN.OUT").exists():
+        if pathlib.Path(self.file_path + "ZEN.OUT").exists():
             print("deleting ZEN.OUT")
-            pathlib.Path(self.path + "ZEN.OUT").unlink()
+            pathlib.Path(self.file_path + "ZEN.OUT").unlink()
 
-        if pathlib.Path(self.path + "J.OUT").exists():
+        if pathlib.Path(self.file_path + "J.OUT").exists():
             print("deleting J.OUT")
-            pathlib.Path(self.path + "J.OUT").unlink()
+            pathlib.Path(self.file_path + "J.OUT").unlink()
 
-        if pathlib.Path(self.path + "DJ.OUT").exists():
+        if pathlib.Path(self.file_path + "DJ.OUT").exists():
             print("deleting DJ.OUT")
-            pathlib.Path(self.path + "DJ.OUT").unlink()
+            pathlib.Path(self.file_path + "DJ.OUT").unlink()
 
-        if pathlib.Path(self.path + "RC.OUT").exists():
+        if pathlib.Path(self.file_path + "RC.OUT").exists():
             print("deleting RC.OUT")
-            pathlib.Path(self.path + "RC.OUT").unlink()
+            pathlib.Path(self.file_path + "RC.OUT").unlink()
 
-        if pathlib.Path(self.path + "Y.OUT").exists():
+        if pathlib.Path(self.file_path + "Y.OUT").exists():
             print("deleting Y.OUT")
-            pathlib.Path(self.path + "Y.OUT").unlink()
+            pathlib.Path(self.file_path + "Y.OUT").unlink()
 
-        if pathlib.Path(self.path + "FL.OUT").exists():
+        if pathlib.Path(self.file_path + "FL.OUT").exists():
             print("deleting FL.OUT")
-            pathlib.Path(self.path + "FL.OUT").unlink()
+            pathlib.Path(self.file_path + "FL.OUT").unlink()
 
         # Convert DataFrames to Datasets and write to netCDF
-        self.boxm_ds_stacked.to_netcdf(self.path + "boxm_ds.nc", mode="w")
+        self.boxm_ds_stacked.to_netcdf(self.file_path + "boxm_ds.nc", mode="w")
 
     def run_boxm(self):
         """Run the box model in fortran using subprocess."""
@@ -226,18 +241,18 @@ class Boxm(Model):
         )
         
         # open nc file
-        self.boxm_ds = xr.open_dataset(self.path + "boxm_ds.nc")
+        self.boxm_ds = xr.open_dataset(self.file_path + "boxm_ds.nc")
         print(self.boxm_ds)
 
     def run_boxm_orig(self):
         """Run the original box model in fortran using subprocess."""
         
-        for cell in range(1):
-        
-
-
+        for cell in np.arange(self.boxm_ds.sizes["cell"]):
+            print(cell)
             # generate input file
             self.gen_boxm_input_file(cell)
+
+            self.gen_zen_file(cell)
 
             # calls fortran with input file, and generates .OUT files
             subprocess.call(
@@ -247,35 +262,15 @@ class Boxm(Model):
             # read output files to nc
             self.output_to_nc(cell)
 
-        # convert lat lon to coords
-        # chem = chem.set_coords(("level", "longitude", "latitude"))
-
-        # chem = chem.assign_coords(
-        #     time=self.met["time"].data.values[: chem.dims["time"]],
-        #     level=chem.level,
-        #     longitude=chem.longitude,
-        #     latitude=chem.latitude,
-        #     cell=range(),
-            # "level": self.met["level"].data.values,
-            # "longitude": self.met["longitude"].data.values,
-            # "latitude": self.met["latitude"].data.values}
-  
-
-        # chem = chem.set_index(cell=["level", "longitude", "latitude"])
-        # chem = chem.unstack("cell")
-
-        # chem = chem.set_coords(['level', 'longitude', 'latitude'])
-
-
     def gen_boxm_input_file(self, cell):
         """Generate the input file for the original box model."""
 
         # delete any existing input files
-        if pathlib.Path(self.path + "boxm_input.txt").exists():
-                pathlib.Path("/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/boxm_input.txt").unlink()
+        if pathlib.Path(self.file_path + "boxm_input.txt").exists():
+                pathlib.Path("/home/ktait98/pycontrails_kt/pycontrails/models/files/boxm_input.txt").unlink()
 
         # open file
-        boxm_input = open(self.path + "boxm_input.txt", "w")
+        boxm_input = open(self.file_path + "boxm_input.txt", "w")
 
         start_time = pd.to_datetime(self.met["time"].data.values[0])
         end_time = pd.to_datetime(self.met["time"].data.values[-1])
@@ -300,39 +295,56 @@ class Boxm(Model):
         for s in ["NO2", "NO", "O3", "CO", "CH4", "HCHO", "CH3CHO", "CH3COCH3",
                            "C2H6", "C2H4", "C3H8", "C3H6", "C2H2", "NC4H10", "TBUT2ENE",
                            "BENZENE", "TOLUENE", "OXYL", "C5H8", "H2O2", "HNO3", "C2H5CHO",
-                           "CH3OH", "MEK", "CH3OOH", "PAN", "MPAN", "OH"]:
+                           "CH3OH", "MEK", "CH3OOH", "PAN", "MPAN"]:
             
             boxm_input.write(repr(self.bg_chem.sel(species=s).loc[latitude, 
                                                            longitude, plevel].values.item()) + "\n")
             
         boxm_input.close()
 
+    def gen_zen_file(self, cell):
+        items = self.boxm_ds["sza"].sel(cell=cell).values
+
+        # delete any existing input files
+        if pathlib.Path(self.file_path + "zen.txt").exists():
+                pathlib.Path(self.file_path + "zen.txt").unlink()
+
+        file = open(self.file_path + 'zen.txt','w')
+        for item in items:
+            file.write(repr(item) + "\n")
+        file.close()
     
     def output_to_nc(self, cell):
          
-        # ZEN_df = pd.read_csv("/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/ZEN.OUT", header=0,
-        #                   names=['TIME', 'ZEN', 'TEMP', 'cosx', 'secx'], dtype=np.float64)
+        ZEN_df = pd.read_csv("/home/ktait98/pycontrails_kt/pycontrails/models/files/ZEN.OUT", header=0,
+                          names=['TIME', 'ZEN'], dtype=np.float64)
          
-        # J_df = pd.read_csv("/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/J.OUT", header=0,
-        #                     names=['TIME', 'J1', 'J2', 'J3', 'J4', 'J5', 'J6', 'J7', 'J8', 'J9', 'J10', 'J11', 'J12', 'J13','J14', 'J15', 'J16', 'J17', 'J18', 'J19', 'J20', 'J21', 'J22', 'J23', 'J24', 'J25', 'J26', 'J27', 'J28', 'J29', 'J30', 'J31', 'J32', 'J33', 'J34', 'J35', 'J36', 'J37', 'J38', 'J39', 'J40', 'J41', 'J42', 'J43', 'J44', 'J45', 'J46', 'J47', 'J48', 'J49', 'J50'], dtype=np.float64)
+        J_df = pd.read_csv("/home/ktait98/pycontrails_kt/pycontrails/models/files/J.OUT", header=0,
+                            names=['TIME', 'J1', 'J2', 'J3', 'J4', 'J5', 'J6', 'J7', 'J8', 'J9', 'J10', 'J11', 'J12', 'J13','J14', 'J15', 'J16', 'J17', 'J18', 'J19', 'J20', 'J21', 'J22', 'J23', 'J24', 'J25', 'J26', 'J27', 'J28', 'J29', 'J30', 'J31', 'J32', 'J33', 'J34', 'J35', 'J36', 'J37', 'J38', 'J39', 'J40', 'J41', 'J42', 'J43', 'J44', 'J45', 'J46', 'J47', 'J48', 'J49', 'J50'], dtype=np.float64)
 
-        # DJ_df = pd.read_csv("/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/DJ.OUT", header=0,
-        #                         names=['TIME', 'DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6', 'DJ7', 'DJ8', 'DJ9', 'DJ10', 'DJ11', 'DJ12', 'DJ13','DJ14', 'DJ15', 'DJ16', 'DJ17', 'DJ18', 'DJ19', 'DJ20', 'DJ21', 'DJ22', 'DJ23', 'DJ24', 'DJ25', 'DJ26', 'DJ27', 'DJ28', 'DJ29', 'DJ30', 'DJ31', 'DJ32', 'DJ33', 'DJ34', 'DJ35', 'DJ36', 'DJ37', 'DJ38', 'DJ39', 'DJ40', 'DJ41', 'DJ42', 'DJ43', 'DJ44', 'DJ45', 'DJ46', 'DJ47', 'DJ48', 'DJ49', 'DJ50'], dtype=np.float64)
+        DJ_df = pd.read_csv("/home/ktait98/pycontrails_kt/pycontrails/models/files/DJ.OUT", header=0,
+                                names=['TIME', 'DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6', 'DJ7', 'DJ8', 'DJ9', 'DJ10', 'DJ11', 'DJ12', 'DJ13','DJ14', 'DJ15', 'DJ16', 'DJ17', 'DJ18', 'DJ19', 'DJ20', 'DJ21', 'DJ22', 'DJ23', 'DJ24', 'DJ25', 'DJ26', 'DJ27', 'DJ28', 'DJ29', 'DJ30', 'DJ31', 'DJ32', 'DJ33', 'DJ34', 'DJ35', 'DJ36', 'DJ37', 'DJ38', 'DJ39', 'DJ40', 'DJ41', 'DJ42', 'DJ43', 'DJ44', 'DJ45', 'DJ46', 'DJ47', 'DJ48', 'DJ49', 'DJ50'], dtype=np.float64)
 
-        # RC_df = pd.read_csv("/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/RC.OUT", header=0,
-        #                     names=['TIME', 'RC1', 'RC2', 'RC3', 'RC4', 'RC5', 'RC6', 'RC7', 'RC8', 'RC9', 'RC10', 'RC11', 'RC12', 'RC13','RC14', 'RC15', 'RC16', 'RC17', 'RC18', 'RC19', 'RC20', 'RC21', 'RC22', 'RC23', 'RC24', 'RC25', 'RC26', 'RC27', 'RC28', 'RC29', 'RC30', 'RC31', 'RC32', 'RC33', 'RC34', 'RC35', 'RC36', 'RC37', 'RC38', 'RC39', 'RC40', 'RC41', 'RC42', 'RC43', 'RC44', 'RC45', 'RC46', 'RC47', 'RC48', 'RC49', 'RC50'], dtype=np.float64)
+        RC_df = pd.read_csv("/home/ktait98/pycontrails_kt/pycontrails/models/files/RC.OUT", header=0,
+                            names=['TIME', 'RC1', 'RC2', 'RC3', 'RC4', 'RC5', 'RC6', 'RC7', 'RC8', 'RC9', 'RC10', 'RC11', 'RC12', 'RC13','RC14', 'RC15', 'RC16', 'RC17', 'RC18', 'RC19', 'RC20', 'RC21', 'RC22', 'RC23', 'RC24', 'RC25', 'RC26', 'RC27', 'RC28', 'RC29', 'RC30', 'RC31', 'RC32', 'RC33', 'RC34', 'RC35', 'RC36', 'RC37', 'RC38', 'RC39', 'RC40', 'RC41', 'RC42', 'RC43', 'RC44', 'RC45', 'RC46', 'RC47', 'RC48', 'RC49', 'RC50'], dtype=np.float64)
 
-        Y_df = pd.read_csv("/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/Y.OUT", header=0,
+        Y_df = pd.read_csv("/home/ktait98/pycontrails_kt/pycontrails/models/files/Y.OUT", header=0,
                             names=['TIME', 'O1D', 'O', 'OH', 'NO2', 'NO3', 'O3', 'N2O5', 'NO', 'HO2', 'H2', 'CO', 'H2O2', 'HONO', 'HNO3', 'HO2NO2', 'SO2', 'SO3', 'HSO3', 'NA', 'SA', 'CH4', 'CH3O2', 'C2H6', 'C2H5O2', 'C3H8', 'IC3H7O2', 'RN10O2', 'NC4H10', 'RN13O2', 'C2H4', 'HOCH2CH2O2', 'C3H6', 'RN902', 'TBUT2ENE', 'RN12O2', 'NRN6O2', 'NRN9O2', 'NRN12O2', 'HCHO', 'HCOOH', 'CH3CO2H', 'CH3CHO', 'C5H8', 'RU14O2', 'NRU14O2',
-                            'UCARB10', 'APINENE', 'RTN28O2', 'NRTN28O2', 'RTN26O2'], dtype=np.float64)
-        print(Y_df["TIME"].values)
+                            'UCARB10', 'APINENE', 'RTN28O2', 'NRTN28O2', 'RTN26O2'], dtype=np.float64)        
+
+        self.boxm_ds["ZEN_orig"].loc[:, cell] = ZEN_df["ZEN"].values * np.pi / 180
+
+        for pp, photol_params in enumerate(J_df.columns[1:6]):
+            self.boxm_ds["J_orig"].loc[:, pp, cell] = J_df[photol_params].values
+
+        for pc, photol_coeffs in enumerate(DJ_df.columns[1:6]):
+            self.boxm_ds["DJ_orig"].loc[:, pc, cell] = DJ_df[photol_coeffs].values
+
+        for tc, therm_coeffs in enumerate(RC_df.columns[1:6]):
+            self.boxm_ds["RC_orig"].loc[:, tc, cell] = RC_df[therm_coeffs].values
         
-
         for s, species in enumerate(Y_df.columns[1:]):
-
             self.boxm_ds["Y_orig"].loc[:, species, cell] = Y_df[species].values
-
-
 
     # animate chemdataset
     def anim_chem(self, mda):
@@ -407,6 +419,10 @@ def grab_bg_chem(met):
         "/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/species.nc"
     ).sel(month=month - 1)
 
+    for s in [1, 2, 3, 5, 7, 9, 10, 13, 15, 16, 17, 18, 19, 20, 22, 24, 26, 27, 29, 31, 33, 35, 36, 37, 38, 40, 41, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 60, 62, 63, 65, 66, 68, 69, 70, 72, 74, 75, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 102, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 199, 200, 201, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219]:
+        bg_chem[:, :, :, s-1] = 0
+
+
     bg_chem = bg_chem * 1e09  # convert mixing ratio to ppb
 
     return bg_chem
@@ -417,7 +433,7 @@ def latitude_to_latbox(latitude):
         normalized_latitude = (latitude + 87.5) / 180
 
         # Map the normalized latitude to the range 1-72
-        latbox = normalized_latitude * 36
+        latbox = normalized_latitude * 36 + 1
 
         # Round to the nearest integer and return
         return round(latbox)
@@ -427,7 +443,7 @@ def longitude_to_longbox(longitude):
         normalized_longitude = (longitude + 177.5) / 360
 
         # Map the normalized longitude to the range 1-144
-        longbox = normalized_longitude * 72
+        longbox = normalized_longitude * 72 + 1
 
         # Round to the nearest integer and return
         return round(longbox)
@@ -440,6 +456,6 @@ def get_pressure_level(alt):
         pressure = units.m_to_pl(alt)
 
         # Find the index of the closest value in the array
-        idx = (np.abs(chem_pressure_levels - pressure)).argmin()
+        idx = (np.abs(chem_pressure_levels - pressure)).argmin() + 1
 
         return idx

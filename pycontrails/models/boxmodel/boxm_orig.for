@@ -26,7 +26,7 @@ C-----------------------------------------------------------------------
       DOUBLE PRECISION THETA, SECX, COSX, POAM, OM, MOM
       DOUBLE PRECISION PRESSURE,SOA,XYEAR,TIME1,Z(NC),ZP(NC),ZRO2
       DOUBLE PRECISION L(70),MM(70),NN(70),J(70),K,JS1,KZ
-      DOUBLE PRECISION RO2, BR01, RADIAN,LONGRAD,COSZEN,ZENNOW
+      DOUBLE PRECISION RO2, BR01, RADIAN,LONGRAD,COSZEN, ZENNOW
       INTEGER MONTHDAY(12),IDAY, TOTALDAY,IMONTH
         CHARACTER*20  CNAMES(NC)
       DOUBLE PRECISION LAT, LONG, LATRAD,YEAR,FYEAR,EMTOT
@@ -132,25 +132,27 @@ C
      &inCH3OH, inMEK, inCH3OOH, inPAN, inMPAN, inEMI_NO2, inEMI_CO, 
      &inEMI_HCHO, inEMI_CH3CHO, inEMI_CH3COCH3, inEMI_C2H6, inEMI_C2H4, 
      &inEMI_C3H8, inEMI_C3H6, inEMI_C2H2, inEMI_BENZENE, inEMI_TOLUENE, 
-     &inEMI_C2H5CHO, inFF, inT0, inA0, inV0, inKZ, inOH  
+     &inEMI_C2H5CHO, inFF, inT0, inA0, inV0, inKZ, inDTS
 
       CHARACTER(LEN=100) :: PATH
 C
-      PATH='/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/'
-      OPEN(7, FILE= TRIM(PATH)//'BACKITNE.OUT',STATUS='NEW')
-      OPEN(8, FILE = TRIM(PATH)//'Y.OUT', STATUS = 'NEW') 
-      OPEN(9, FILE = TRIM(PATH)//'ZEN.OUT', STATUS = 'NEW')
-      OPEN(10, FILE = TRIM(PATH)//'J.OUT', STATUS = 'NEW')
-      OPEN(11, FILE = TRIM(PATH)//'DJ.OUT', STATUS = 'NEW')
-      OPEN(12, FILE = TRIM(PATH)//'RC.OUT', STATUS = 'NEW') 
-      OPEN(13, FILE = TRIM(PATH)//'boxm_input.txt', STATUS = 'OLD')
+      PATH='/home/ktait98/pycontrails_kt/pycontrails/models/files/'
+C
+      OPEN(7, FILE= TRIM(PATH)//'BACKITNE.OUT',STATUS='UNKNOWN')
+      OPEN(8, FILE = TRIM(PATH)//'Y.OUT', STATUS = 'UNKNOWN') 
+      OPEN(9, FILE = TRIM(PATH)//'ZEN.OUT', STATUS = 'UNKNOWN')
+      OPEN(10, FILE = TRIM(PATH)//'J.OUT', STATUS = 'UNKNOWN')
+      OPEN(11, FILE = TRIM(PATH)//'DJ.OUT', STATUS = 'UNKNOWN')
+      OPEN(12, FILE = TRIM(PATH)//'RC.OUT', STATUS = 'UNKNOWN') 
+      OPEN(13, FILE = TRIM(PATH)//'boxm_input.txt', STATUS = 'UNKNOWN')
+      OPEN(14, FILE = TRIM(PATH)//'zen.txt', STATUS = 'UNKNOWN')
 C
       READ(13, *) inDAY, inMONTH, inYEAR, inLEVEL, inLONG,
      &inLAT, inRUNTIME, inM, inP, inH2O, inTEMP, inNO2, inNO, 
      &inO3, inCO, inCH4, inHCHO, inCH3CHO, inCH3COCH3, inC2H6, inC2H4, 
-     &inC3H8, inC3H6,inC2H2, inNC4H10, inTBUT2ENE, inBENZENE, inTOLUENE,
-     &inOXYL, inC5H8, inH2O2, inHNO3, inC2H5CHO, inCH3OH, inMEK, 
-     &inCH3OOH, inPAN, inMPAN, inOH
+     &inC3H8, inC3H6,inC2H2, inNC4H10, inTBUT2ENE, inBENZENE, 
+     &inTOLUENE,inOXYL,inC5H8,inH2O2,inHNO3,inC2H5CHO,inCH3OH,inMEK, 
+     &inCH3OOH, inPAN, inMPAN
       
 C
 C
@@ -199,13 +201,15 @@ C     &inLAT, inRUNTIME,inM, inH2O, inTEMP, inNO2,inNO, inO3, inCO,
 C     &inCH4, inHCHO, inCH3CHO, inCH3COCH3, inC2H6, inC2H4,inC3H8,
 C     &inC3H6, inC2H2, inNC4H10, inTBUT2ENE, inBENZENE,
 C     &inTOLUENE, inOXYL, inC5H8, inH2O2, inHNO3, inC2H5CHO,
-C     &inCH3OH, inMEK, inCH3OOH, inPAN, inMPAN     
+C     &inCH3OH, inMEK, inCH3OOH, inPAN, inMPAN    
+            
+      inDTS = 20.0      
       EAFAC = 1.0
       TSTART = 3600*12.0
       ENDTIME = 86400.0*inRUNTIME + 3600*12.0
       SECYEAR = 3.6525E+02*2.40E+01*3.60E+03
 C      SET TIMESTEP
-      DTS = 20.0
+      DTS = inDTS
 C     INITIALISATION                                                                          
       DO 203 I=1,512
         RC(I)=0.0
@@ -307,7 +311,6 @@ C
       Y(144)= inCH3OOH*PPB 	! CH3OOH
       Y(198)= inPAN*PPB   	! PAN
       Y(202)= inMPAN*PPB 	! MPAN
-      Y(3) = inOH*PPB 	! OH
 C
       TIME = TSTART
 C
@@ -323,10 +326,21 @@ C
   35  CONTINUE                                                     
 C
       TIME1 = TIME - TSTART
-	CALL ZENITH(COSZEN,TIME,FYEAR,SECYEAR,ZENNOW,
-     & LONGRAD,LATRAD,XYEAR) 
+c 	CALL ZENITH(COSZEN,TIME,FYEAR,SECYEAR,ZENNOW,
+c      & LONGRAD,LATRAD,XYEAR) 
 
-      WRITE(9,521) TIME1,ZENNOW,TEMP,COSX,SECX                      
+      READ(14, *) ZENNOW
+
+      ZENNOW = ZENNOW * 180 / (4.00E+00*ATAN(1.00E+00))
+C                                                                     
+C Correct solar zenith angle if zenith angle is negative              
+C          
+C                                                                     
+      IF(ZENNOW.LT.0) THEN                                              
+      ZENNOW = 1.80E+02 + ZENNOW                                        
+      END IF
+
+      WRITE(9,521) TIME1,ZENNOW ! TEMP,COSX,SECX                      
 C
 C Mass of organic particulate material             
 C -------------------------------------------------------------------
@@ -350,8 +364,8 @@ C
 	IF((ZENNOW-8.999E+01).LT.0) THEN
 C **** PHOTOLYSIS PARAMETERS IN FORMAT J = L*COSX**M*EXP(-N*SECX)      
 C                                                                     
-      COSX = COSZEN 
-      SECX = 1.00E+00/COSZEN                                                              
+      COSX = COS(ZENNOW/RADIAN) 
+      SECX = 1.00E+00/COSX                                                              
        J(1)=6.073D-05*(COSX**(1.743))*EXP(-0.474*SECX) 
        J(2)=4.775D-04*(COSX**(0.298))*EXP(-0.080*SECX) 
        J(3)=1.041D-05*(COSX**(0.723))*EXP(-0.279*SECX) 
@@ -400,8 +414,8 @@ C      reset previous concentrations at current value
         ZP(I)=Z(I)
   10  CONTINUE
 C
-      IF (TSTORE.LT.1.0.OR.(TIME-TSTORE).EQ.300) THEN
-      WRITE(6,*)TIME1
+      IF (TSTORE.LT.1.0.OR.(TIME-TSTORE).EQ.inDTS) THEN
+C      WRITE(6,*)TIME1
 C
       WRITE(10,517) TIME1,(J(PP), PP=1,50)
 C
@@ -455,7 +469,7 @@ C
 C
   519 FORMAT(A, 50(",", A))
   520 FORMAT(A, 4(",", A))
-  521 FORMAT(ES9.3, 4(",", ES15.6E3))
+  521 FORMAT(ES9.3, 1(",", ES15.6))
       END
 C
       SUBROUTINE DERIV(RC,FL,E,DJ,H2O,M,O2,YP,Y,DTS,TIME1,RO2,ZP,Z,KZ)
@@ -5099,28 +5113,31 @@ C#######################################################################
 C SOLAR DECLINATION ANGLE FROM JULY 1ST - HARWELL TRAJ MODEL
  
 C LATITUDE
-      LAT = (inLAT-1)*5-87.5
-      PI = 4.0*ATAN(1.0)
-      RADIAN  = 1.80E+02/PI
-      XYEAR  = FYEAR+(TTIME/SECYEAR) 
+c       LAT = (inLAT-1)*5-87.5
+c       PI = 4.0*ATAN(1.0)
+c       RADIAN  = 1.80E+02/PI
+c       XYEAR  = FYEAR+(TTIME/SECYEAR) 
+c C                                                                     
+c       FSUN   = 1.00D+00 + (3.40D-02*COS(2.00D+00*PI*FYEAR)) 
+c C                                                                     
+c C Calculate declination                                               
+c C                                                                     
+c       DEC    = -4.1420D-01*COS(2.00D+00*PI*XYEAR) 
+c C                                                                     
+c C Calculate local hour angle from longitude                           
+c C                                                                     
+c       LHA    = (1.00D+00+TTIME/4.32D+04)*PI+LONGRAD 
+c C                                                                     
+c C Calculate solar zenith angle                                        
+c C                                                                     
+c       COSLD   = COS(LATRAD)*COS(DEC) 
+c       SINLD   = SIN(LATRAD)*SIN(DEC) 
+c       COSZEN  = (COS(LHA)*COSLD)+SINLD 
 C                                                                     
-      FSUN   = 1.00D+00 + (3.40D-02*COS(2.00D+00*PI*FYEAR)) 
-C                                                                     
-C Calculate declination                                               
-C                                                                     
-      DEC    = -4.1420D-01*COS(2.00D+00*PI*XYEAR) 
-C                                                                     
-C Calculate local hour angle from longitude                           
-C                                                                     
-      LHA    = (1.00D+00+TTIME/4.32D+04)*PI+LONGRAD 
-C                                                                     
-C Calculate solar zenith angle                                        
-C                                                                     
-      COSLD   = COS(LATRAD)*COS(DEC) 
-      SINLD   = SIN(LATRAD)*SIN(DEC) 
-      COSZEN  = (COS(LHA)*COSLD)+SINLD 
-C                                                                     
-      ZENNOW  = RADIAN*ATAN((SQRT(1.00D+00-COSZEN**2))/COSZEN)
+      READ(14, *) ZENNOW
+
+      ZENNOW = ZENNOW * 180 / (4.00E+00*ATAN(1.00E+00))
+      PRINT *, 'ZENNOW = ', ZENNOW
 C                                                                     
 C Correct solar zenith angle if zenith angle is negative              
 C          
