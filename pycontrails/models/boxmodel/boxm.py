@@ -114,6 +114,8 @@ class Boxm(Model):
         self.to_netcdfs()
         self.run_boxm()
         self.run_boxm_orig()
+        #self.unstack()
+        #self.calc_diff()
 
 
     def process_datasets(self):
@@ -148,11 +150,8 @@ class Boxm(Model):
         ) 
 
     def init_boxm_ds(self):
-
         self.boxm_ds = xr.merge([self.met.data, self.bg_chem, self.source.data])
-        # self.boxm_ds.expand_dims({"photol_params": 57})
-        # self.boxm_ds.expand_dims({"photol_coeffs": 96})
-        # self.boxm_ds.expand_dims({"therm_coeffs": 512})
+
         self.boxm_ds = self.boxm_ds.drop_vars(
             [
                 "specific_humidity",
@@ -164,22 +163,25 @@ class Boxm(Model):
             ]
         )
 
-        self.boxm_ds["ZEN_orig"] = (["time", "level", "longitude", "latitude"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"])))
+        self.boxm_ds = self.boxm_ds.assign_attrs(dts=self.params["ts_chem"].total_seconds())
+
+        self.boxm_ds["ZEN_orig"] = (["time"], da.zeros((self.boxm_ds.dims["time"])))
 
         self.boxm_ds["J"] = (["time", "level", "longitude", "latitude", "photol_params"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 5)))
-        self.boxm_ds["J_orig"] = (["time", "level", "longitude", "latitude", "photol_params"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 5)))
+        self.boxm_ds["J_orig"] = (["time", "photol_params"], da.zeros((self.boxm_ds.dims["time"], 5)))
 
         self.boxm_ds["DJ"] = (["time", "level", "longitude", "latitude", "photol_coeffs"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 5)))
-        self.boxm_ds["DJ_orig"] = (["time", "level", "longitude", "latitude", "photol_coeffs"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 5)))
+        self.boxm_ds["DJ_orig"] = (["time", "photol_coeffs"], da.zeros((self.boxm_ds.dims["time"], 5)))
 
         self.boxm_ds["RC"] = (["time", "level", "longitude", "latitude", "therm_coeffs"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 5)))
-        self.boxm_ds["RC_orig"] = (["time", "level", "longitude", "latitude", "therm_coeffs"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 5)))
+        self.boxm_ds["RC_orig"] = (["time", "therm_coeffs"], da.zeros((self.boxm_ds.dims["time"], 5)))
 
         self.boxm_ds["Y"] = (["time", "level", "longitude", "latitude", "species"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], self.boxm_ds.dims["species"])))
-        self.boxm_ds["Y_orig"] = (["time", "level", "longitude", "latitude", "species"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], self.boxm_ds.dims["species"])))
+        self.boxm_ds["Y_orig"] = (["time", "species"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["species"])))
+        # self.boxm_ds["Y_orig"] = (["time", "level", "longitude", "latitude", "species"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], self.boxm_ds.dims["species"])))
 
-        self.boxm_ds["FL"] = (["time", "level", "longitude", "latitude", "flux_rates"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 130)))
-        self.boxm_ds["FL_orig"] = (["time", "level", "longitude", "latitude", "flux_rates"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 130)))
+        # self.boxm_ds["FL"] = (["time", "level", "longitude", "latitude", "flux_rates"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 130)))
+        # self.boxm_ds["FL_orig"] = (["time", "level", "longitude", "latitude", "flux_rates"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 130)))
 
     def to_netcdfs(self):
         """Convert the met, bg_chem, and emi datasets to boxm_ds.nc for use in the box model."""
@@ -247,7 +249,7 @@ class Boxm(Model):
     def run_boxm_orig(self):
         """Run the original box model in fortran using subprocess."""
         
-        for cell in np.arange(self.boxm_ds.sizes["cell"]):
+        for cell in range(13, 14): #np.arange(self.boxm_ds.sizes["cell"]):
             print(cell)
             # generate input file
             self.gen_boxm_input_file(cell)
@@ -332,43 +334,82 @@ class Boxm(Model):
                             names=['TIME', 'O1D', 'O', 'OH', 'NO2', 'NO3', 'O3', 'N2O5', 'NO', 'HO2', 'H2', 'CO', 'H2O2', 'HONO', 'HNO3', 'HO2NO2', 'SO2', 'SO3', 'HSO3', 'NA', 'SA', 'CH4', 'CH3O2', 'C2H6', 'C2H5O2', 'C3H8', 'IC3H7O2', 'RN10O2', 'NC4H10', 'RN13O2', 'C2H4', 'HOCH2CH2O2', 'C3H6', 'RN902', 'TBUT2ENE', 'RN12O2', 'NRN6O2', 'NRN9O2', 'NRN12O2', 'HCHO', 'HCOOH', 'CH3CO2H', 'CH3CHO', 'C5H8', 'RU14O2', 'NRU14O2',
                             'UCARB10', 'APINENE', 'RTN28O2', 'NRTN28O2', 'RTN26O2'], dtype=np.float64)        
 
-        self.boxm_ds["ZEN_orig"].loc[:, cell] = ZEN_df["ZEN"].values * np.pi / 180
+        self.boxm_ds["ZEN_orig"].loc[:] = ZEN_df["ZEN"].values * np.pi / 180
 
         for pp, photol_params in enumerate(J_df.columns[1:6]):
-            self.boxm_ds["J_orig"].loc[:, pp, cell] = J_df[photol_params].values
+            self.boxm_ds["J_orig"].loc[:, pp] = J_df[photol_params].values
 
         for pc, photol_coeffs in enumerate(DJ_df.columns[1:6]):
-            self.boxm_ds["DJ_orig"].loc[:, pc, cell] = DJ_df[photol_coeffs].values
+            self.boxm_ds["DJ_orig"].loc[:, pc] = DJ_df[photol_coeffs].values
 
         for tc, therm_coeffs in enumerate(RC_df.columns[1:6]):
-            self.boxm_ds["RC_orig"].loc[:, tc, cell] = RC_df[therm_coeffs].values
+            self.boxm_ds["RC_orig"].loc[:, tc] = RC_df[therm_coeffs].values
         
         for s, species in enumerate(Y_df.columns[1:]):
-            self.boxm_ds["Y_orig"].loc[:, species, cell] = Y_df[species].values
+            self.boxm_ds["Y_orig"].loc[:, species] = Y_df[species].values
 
-    # animate chemdataset
-    def anim_chem(self, mda):
+    def unstack(self):
+        """Unstack the box model dataset."""
+        
+        # Convert the dataset to a Dask dataset
+        self.boxm_ds = self.boxm_ds.chunk({'cell': 100})  # Adjust chunk size based on your memory
+        
+        # Convert 'level', 'lat', and 'lon' to coordinates
+        self.boxm_ds_unstacked = self.boxm_ds.set_coords(['level', 'longitude', 'latitude'])
+        print("coords set")
+        
+        # Create a multi-index for the 'cell' dimension
+        self.boxm_ds_unstacked = self.boxm_ds_unstacked.set_index(cell=['level', 'longitude', 'latitude'])
+        
+        # Unstack the dataset
+        self.boxm_ds_unstacked = self.boxm_ds_unstacked.unstack("cell")
+        
+        # Compute the result to trigger the lazy evaluation
+        self.boxm_ds_unstacked = self.boxm_ds_unstacked.compute()
+
+    def calc_diff(self):
+        self.boxm_ds_unstacked["Y_diff"] = self.boxm_ds_unstacked["Y"] - self.boxm_ds_unstacked["Y_orig"]
+        self.boxm_ds_unstacked["Y_perc_diff"] = (self.boxm_ds_unstacked["Y_diff"] / self.boxm_ds_unstacked["Y_orig"]) * 100
+        self.boxm_ds_unstacked["J_diff"] = self.boxm_ds_unstacked["J"] - self.boxm_ds_unstacked["J_orig"]
+        self.boxm_ds_unstacked["DJ_diff"] = self.boxm_ds_unstacked["DJ"] - self.boxm_ds_unstacked["DJ_orig"]
+        self.boxm_ds_unstacked["RC_diff"] = self.boxm_ds_unstacked["RC"] - self.boxm_ds_unstacked["RC_orig"]
+
+    def anim_chem(self, var1, var2, level, resample_freq='1H'):
         """Animate the chemical concentrations."""
         fig, (ax, cbar_ax) = plt.subplots(
             1, 2, gridspec_kw={"width_ratios": (0.9, 0.05), "wspace": 0.2}, figsize=(12, 8)
         )
 
-        times = mda["time"].values
+        if var1 == "Y" or var1 == "Y_orig" or var1 == "Y_diff" or var1 == "Y_perc_diff":
+            boxm_da = self.boxm_ds_unstacked[var1].sel(species=var2).sel(level=level, method="nearest")
 
+        if var1 == "J" or var1 == "J_orig" or var1 == "J_diff":
+            boxm_da = self.boxm_ds_unstacked[var1].sel(photol_params=var2).sel(level=level, method="nearest")
+
+        if var1 == "DJ" or var1 == "DJ_orig" or var1 == "DJ_diff":
+            boxm_da = self.boxm_ds_unstacked[var1].sel(photol_coeffs=var2).sel(level=level, method="nearest")
+
+        if var1 == "RC" or var1 == "RC_orig" or var1 == "RC_diff":
+            boxm_da = self.boxm_ds_unstacked[var1].sel(therm_coeffs=var2).sel(level=level, method="nearest")
+
+        print(boxm_da)
+
+        times = boxm_da["time"].values
+        times_resampled = pd.to_datetime(times).to_series().resample(resample_freq).asfreq().dropna().index
+       
         def heatmap_func(t):
             ax.cla()
             ax.set_title(t)
 
-            mda.sel(time=t).transpose("latitude", "longitude").plot(
-                ax=ax, cbar_ax=cbar_ax, add_colorbar=True, vmin=mda.min(), vmax=mda.max()
+            boxm_da.sel(time=t).transpose("latitude", "longitude").plot(
+                ax=ax, cbar_kwargs={"cax": cbar_ax}, add_colorbar=True, vmin=boxm_da.min(), vmax=boxm_da.max()
             )
 
-        anim = FuncAnimation(fig, heatmap_func, frames=times, blit=False)
+        anim = FuncAnimation(fig, heatmap_func, frames=times_resampled, blit=False)
 
-        filename = pathlib.Path("plume.gif")
+        filename = pathlib.Path(self.file_path + var1 + "_" + var2 + ".gif")
 
         anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
-
 
 # functions used in boxm
 def calc_sza(latitudes, longitudes, timesteps):
@@ -456,6 +497,6 @@ def get_pressure_level(alt):
         pressure = units.m_to_pl(alt)
 
         # Find the index of the closest value in the array
-        idx = (np.abs(chem_pressure_levels - pressure)).argmin() + 1
+        idx = (np.abs(chem_pressure_levels - pressure)).argmin()
 
         return idx
