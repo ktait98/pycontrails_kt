@@ -52,8 +52,6 @@ class FlightGen:
         df["altitude"] = [alt0, alt0]
         df["time"] = [fl_params["t0_fl"], (fl_params["t0_fl"] + fl_params["rt_fl"])]
 
-        print(df)
-
         ts_fl_min = int(fl_params["ts_fl"].total_seconds() / 60)
 
         fl0 = Flight(df).resample_and_fill(freq=f"{ts_fl_min}min")
@@ -259,60 +257,60 @@ class FlightGen:
                 "emi_species": ["NO", "NO2", "CO", "HCHO", "CH3CHO", "C2H4", "C3H6", "C2H2", "BENZENE"],
             }
         )
+        if self.fl_params["n_ac"] >= 1:
+            
+            for t, time in enumerate(pl_df["time"].unique()):
+                print("Processing time: ", time)
+                # create geovectordataset to store instantaneous plume data
+                plume_time_data = GeoVectorDataset(data=pl_df.loc[pl_df["time"] == time])
+                calc_continuous(plume_time_data)
 
-        for t, time in enumerate(pl_df["time"].unique()):
-            print("Processing time: ", time)
-            # create geovectordataset to store instantaneous plume data
-            plume_time_data = GeoVectorDataset(data=pl_df.loc[pl_df["time"] == time])
-            calc_continuous(plume_time_data)
-
-            # define molar masses of species g/mol
-            mm = [30.01, 46.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
-            NA = 6.022e23  # Avogadro's number
-            bbox = (
-                chem_params["lon_bounds"][0],
-                chem_params["lat_bounds"][0],
-                chem_params["lon_bounds"][1],
-                chem_params["lat_bounds"][1],
-                chem_params["alt_bounds"][0],
-                chem_params["alt_bounds"][1],
-            )
-
-            for p, property in enumerate(["NO", "NO2", "CO"]):
-                # ,
-                # 'hcho_m',
-                # 'ch3cho_m',
-                # 'c2h4_m',
-                # 'c3h6_m',
-                # 'c2h2_m',
-                # 'benzene_m']):
-
-                # call contrails_to_hi_res_grid
-                plume_property_data = contrails_to_hi_res_grid(
-                    time=time,
-                    contrails_t=plume_time_data,
-                    var_name=property,
-                    spatial_bbox=bbox,
-                    spatial_grid_res=chem_params["hres_chem"],
+                # define molar masses of species g/mol
+                mm = [30.01, 46.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
+                NA = 6.022e23  # Avogadro's number
+                bbox = (
+                    chem_params["lon_bounds"][0],
+                    chem_params["lat_bounds"][0],
+                    chem_params["lon_bounds"][1],
+                    chem_params["lat_bounds"][1],
+                    chem_params["alt_bounds"][0],
+                    chem_params["alt_bounds"][1],
                 )
 
-                plume = (plume_property_data / 1E+03) * NA / mm[p] # kg/m^3 to molecules/cm^3 
-                # kg -> g (* 1E+03)
-                # m^3 -> cm^3 (/ 1E+06)
+                for p, property in enumerate(["NO", "NO2", "CO"]):
+                    # ,
+                    # 'hcho_m',
+                    # 'ch3cho_m',
+                    # 'c2h4_m',
+                    # 'c3h6_m',
+                    # 'c2h2_m',
+                    # 'benzene_m']):
 
-                # Check if the 'plumes' directory exists, and create it if it does not
-                if not os.path.exists("plumes"):
-                    os.makedirs("plumes")
-                np.savetxt("plumes/plume_data_" + repr(t) + "_" + repr(property) + ".csv", plume, delimiter=",") 
+                    # call contrails_to_hi_res_grid
+                    plume_property_data = contrails_to_hi_res_grid(
+                        time=time,
+                        contrails_t=plume_time_data,
+                        var_name=property,
+                        spatial_bbox=bbox,
+                        spatial_grid_res=chem_params["hres_chem"],
+                    )
 
-                # find altitude index for flight level
-                emi.loc[:, :, units.m_to_pl(self.fl_params["fl0_coords0"][2]), time, property] = (
-                    plume
-                )  # convert to molecules/cm^3
+                    plume = (plume_property_data / 1E+03) * NA / mm[p] # kg/m^3 to molecules/cm^3 
+                    # kg -> g (* 1E+03)
+                    # m^3 -> cm^3 (/ 1E+06)
+
+                    # Check if the 'plumes' directory exists, and create it if it does not
+                    if not os.path.exists("plumes"):
+                        os.makedirs("plumes")
+                    np.savetxt("plumes/plume_data_" + repr(t) + "_" + repr(property) + ".csv", plume, delimiter=",") 
+
+                    # find altitude index for flight level
+                    emi.loc[:, :, units.m_to_pl(self.fl_params["fl0_coords0"][2]), time, property] = (
+                        plume
+                    )  # convert to molecules/cm^3
 
         return MetDataset(xr.Dataset({"emi": emi}))
     
-
     def anim_fl(self, fl_df: pd.DataFrame, pl_df: pd.DataFrame) -> None:
         """Animate formation flight trajectories and associated plume dispersion/advection."""
 
@@ -366,7 +364,6 @@ def calc_heading(pl_df: pd.DataFrame) -> pd.DataFrame:
 
     return pl_df
 
-
 def calculate_heading_g(group):
     g = Geod(ellps="WGS84")
 
@@ -381,7 +378,6 @@ def calculate_heading_g(group):
     return pd.Series(
         np.concatenate([[heading[0]], heading]) if len(heading) > 0 else [np.nan], index=group.index
     )
-
 
 def calc_continuous(plume: GeoVectorDataset):
     """Calculate the continuous segments of this timestep.

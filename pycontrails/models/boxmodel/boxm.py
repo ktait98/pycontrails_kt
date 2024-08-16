@@ -30,7 +30,7 @@ from pycontrails.core.models import Model, ModelParams
 from pycontrails.models.boxmodel import boxm
 from pycontrails.physics import constants, geo
 
-
+### Boxm Model Parameters ###
 @dataclass
 class BoxmParams(ModelParams):
     """Default box model parameters."""
@@ -45,7 +45,7 @@ class BoxmParams(ModelParams):
     rt_chem: timedelta | None = None  # chemistry runtime
     ts_chem: timedelta | None = None  # chemistry timestep
 
-
+### Boxm Model Class ###
 class Boxm(Model):
     """
     Box model class definition.
@@ -116,7 +116,6 @@ class Boxm(Model):
         self.run_boxm_orig()
         #self.unstack()
         #self.calc_diff()
-
 
     def process_datasets(self):
         met = self.met
@@ -330,9 +329,12 @@ class Boxm(Model):
         RC_df = pd.read_csv("/home/ktait98/pycontrails_kt/pycontrails/models/files/RC.OUT", header=0,
                             names=['TIME', 'RC1', 'RC2', 'RC3', 'RC4', 'RC5', 'RC6', 'RC7', 'RC8', 'RC9', 'RC10', 'RC11', 'RC12', 'RC13','RC14', 'RC15', 'RC16', 'RC17', 'RC18', 'RC19', 'RC20', 'RC21', 'RC22', 'RC23', 'RC24', 'RC25', 'RC26', 'RC27', 'RC28', 'RC29', 'RC30', 'RC31', 'RC32', 'RC33', 'RC34', 'RC35', 'RC36', 'RC37', 'RC38', 'RC39', 'RC40', 'RC41', 'RC42', 'RC43', 'RC44', 'RC45', 'RC46', 'RC47', 'RC48', 'RC49', 'RC50'], dtype=np.float64)
 
+        species = self.boxm_ds["species"].values
+        # Prepend "TIME" to the species list
+        header_names = ['TIME'] + list(species)
+
         Y_df = pd.read_csv("/home/ktait98/pycontrails_kt/pycontrails/models/files/Y.OUT", header=0,
-                            names=['TIME', 'O1D', 'O', 'OH', 'NO2', 'NO3', 'O3', 'N2O5', 'NO', 'HO2', 'H2', 'CO', 'H2O2', 'HONO', 'HNO3', 'HO2NO2', 'SO2', 'SO3', 'HSO3', 'NA', 'SA', 'CH4', 'CH3O2', 'C2H6', 'C2H5O2', 'C3H8', 'IC3H7O2', 'RN10O2', 'NC4H10', 'RN13O2', 'C2H4', 'HOCH2CH2O2', 'C3H6', 'RN902', 'TBUT2ENE', 'RN12O2', 'NRN6O2', 'NRN9O2', 'NRN12O2', 'HCHO', 'HCOOH', 'CH3CO2H', 'CH3CHO', 'C5H8', 'RU14O2', 'NRU14O2',
-                            'UCARB10', 'APINENE', 'RTN28O2', 'NRTN28O2', 'RTN26O2'], dtype=np.float64)        
+                            names=header_names, dtype=np.float64)        
 
         self.boxm_ds["ZEN_orig"].loc[:] = ZEN_df["ZEN"].values * np.pi / 180
 
@@ -411,7 +413,9 @@ class Boxm(Model):
 
         anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
 
-# functions used in boxm
+### functions used in boxm ###
+
+# calculate solar zenith angle
 def calc_sza(latitudes, longitudes, timesteps):
     """Calculate szas for each cell at all timesteps."""
     sza = np.zeros((len(latitudes), len(longitudes), len(timesteps)))
@@ -425,7 +429,6 @@ def calc_sza(latitudes, longitudes, timesteps):
                 geo.cosine_solar_zenith_angle(lonval, latval, timesteps, theta_rad)
             )
     return sza
-
 
 # calculate number density of air molecules and H2O
 def calc_M_H2O(met):
@@ -450,7 +453,6 @@ def calc_M_H2O(met):
 
     return met
 
-
 # grab bg chem data
 def grab_bg_chem(met):
     """Grab the background chemistry data for the month of the met data."""
@@ -468,7 +470,7 @@ def grab_bg_chem(met):
 
     return bg_chem
 
-
+# convert latitude to latbox
 def latitude_to_latbox(latitude):
         # Map the latitude to the range 0-1
         normalized_latitude = (latitude + 87.5) / 180
@@ -479,6 +481,7 @@ def latitude_to_latbox(latitude):
         # Round to the nearest integer and return
         return round(latbox)
 
+# convert longitude to longbox
 def longitude_to_longbox(longitude):
         # Map the longitude to the range 0-1
         normalized_longitude = (longitude + 177.5) / 360
@@ -489,6 +492,7 @@ def longitude_to_longbox(longitude):
         # Round to the nearest integer and return
         return round(longbox)
 
+# convert altitude to pressure level
 def get_pressure_level(alt):
         # Convert alt to pressure level (hPa)``
         chem_pressure_levels = np.array([962, 861, 759, 658, 556, 454, 353, 251, 150.5])

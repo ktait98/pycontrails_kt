@@ -2924,10 +2924,10 @@ CONTAINS
             YP(CELL,4) = Y(CELL,4) - EMIP(CELL,2) + EMI(CELL,2)
 
             IF (EMI(CELL,3) == 0) THEN
-                EMIP(CELL,2) = 0
+                EMIP(CELL,3) = 0
             ENDIF
 
-            YP(CELL,11) = Y(CELL,11) - EMIP(CELL,2) + EMI(CELL,2)
+            YP(CELL,11) = Y(CELL,11) - EMIP(CELL,3) + EMI(CELL,3)
         END DO
 
         ! PRINT *, Y(182,8), YP(182,8), EMIP(182,1), EMI(182,1)
