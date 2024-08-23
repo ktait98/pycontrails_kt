@@ -28,7 +28,7 @@ def test_sl_path_to_met(met_ecmwf_sl_path: str) -> None:
     assert list(ds.data_vars) == ["sp"]
 
     mds = MetDataset(ds)
-    assert mds.dim_order == ["longitude", "latitude", "level", "time"]
+    assert mds.dim_order == ("longitude", "latitude", "level", "time")
 
     # longitude and latitude correctly translated
     assert np.all(mds.data["longitude"].values >= -180)
@@ -73,7 +73,7 @@ def test_pl_path_to_met(met_ecmwf_pl_path: str) -> None:
     assert list(ds.data_vars) == ["t", "r", "q", "ciwc"]
 
     mds = MetDataset(ds)
-    assert mds.dim_order == ["longitude", "latitude", "level", "time"]
+    assert mds.dim_order == ("longitude", "latitude", "level", "time")
 
     # longitude and latitude correctly translated
     assert np.all(mds.data["longitude"].values < 180)
@@ -1013,6 +1013,7 @@ def test_met_copy(met_ecmwf_pl_path: str) -> None:
     assert round(mds2["t"].data[5][5][2][0].item()) == 235
 
 
+@pytest.mark.usefixtures("_dask_single_threaded")
 def test_met_wrap_longitude_chunks(met_ecmwf_pl_path: str, override_cache: DiskCacheStore) -> None:
     """Check that the wrap_longitude method increments longitudinal chunks."""
     # Using the xr.open_dataset method
@@ -1362,3 +1363,26 @@ def test_provider_attr_warning(met_ecmwf_sl_path: str, provider: str) -> None:
     mds.attrs["provider"] = provider
     with pytest.warns(UserWarning, match=f"Unknown provider '{provider}'."):
         assert mds.provider_attr == provider
+
+
+@pytest.mark.parametrize("coord", ["air_pressure", "altitude"])
+def test_vertical_coord(met_ecmwf_pl_path: str, coord: str) -> None:
+    """Test the nature of assigning new vertical coordinates in the MetDataset constructor."""
+    ds = xr.open_dataset(met_ecmwf_pl_path)
+    assert coord not in ds
+
+    # The MetDataset constructor adds the vertical coordinate
+    mds = MetDataset(ds)
+    assert coord in mds.data.coords
+
+    # Assign a fictitious vertical coordinate with the wrong dtype
+    # and the MetDataset constructor will fix it
+    fake_coord = xr.DataArray(
+        np.arange(len(ds["level"]), dtype=np.float32),
+        dims=["level"],
+        coords={"level": ds["level"]},
+    )
+    ds = ds.assign_coords({coord: fake_coord})
+    mds = MetDataset(ds)
+    assert np.all(mds.data.coords[coord] == fake_coord)
+    assert mds.data.coords[coord].values.dtype == np.float64

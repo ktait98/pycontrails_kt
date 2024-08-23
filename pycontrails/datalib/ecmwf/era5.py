@@ -80,10 +80,17 @@ class ERA5(ECMWFAPI):
         Cache data store for staging ECMWF ERA5 files.
         Defaults to :class:`cache.DiskCacheStore`.
         If None, cache is turned off.
-    url : str
-        Override `cdsapi <https://github.com/ecmwf/cdsapi>`_ url
-    key : str
-        Override `cdsapi <https://github.com/ecmwf/cdsapi>`_ key
+    url : str | None
+        Override the default `cdsapi <https://github.com/ecmwf/cdsapi>`_ url.
+        As of August 2024, the url for the `CDS-Beta <https://cds-beta.climate.copernicus.eu>`_
+        is "https://cds-beta.climate.copernicus.eu/api", and the url for the legacy server is
+        "https://cds.climate.copernicus.eu/api/v2". If None, the url is set
+        by the ``CDSAPI_URL`` environment variable. If this is not defined, the
+        ``cdsapi`` package will determine the url.
+    key : str | None
+        Override default `cdsapi <https://github.com/ecmwf/cdsapi>`_ key. If None,
+        the key is set by the ``CDSAPI_KEY`` environment variable. If this is not defined,
+        the ``cdsapi`` package will determine the key.
 
     Notes
     -----
@@ -121,7 +128,7 @@ class ERA5(ECMWFAPI):
     ...     pressure_levels=[350, 300],
     ...     cachestore=gcp_cache
     ... )
-    """  # noqa: E501
+    """
 
     __slots__ = (
         "product_type",
@@ -522,17 +529,21 @@ class ERA5(ECMWFAPI):
         xr.Dataset
             Processed :class:`xr.Dataset`
         """
-
         if "pycontrails_version" in ds.attrs:
             LOG.debug("Input dataset processed with pycontrails > 0.29")
             return ds
 
-        # not pre-processed source file from `download` or `paths`
-
-        # for "reanalysis-era5-single-levels" or if self.pressure_levels length == 1,
+        # For "reanalysis-era5-single-levels" or if self.pressure_levels length == 1,
         # then the netcdf file does not contain the dimension "level"
         if len(self.pressure_levels) == 1:
-            ds = ds.expand_dims({"level": self.pressure_levels})
+            ds = ds.expand_dims(level=self.pressure_levels)
+
+        # New CDS-Beta gives "valid_time" instead of "time"
+        # and "pressure_level" instead of "level"
+        if "valid_time" in ds:
+            ds = ds.rename(valid_time="time")
+        if "pressure_level" in ds:
+            ds = ds.rename(pressure_level="level")
 
         ds.attrs["pycontrails_version"] = pycontrails.__version__
         return ds

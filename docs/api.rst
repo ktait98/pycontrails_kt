@@ -134,6 +134,7 @@ CoCiP
 
     models.cocip.Cocip
     models.cocip.CocipParams
+    models.cocip.CocipFlightParams
     models.cocip.contrail_properties
     models.cocip.radiative_forcing
     models.cocip.wake_vortex
@@ -148,6 +149,16 @@ Gridded CoCiP
 
     models.cocipgrid.CocipGrid
     models.cocipgrid.CocipGridParams
+
+
+Dry Advection
+"""""""""""""
+
+.. autosummary::
+    :toctree: api/
+
+    models.dry_advection.DryAdvection
+    models.dry_advection.DryAdvectionParams
 
 
 ACCF

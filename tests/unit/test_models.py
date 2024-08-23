@@ -101,7 +101,7 @@ class ModelTestGridMissingRequiredVariables(Model):
 
     name = "grid"
     long_name = "missing required met variables"
-    met_variables = [AirTemperature, OtherVar]
+    met_variables = (AirTemperature, OtherVar)
 
     def eval(self, source: None = None) -> MetDataArray:
         pass
@@ -112,7 +112,7 @@ class ModelTestFlightMissingRequiredVariables(Model):
 
     name = "flight"
     long_name = "missing required met variables"
-    met_variables = [AirTemperature, OtherVar]
+    met_variables = (AirTemperature, OtherVar)
     default_params = ModelParams
 
     def eval(self, source: None = None) -> MetDataArray:
@@ -169,6 +169,19 @@ def test_model_type_guards(met_era5_fake: MetDataset, flight_fake: Flight) -> No
     model.require_source_type(Flight)
 
 
+@pytest.mark.parametrize("model_class", [ModelTestGrid, ModelTestFlight])
+def test_model_hash(met_era5_fake: MetDataset, model_class: type[Model]) -> None:
+    """Check the pinned model hash as a way to test for model degradation.
+
+    This hash will change anytime a new model parameter is added or changed.
+    """
+    model = model_class(met=met_era5_fake)
+    if isinstance(model, ModelTestFlight):
+        assert model.hash == "a5b35e16632ff819e49499a832a1ba1787d3dd27"
+    else:
+        assert model.hash == "b0c26d747887f86ab1942667c3befcb5693688a3"
+
+
 # ----------------
 # Grid-like Tests
 # ----------------
@@ -216,12 +229,6 @@ def test_model_grid_required_met_variables(met_era5_fake: MetDataset) -> None:
 
     with pytest.raises(KeyError, match="other"):
         ModelTestGridMissingRequiredVariables(met_era5_fake)
-
-
-def test_model_grid_hash(met_era5_fake: MetDataset) -> None:
-    """Model hash."""
-    grid_model = ModelTestGrid(met=met_era5_fake)
-    assert grid_model.hash == "b0c26d747887f86ab1942667c3befcb5693688a3"
 
 
 def test_model_met_not_copied(met_era5_fake: MetDataset) -> None:
@@ -326,12 +333,6 @@ def test_model_flight_required_met_variables(met_era5_fake: MetDataset) -> None:
         ModelTestFlightMissingRequiredVariables(met_era5_fake)
 
 
-def test_model_flight_hash(met_era5_fake: MetDataset) -> None:
-    """Ensure pinned hash matches as check for model degradation."""
-    flight_model = ModelTestFlight(met_era5_fake)
-    assert flight_model.hash == "a5b35e16632ff819e49499a832a1ba1787d3dd27"
-
-
 def test_model_flight_met_not_copied(met_era5_fake: MetDataset) -> None:
     """Model met never copied."""
     flight_model = ModelTestFlight(met_era5_fake)
@@ -405,7 +406,7 @@ class ModelTestVerifyMet(Model):
     name = "flight"
     long_name = "two variable flight model"
     default_params = VerifyMetParams
-    met_variables = [AirTemperature, SpecificHumidity]
+    met_variables = (AirTemperature, SpecificHumidity)
 
     source: Flight | MetDataset
 

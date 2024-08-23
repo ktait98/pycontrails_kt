@@ -1,6 +1,7 @@
 """Test low Earth orbit satellite utilites and datalibs."""
 
 import os
+from collections.abc import Generator
 
 import geojson
 import numpy as np
@@ -15,6 +16,7 @@ from pycontrails.datalib._leo_utils import search
 from tests import BIGQUERY_ACCESS, OFFLINE
 
 IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
+PYCONTRAILS_SKIP_LEO_TESTS = bool(os.getenv("PYCONTRAILS_SKIP_LEO_TESTS"))
 
 # ==========
 # Utilities
@@ -249,11 +251,13 @@ def landsat_base_url() -> str:
 
 
 @pytest.fixture()
-def landsat_cachestore() -> cache.DiskCacheStore:
+def landsat_cachestore() -> Generator[cache.DiskCacheStore, None, None]:
     """Clearable cache for Landsat data."""
     cache_root = cache._get_user_cache_dir()
     cache_dir = f"{cache_root}/landsat-unit-test"
-    return cache.DiskCacheStore(cache_dir=cache_dir, allow_clear=True)
+    cachestore = cache.DiskCacheStore(cache_dir=cache_dir, allow_clear=True)
+    yield cachestore
+    cachestore.clear()
 
 
 @pytest.mark.skipif(not BIGQUERY_ACCESS, reason="No BigQuery access")
@@ -342,6 +346,7 @@ def test_landsat_band_resolution(bands: set[str], succeed: bool) -> None:
 
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="data retrieval tests skipped in GitHub actions")
+@pytest.mark.skipif(PYCONTRAILS_SKIP_LEO_TESTS, reason="PYCONTRAILS_SKIP_LEO_TESTS set")
 @pytest.mark.skipif(OFFLINE, reason="offline")
 @pytest.mark.parametrize("band", [f"B{i}" for i in range(1, 9)])
 @pytest.mark.parametrize("processing", ["raw", "radiance", "reflectance"])
@@ -368,10 +373,10 @@ def test_landsat_get_reflective_bands(
     )
 
     ds.close()
-    landsat_cachestore.clear()
 
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="data retrieval tests skipped in GitHub actions")
+@pytest.mark.skipif(PYCONTRAILS_SKIP_LEO_TESTS, reason="PYCONTRAILS_SKIP_LEO_TESTS set")
 @pytest.mark.skipif(OFFLINE, reason="offline")
 @pytest.mark.parametrize("band", ["B10", "B11"])
 @pytest.mark.parametrize("processing", ["raw", "radiance", "brightness_temperature"])
@@ -398,10 +403,10 @@ def test_landsat_get_thermal_bands(
     )
 
     ds.close()
-    landsat_cachestore.clear()
 
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="data retrieval tests skipped in GitHub actions")
+@pytest.mark.skipif(PYCONTRAILS_SKIP_LEO_TESTS, reason="PYCONTRAILS_SKIP_LEO_TESTS set")
 @pytest.mark.skipif(OFFLINE, reason="offline")
 def test_landsat_generate_true_color_rgb(
     landsat_cachestore: cache.DiskCacheStore, landsat_base_url: str
@@ -422,10 +427,10 @@ def test_landsat_generate_true_color_rgb(
     assert extent == (247200.0, 474900.0, 682800.0, 915600.0)
 
     ds.close()
-    landsat_cachestore.clear()
 
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="data retrieval tests skipped in GitHub actions")
+@pytest.mark.skipif(PYCONTRAILS_SKIP_LEO_TESTS, reason="PYCONTRAILS_SKIP_LEO_TESTS set")
 @pytest.mark.skipif(OFFLINE, reason="offline")
 def test_landsat_generate_google_contrails_rgb(
     landsat_cachestore: cache.DiskCacheStore, landsat_base_url: str
@@ -448,7 +453,6 @@ def test_landsat_generate_google_contrails_rgb(
     assert extent == (247200.0, 474900.0, 682800.0, 915600.0)
 
     ds.close()
-    landsat_cachestore.clear()
 
 
 # ===================
@@ -469,11 +473,13 @@ def sentinel_granule_id() -> str:
 
 
 @pytest.fixture()
-def sentinel_cachestore() -> cache.DiskCacheStore:
+def sentinel_cachestore() -> Generator[cache.DiskCacheStore, None, None]:
     """Clearable cache for Sentinel data."""
     cache_root = cache._get_user_cache_dir()
     cache_dir = f"{cache_root}/sentinel-unit-test"
-    return cache.DiskCacheStore(cache_dir=cache_dir, allow_clear=True)
+    cachestore = cache.DiskCacheStore(cache_dir=cache_dir, allow_clear=True)
+    yield cachestore
+    cachestore.clear()
 
 
 @pytest.mark.skipif(not BIGQUERY_ACCESS, reason="No BigQuery access")
@@ -568,6 +574,7 @@ def test_sentinel_band_resolution(bands: set[str], succeed: bool) -> None:
 
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="data retrieval tests skipped in GitHub actions")
+@pytest.mark.skipif(PYCONTRAILS_SKIP_LEO_TESTS, reason="PYCONTRAILS_SKIP_LEO_TESTS set")
 @pytest.mark.skipif(OFFLINE, reason="offline")
 @pytest.mark.parametrize("band", [f"B{i:02d}" for i in range(1, 13)] + ["B8A"])
 @pytest.mark.parametrize("processing", ["raw", "reflectance"])
@@ -595,10 +602,10 @@ def test_sentinel_get_reflective_bands(
     assert da.attrs["units"] == "none" if processing == "raw" else "nondim"
 
     ds.close()
-    sentinel_cachestore.clear()
 
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="data retrieval tests skipped in GitHub actions")
+@pytest.mark.skipif(PYCONTRAILS_SKIP_LEO_TESTS, reason="PYCONTRAILS_SKIP_LEO_TESTS set")
 @pytest.mark.skipif(OFFLINE, reason="offline")
 def test_sentinel_generate_true_color_rgb(
     sentinel_cachestore: cache.DiskCacheStore, sentinel_base_url: str, sentinel_granule_id: str
@@ -621,4 +628,3 @@ def test_sentinel_generate_true_color_rgb(
     assert extent == (499980.0, 609770.0, 6290230.0, 6400020.0)
 
     ds.close()
-    sentinel_cachestore.clear()

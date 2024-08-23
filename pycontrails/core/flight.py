@@ -384,7 +384,7 @@ class Flight(GeoVectorDataset):
         ...     time=pd.date_range('2021-01-01T12', '2021-01-01T14', periods=200),
         ... )
         >>> fl.max_distance_gap
-        7391.27...
+        np.float64(7391.27...)
         """
         if self.attrs["crs"] != "EPSG:4326":
             raise NotImplementedError("Only implemented for EPSG:4326 CRS.")
@@ -415,7 +415,7 @@ class Flight(GeoVectorDataset):
         ...     time=pd.date_range('2021-01-01T12', '2021-01-01T14', periods=200),
         ... )
         >>> fl.length
-        1436924.67...
+        np.float64(1436924.67...)
         """
         if self.attrs["crs"] != "EPSG:4326":
             raise NotImplementedError("Only implemented for EPSG:4326 CRS.")
@@ -954,28 +954,13 @@ class Flight(GeoVectorDataset):
         # STEP 3: Set the time index, and sort it
         df = df.set_index("time", verify_integrity=True).sort_index()
 
-        # STEP 4: Some adhoc code for dealing with antimeridian.
-        # Idea: A flight likely crosses the antimeridian if
-        #   `min_pos > 90` and `max_neg < -90`
-        # This is not foolproof: it assumes the full trajectory will not
-        # span more than 180 longitude degrees. There could be flights that
-        # violate this near the poles (but this would be very rare -- flights
-        # would instead wrap the other way). For this flights spanning the
-        # antimeridian, we translate them to a common "chart" away from the
-        # antimeridian (see variable `shift`), then apply the interpolation,
-        # then shift back to their original position.
-        lon = df["longitude"].to_numpy()
-        sign_ = np.sign(lon)
-        min_pos = np.min(lon[sign_ == 1.0], initial=np.inf)
-        max_neg = np.max(lon[sign_ == -1.0], initial=-np.inf)
-
-        if (180.0 - min_pos) + (180.0 + max_neg) < 180.0 and min_pos < np.inf and max_neg > -np.inf:
-            # In this case, we believe the flight crosses the antimeridian
-            shift = min_pos
-            # So we shift the longitude "chart"
+        # STEP 4: handle antimeridian crossings
+        # For flights spanning the antimeridian, we translate them to a
+        # common "chart" away from the antimeridian (see variable `shift`),
+        # then apply the interpolation, then shift back to their original position.
+        shift = self._antimeridian_shift()
+        if shift is not None:
             df["longitude"] = (df["longitude"] - shift) % 360.0
-        else:
-            shift = None
 
         # STEP 5: Resample flight to freq
         # Save altitudes to copy over - these just get rounded down in time.
@@ -1189,19 +1174,12 @@ class Flight(GeoVectorDataset):
         """
 
         # Check if flight crosses antimeridian line
+        # If it does, shift longitude chart to remove jump
         lon_ = self["longitude"]
         lat_ = self["latitude"]
-        sign_ = np.sign(lon_)
-        min_pos = np.min(lon_[sign_ == 1.0], initial=np.inf)
-        max_neg = np.max(lon_[sign_ == -1.0], initial=-np.inf)
-
-        if (180.0 - min_pos) + (180.0 + max_neg) < 180.0 and min_pos < np.inf and max_neg > -np.inf:
-            # In this case, we believe the flight crosses the antimeridian
-            shift = min_pos
-            # So we shift the longitude "chart"
+        shift = self._antimeridian_shift()
+        if shift is not None:
             lon_ = (lon_ - shift) % 360.0
-        else:
-            shift = None
 
         # Make a fake flight that flies at constant height so distance is just
         # distance traveled across groud
@@ -1261,6 +1239,55 @@ class Flight(GeoVectorDataset):
             lon = ((lon + 180.0) % 360.0) - 180.0
 
         return lat, lon, seg_idx
+
+    def _antimeridian_shift(self) -> float | None:
+        """Determine shift required for resampling trajectories that cross antimeridian.
+
+        Because flights sometimes span more than 180 degree longitude (for example,
+        when flight-level winds favor travel in a specific direction, typically eastward),
+        antimeridian crossings cannot reliably be detected by looking only at minimum
+        and maximum longitudes.
+
+        Instead, this function checks each flight segment for an antimeridian crossing,
+        and if it finds one returns the coordinate of a meridian that is not crossed by
+        the flight.
+
+        Returns
+        -------
+        float | None
+            Longitude shift for handling antimeridian crossings, or None if the
+            flight does not cross the antimeridian.
+        """
+
+        # logic for detecting crossings is consistent with _antimeridian_crossing,
+        # but implementation is separate to keep performance costs as low as possible
+        lon = self["longitude"]
+        if np.any(np.isnan(lon)):
+            warnings.warn("Anti-meridian crossings can't be reliably detected with nan longitudes")
+
+        s1 = (lon >= -180) & (lon <= -90)
+        s2 = (lon <= 180) & (lon >= 90)
+        jump12 = s1[:-1] & s2[1:]  # westward
+        jump21 = s2[:-1] & s1[1:]  # eastward
+        if not np.any(jump12 | jump21):
+            return None
+
+        # separate flight into segments that are east and west of crossings
+        net_westward = np.insert(np.cumsum(jump12.astype(int) - jump21.astype(int)), 0, 0)
+        max_westward = net_westward.max()
+        if max_westward - net_westward.min() > 1:
+            msg = "Cannot handle consecutive antimeridian crossings in the same direction"
+            raise ValueError(msg)
+        east = (net_westward == 0) if max_westward == 1 else (net_westward == -1)
+
+        # shift must be between maximum longitude east of crossings
+        # and minimum longitude west of crossings
+        shift_min = np.nanmax(lon[east])
+        shift_max = np.nanmin(lon[~east])
+        if shift_min >= shift_max:
+            msg = "Cannot handle flight that spans more than 360 degrees longitude"
+            raise ValueError(msg)
+        return (shift_min + shift_max) / 2
 
     def _geodesic_interpolation(self, geodesic_threshold: float) -> pd.DataFrame | None:
         """Geodesic interpolate between large gaps between waypoints.
@@ -1329,7 +1356,7 @@ class Flight(GeoVectorDataset):
             # NOTE: geod.npts does not return the initial or terminal points
             lonlats: list[tuple[float, float]] = geod.npts(lon0, lat0, lon1, lat1, n_steps)
 
-            lons, lats = zip(*lonlats)
+            lons, lats = zip(*lonlats, strict=True)
             longitudes.extend(lons)
             latitudes.extend(lats)
 
@@ -1506,25 +1533,25 @@ class Flight(GeoVectorDataset):
 
         >>> # Build flight
         >>> df = pd.DataFrame()
-        >>> df['time'] = pd.date_range('2022-03-01T00', '2022-03-01T03', periods=11)
-        >>> df['longitude'] = np.linspace(-20, 20, 11)
-        >>> df['latitude'] = np.linspace(-20, 20, 11)
-        >>> df['altitude'] = np.linspace(9500, 10000, 11)
-        >>> fl = Flight(df).resample_and_fill('10s')
+        >>> df["time"] = pd.date_range("2022-03-01T00", "2022-03-01T03", periods=11)
+        >>> df["longitude"] = np.linspace(-20, 20, 11)
+        >>> df["latitude"] = np.linspace(-20, 20, 11)
+        >>> df["altitude"] = np.linspace(9500, 10000, 11)
+        >>> fl = Flight(df).resample_and_fill("10s")
 
         >>> # Intersect and attach
-        >>> fl["air_temperature"] = fl.intersect_met(met['air_temperature'])
+        >>> fl["air_temperature"] = fl.intersect_met(met["air_temperature"])
         >>> fl["air_temperature"]
-        array([235.94657007, 235.95766965, 235.96873412, ..., 234.59917962,
+        array([235.94657007, 235.55745645, 235.56709768, ..., 234.59917962,
                234.60387402, 234.60845312])
 
         >>> # Length (in meters) of waypoints whose temperature exceeds 236K
         >>> fl.length_met("air_temperature", threshold=236)
-        4132178.159...
+        np.float64(3589705.998...)
 
         >>> # Proportion (with respect to distance) of waypoints whose temperature exceeds 236K
         >>> fl.proportion_met("air_temperature", threshold=236)
-        0.663552...
+        np.float64(0.576...)
         """
         if key not in self.data:
             raise KeyError(f"Column {key} does not exist in data.")
@@ -1591,8 +1618,28 @@ class Flight(GeoVectorDataset):
         :class:`matplotlib.axes.Axes`
             Plot
         """
-        ax = self.dataframe.plot(x="longitude", y="latitude", legend=False, **kwargs)
+        kwargs.setdefault("legend", False)
+        ax = self.dataframe.plot(x="longitude", y="latitude", **kwargs)
         ax.set(xlabel="longitude", ylabel="latitude")
+        return ax
+
+    def plot_profile(self, **kwargs: Any) -> matplotlib.axes.Axes:
+        """Plot flight trajectory time-altitude values.
+
+        Parameters
+        ----------
+        **kwargs : Any
+            Additional plot properties to passed to `pd.DataFrame.plot`
+
+        Returns
+        -------
+        :class:`matplotlib.axes.Axes`
+            Plot
+        """
+        kwargs.setdefault("legend", False)
+        df = self.dataframe.assign(altitude_ft=self.altitude_ft)
+        ax = df.plot(x="time", y="altitude_ft", **kwargs)
+        ax.set(xlabel="time", ylabel="altitude_ft")
         return ax
 
 
@@ -1610,10 +1657,11 @@ def _return_linestring(data: dict[str, npt.NDArray[np.float64]]) -> list[list[fl
         The list of coordinates
     """
     # rounding to reduce the size of resultant json arrays
-    points = zip(  # pylint: disable=zip-builtin-not-iterating
+    points = zip(
         np.round(data["longitude"], decimals=4),
         np.round(data["latitude"], decimals=4),
         np.round(data["altitude"], decimals=4),
+        strict=True,
     )
     return [list(p) for p in points]
 
@@ -1631,18 +1679,14 @@ def _antimeridian_index(longitude: pd.Series, crs: str = "EPSG:4326") -> list[in
 
     Returns
     -------
-    int
-        Index after jump or -1
+    list[int]
+        Indices after jump, or empty list of flight does not cross antimeridian.
 
     Raises
     ------
     ValueError
         CRS is not supported.
-        Flight crosses antimeridian several times.
     """
-    # FIXME: This logic here is somewhat outdated - the _interpolate_altitude
-    # method handles this somewhat more reliably
-    # This function should get updated to follow the logic there.
     # WGS84
     if crs in ["EPSG:4326"]:
         l1 = (-180.0, -90.0)
@@ -1878,7 +1922,7 @@ def _altitude_interpolation_climb_descend_middle(
     s = pd.Series(altitude)
 
     # Check to see if we have gaps greater than two hours
-    step_threshold = 120.0 * freq / np.timedelta64(1, "m")
+    step_threshold = np.timedelta64(2, "h") / freq
     step_groups = na_group_size > step_threshold
     if np.any(step_groups):
         # If there are gaps greater than two hours, step through one by one
@@ -1906,7 +1950,9 @@ def _altitude_interpolation_climb_descend_middle(
     # Form array of cumulative altitude values if the flight were to climb
     # at nominal_rocd over each group of nan
     cumalt_list = []
-    for start_na_idx, end_na_idx, size in zip(start_na_idxs, end_na_idxs, na_group_size):
+    for start_na_idx, end_na_idx, size in zip(
+        start_na_idxs, end_na_idxs, na_group_size, strict=True
+    ):
         if s[start_na_idx] <= s[end_na_idx]:
             cumalt_list.append(np.arange(1, size, dtype=float))
         else:
@@ -2010,7 +2056,7 @@ def filter_altitude(
     --------
     :meth:`traffic.core.flight.Flight.filter`
     :func:`scipy.signal.medfilt`
-    """  # noqa: E501
+    """
     if not len(altitude_ft):
         raise ValueError("Altitude must have non-zero length to filter")
 
@@ -2071,7 +2117,7 @@ def filter_altitude(
 
     result = np.copy(altitude_ft)
     if np.any(start_idxs):
-        for i0, i1 in zip(start_idxs, end_idxs):
+        for i0, i1 in zip(start_idxs, end_idxs, strict=True):
             result[i0:i1] = altitude_filt[i0:i1]
 
     # reapply Savitzky-Golay filter to smooth climb and descent
@@ -2214,16 +2260,14 @@ def segment_rocd(
     if air_temperature is None:
         return out
 
-    else:
-        altitude_m = units.ft_to_m(altitude_ft)
-        T_isa = units.m_to_T_isa(altitude_m)
+    altitude_m = units.ft_to_m(altitude_ft)
+    T_isa = units.m_to_T_isa(altitude_m)
 
-        T_correction = np.empty_like(altitude_ft)
-        T_correction[:-1] = (0.5 * (air_temperature[:-1] + air_temperature[1:])) / (
-            0.5 * (T_isa[:-1] + T_isa[1:])
-        )
-        T_correction[-1] = np.nan
-        return T_correction * out
+    T_correction = np.empty_like(altitude_ft)
+    T_correction[:-1] = (air_temperature[:-1] + air_temperature[1:]) / (T_isa[:-1] + T_isa[1:])
+    T_correction[-1] = np.nan
+
+    return T_correction * out
 
 
 def _resample_to_freq(df: pd.DataFrame, freq: str) -> tuple[pd.DataFrame, pd.DatetimeIndex]:

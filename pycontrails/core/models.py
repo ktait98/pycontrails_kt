@@ -11,7 +11,7 @@ import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, fields
-from typing import Any, NoReturn, TypeVar, Union, overload
+from typing import Any, NoReturn, TypeVar, overload
 
 import numpy as np
 import numpy.typing as npt
@@ -30,13 +30,13 @@ from pycontrails.utils.types import type_guard
 logger = logging.getLogger(__name__)
 
 #: Model input source types
-ModelInput = Union[MetDataset, GeoVectorDataset, Flight, Sequence[Flight], None]
+ModelInput = MetDataset | GeoVectorDataset | Flight | Sequence[Flight] | None
 
 #: Model output source types
-ModelOutput = Union[MetDataArray, MetDataset, GeoVectorDataset, Flight, list[Flight], NoReturn]
+ModelOutput = MetDataArray | MetDataset | GeoVectorDataset | Flight | list[Flight]
 
 #: Model attribute source types
-SourceType = Union[MetDataset, GeoVectorDataset, Flight, Fleet]
+SourceType = MetDataset | GeoVectorDataset | Flight | Fleet
 
 _Source = TypeVar("_Source")
 
@@ -362,6 +362,8 @@ class Model(ABC):
     def interp_kwargs(self) -> dict[str, Any]:
         """Shortcut to create interpolation arguments from :attr:`params`.
 
+        The output of this is useful for passing to :func:`interpolate_met`.
+
         Returns
         -------
         dict[str, Any]
@@ -376,13 +378,14 @@ class Model(ABC):
 
             as determined by :attr:`params`.
         """
+        params = self.params
         return {
-            "method": self.params["interpolation_method"],
-            "bounds_error": self.params["interpolation_bounds_error"],
-            "fill_value": self.params["interpolation_fill_value"],
-            "localize": self.params["interpolation_localize"],
-            "use_indices": self.params["interpolation_use_indices"],
-            "q_method": self.params["interpolation_q_method"],
+            "method": params["interpolation_method"],
+            "bounds_error": params["interpolation_bounds_error"],
+            "fill_value": params["interpolation_fill_value"],
+            "localize": params["interpolation_localize"],
+            "use_indices": params["interpolation_use_indices"],
+            "q_method": params["interpolation_q_method"],
         }
 
     def require_met(self) -> MetDataset:
@@ -450,7 +453,7 @@ class Model(ABC):
             return Fleet.from_seq(source)
 
         # Raise error if source is not a MetDataset or GeoVectorDataset
-        if not isinstance(source, (MetDataset, GeoVectorDataset)):
+        if not isinstance(source, MetDataset | GeoVectorDataset):
             msg = f"Unknown source type: {type(source)}"
             raise TypeError(msg)
 
@@ -585,16 +588,7 @@ class Model(ABC):
         KeyError
             Variable not found in :attr:`source` or :attr:`met`.
         """
-        variables: Sequence[MetVariable | tuple[MetVariable, ...]]
-        if variable is None:
-            if optional:
-                variables = (*self.met_variables, *self.optional_met_variables)
-            else:
-                variables = self.met_variables
-        elif isinstance(variable, MetVariable):
-            variables = (variable,)
-        else:
-            variables = variable
+        variables = self._determine_relevant_variables(optional, variable)
 
         q_method = self.params["interpolation_q_method"]
 
@@ -639,6 +633,20 @@ class Model(ABC):
                 self.source[met_key] = _interp_grid_to_grid(
                     met_key, da, self.source, self.params, q_method
                 )
+
+    def _determine_relevant_variables(
+        self,
+        optional: bool,
+        variable: MetVariable | Sequence[MetVariable] | None,
+    ) -> Sequence[MetVariable | tuple[MetVariable, ...]]:
+        """Determine the relevant variables used in :meth:`set_source_met`."""
+        if variable is None:
+            if optional:
+                return (*self.met_variables, *self.optional_met_variables)
+            return self.met_variables
+        if isinstance(variable, MetVariable):
+            return (variable,)
+        return variable
 
     # Following python implementation
     # https://github.com/python/cpython/blob/618b7a8260bb40290d6551f24885931077309590/Lib/collections/__init__.py#L231
@@ -814,6 +822,7 @@ def interpolate_met(
     vector: GeoVectorDataset,
     met_key: str,
     vector_key: str | None = None,
+    *,
     q_method: str | None = None,
     **interp_kwargs: Any,
 ) -> npt.NDArray[np.float64]:

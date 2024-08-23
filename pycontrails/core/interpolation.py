@@ -76,6 +76,7 @@ class PycontrailsRegularGridInterpolator(scipy.interpolate.RegularGridInterpolat
         self.method = _pick_method(scipy.__version__, method)
         self.bounds_error = bounds_error
         self.fill_value = fill_value
+        self._spline = None
 
     def _prepare_xi_simple(self, xi: npt.NDArray[np.float64]) -> npt.NDArray[np.bool_]:
         """Run looser version of :meth:`_prepare_xi`.
@@ -215,7 +216,8 @@ class PycontrailsRegularGridInterpolator(scipy.interpolate.RegularGridInterpolat
 
         if ndim == 1:
             # np.interp could be better ... although that may also promote the dtype
-            return rgi_cython.evaluate_linear_1d(values, indices, norm_distances, out)
+            # 1-d view is required for evaluate_linear_1d
+            return rgi_cython.evaluate_linear_1d(values, indices[0, :], norm_distances[0, :], out)
 
         msg = f"Invalid number of dimensions: {ndim}"
         raise ValueError(msg)
@@ -621,11 +623,11 @@ class EmissionsProfileInterpolator:
     >>> epi = EmissionsProfileInterpolator(xp, fp)
     >>> # Interpolate a single value
     >>> epi.interp(5)
-    0.150000...
+    np.float64(0.150000...)
 
     >>> # Interpolate a single value on a logarithmic scale
     >>> epi.log_interp(5)
-    1.105171...
+    np.float64(1.105171...)
 
     >>> # Demonstrate speed up compared with xarray.DataArray interpolation
     >>> import time, xarray as xr
