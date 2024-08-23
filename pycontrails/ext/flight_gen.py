@@ -240,18 +240,18 @@ class FlightGen:
 
         return fl_df, pl_df
 
-    def plume_to_grid(self, lats, lons, alts, times) -> MetDataset:
+    def plume_to_grid(self, lats_pl, lons_pl, alts, times) -> MetDataset:
         """Convert plume data to a grid."""
         chem_params = self.chem_params
         pl_df = self.plumes
 
         # loop over time and plume property
         emi = xr.DataArray(
-            np.zeros((len(lons), len(lats), len(alts), len(times), 9)),
+            np.zeros((len(lons_pl), len(lats_pl), len(alts), len(times), 9)),
         dims=["longitude", "latitude", "level", "time", "emi_species"],
         coords={
-                "longitude": lons,
-                "latitude": lats,
+                "longitude": lons_pl,
+                "latitude": lats_pl,
                 "level": units.m_to_pl(alts),
                 "time":  times,
                 "emi_species": ["NO", "NO2", "CO", "HCHO", "CH3CHO", "C2H4", "C3H6", "C2H2", "BENZENE"],
@@ -292,7 +292,7 @@ class FlightGen:
                         contrails_t=plume_time_data,
                         var_name=property,
                         spatial_bbox=bbox,
-                        spatial_grid_res=chem_params["hres_chem"],
+                        spatial_grid_res=chem_params["hres_pl"],
                     )
 
                     plume = (plume_property_data / 1E+03) * NA / mm[p] # kg/m^3 to molecules/cm^3 
@@ -300,9 +300,9 @@ class FlightGen:
                     # m^3 -> cm^3 (/ 1E+06)
 
                     # Check if the 'plumes' directory exists, and create it if it does not
-                    if not os.path.exists("plumes"):
-                        os.makedirs("plumes")
-                    np.savetxt("plumes/plume_data_" + repr(t) + "_" + repr(property) + ".csv", plume, delimiter=",") 
+                    # if not os.path.exists("plumes"):
+                    #     os.makedirs("plumes")
+                    # np.savetxt("plumes/plume_data_" + repr(t) + "_" + repr(property) + ".csv", plume, delimiter=",") 
 
                     # find altitude index for flight level
                     emi.loc[:, :, units.m_to_pl(self.fl_params["fl0_coords0"][2]), time, property] = (
