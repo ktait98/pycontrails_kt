@@ -4,9 +4,9 @@
 
 |               |                                                                   |
 |---------------|-------------------------------------------------------------------|
-| **Version**   | [![PyPI version](https://img.shields.io/pypi/v/pycontrails.svg)](https://pypi.python.org/pypi/pycontrails) [![Supported python versions](https://img.shields.io/pypi/pyversions/pycontrails.svg)](https://pypi.python.org/pypi/pycontrails) |
+| **Version**   | [![PyPI version](https://img.shields.io/pypi/v/pycontrails.svg)](https://pypi.python.org/pypi/pycontrails)  [![conda-forge version](https://anaconda.org/conda-forge/pycontrails/badges/version.svg)](https://anaconda.org/conda-forge/pycontrails) [![Supported python versions](https://img.shields.io/pypi/pyversions/pycontrails.svg)](https://pypi.python.org/pypi/pycontrails) |
 | **Citation**  | [![DOI](https://zenodo.org/badge/617248930.svg)](https://zenodo.org/badge/latestdoi/617248930) |
-| **Tests**     | [![Unit test](https://github.com/contrailcirrus/pycontrails/actions/workflows/test.yaml/badge.svg)](https://github.com/contrailcirrus/pycontrails/actions/workflows/test.yaml) [![Docs](https://github.com/contrailcirrus/pycontrails/actions/workflows/docs.yaml/badge.svg)](https://github.com/contrailcirrus/pycontrails/actions/workflows/docs.yaml) [![Release](https://github.com/contrailcirrus/pycontrails/actions/workflows/release.yaml/badge.svg)](https://github.com/contrailcirrus/pycontrails/actions/workflows/release.yaml) [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/contrailcirrus/pycontrails/badge)](https://securityscorecards.dev/viewer?uri=github.com/contrailcirrus/pycontrails)|
+| **Tests**     | [![Unit test](https://github.com/contrailcirrus/pycontrails/actions/workflows/test.yaml/badge.svg)](https://github.com/contrailcirrus/pycontrails/actions/workflows/test.yaml) [![Docs](https://github.com/contrailcirrus/pycontrails/actions/workflows/docs.yaml/badge.svg?event=push)](https://github.com/contrailcirrus/pycontrails/actions/workflows/docs.yaml) [![Release](https://github.com/contrailcirrus/pycontrails/actions/workflows/release.yaml/badge.svg)](https://github.com/contrailcirrus/pycontrails/actions/workflows/release.yaml) [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/contrailcirrus/pycontrails/badge)](https://securityscorecards.dev/viewer?uri=github.com/contrailcirrus/pycontrails)|
 | **License**   | [![Apache License 2.0](https://img.shields.io/pypi/l/pycontrails.svg)](https://github.com/contrailcirrus/pycontrails/blob/main/LICENSE) |
 | **Community** | [![Github Discussions](https://img.shields.io/github/discussions/contrailcirrus/pycontrails)](https://github.com/contrailcirrus/pycontrails/discussions) [![Github Issues](https://img.shields.io/github/issues/contrailcirrus/pycontrails)](https://github.com/contrailcirrus/pycontrails/issues) [![Github PRs](https://img.shields.io/github/issues-pr/contrailcirrus/pycontrails)](https://github.com/contrailcirrus/pycontrails/pulls) |
 
@@ -23,7 +23,9 @@ Documentation and examples available at [py.contrails.org](https://py.contrails.
 
 ## Install
 
-Requires Python (3.9 or later)
+### Install with pip
+
+You can install pycontrails from PyPI with `pip` (Python 3.10 or later required):
 
 ```bash
 $ pip install pycontrails
@@ -38,7 +40,17 @@ Install the latest development version directly from GitHub:
 pip install git+https://github.com/contrailcirrus/pycontrails.git
 ```
 
-See more options in the [install documentation](https://py.contrails.org/install).
+### Install with conda
+
+You can install pycontrails from the [conda-forge](https://conda-forge.org/) channel with `conda` (or other `conda`-like package managers such as `mamba`):
+
+```bash
+conda install -c conda-forge pycontrails
+```
+
+The conda-forge package includes all optional runtime dependencies.
+
+See more installation options in the [install documentation](https://py.contrails.org/install).
 
 ## Get Involved
 

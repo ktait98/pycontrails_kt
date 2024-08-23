@@ -31,11 +31,17 @@ def test_fleet_io(syn: SyntheticFlight) -> None:
     Check that the flights coming out of method `to_flight_list` agree with inputs.
     """
     in_fls = [syn() for _ in range(100)]
-    fleet = Fleet.from_seq(in_fls)
+    for fl in in_fls:
+        # In the Fleet constructor, a waypoint and flight_id field are added
+        # Do this here to ensure the data is the same
+        fl["waypoint"] = np.arange(len(fl))
+        fl.broadcast_numeric_attrs()  # add flight_id
+
+    fleet = Fleet.from_seq(in_fls, broadcast_numeric=False)
     assert fleet.n_flights == 100
 
     out_fls = fleet.to_flight_list()
-    for fl1, fl2 in zip(in_fls, out_fls):
+    for fl1, fl2 in zip(in_fls, out_fls, strict=True):
         assert fl1 == fl2
 
 
@@ -129,7 +135,7 @@ def test_fleet_waypoints(syn: SyntheticFlight) -> None:
 
     flight_ids = fleet.filter(~continuous)["flight_id"]
     # expect one of each flight_id
-    for id1, id2 in zip(flight_ids, fleet.fl_attrs):
+    for id1, id2 in zip(flight_ids, fleet.fl_attrs, strict=True):
         assert id1 == id2
 
 

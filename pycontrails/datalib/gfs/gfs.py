@@ -13,8 +13,9 @@ import hashlib
 import logging
 import pathlib
 import warnings
+from collections.abc import Callable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -113,7 +114,7 @@ class GFSForecast(metsource.MetDataSource):
     - `Documentation <https://www.ncei.noaa.gov/products/weather-climate-models/global-forecast>`_
     - `Parameter sets <https://www.nco.ncep.noaa.gov/pmb/products/gfs/>`_
     - `GFS Documentation <https://www.emc.ncep.noaa.gov/emc/pages/numerical_forecast_systems/gfs/documentation.php>`_
-    """  # noqa: E501
+    """
 
     __slots__ = ("client", "grid", "cachestore", "show_progress", "forecast_time")
 
@@ -495,7 +496,7 @@ class GFSForecast(metsource.MetDataSource):
             GFS dataset
         """
         # translate into netcdf from grib
-        logger.debug(f"Translating {filepath} for timestep {str(t)} into netcdf")
+        logger.debug(f"Translating {filepath} for timestep {t!s} into netcdf")
 
         # get step for timestep
         step = pd.Timedelta(t - self.forecast_time) // pd.Timedelta(1, "h")

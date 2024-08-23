@@ -150,7 +150,7 @@ class SAC(Model):
         if scale_humidity:
             for k, v in humidity_scaling.description.items():
                 self.source.attrs[f"humidity_scaling_{k}"] = v
-        if isinstance(engine_efficiency, (int, float)):
+        if isinstance(engine_efficiency, int | float):
             self.source.attrs["engine_efficiency"] = engine_efficiency
 
         return self.source
@@ -236,7 +236,7 @@ def T_sat_liquid(G: ArrayLike) -> ArrayLike:
     # This comment is pasted several places in `pycontrails` -- they should all be
     # addressed at the same time.
     log_ = np.log(G - 0.053)
-    return -46.46 - constants.absolute_zero + 9.43 * log_ + 0.72 * log_**2  # type: ignore[return-value]  # noqa: E501
+    return -46.46 - constants.absolute_zero + 9.43 * log_ + 0.72 * log_**2  # type: ignore[return-value]
 
 
 def _e_sat_liquid_prime(T: ArrayScalarLike) -> ArrayScalarLike:

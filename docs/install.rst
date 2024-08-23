@@ -2,15 +2,22 @@
 Install
 =======
 
-Requires
---------
+conda install
+-------------
 
-- Python (3.9 or later)
+Install the latest release from `conda-forge <https://conda-forge.org>`__ using ``conda``:
 
-Core
-----
+.. code-block:: bash
 
-Install the latest release using ``pip``:
+    $ conda install -c conda-forge pycontrails
+
+
+The conda-forge package includes all optional runtime dependencies.
+
+pip install
+-----------
+
+With Python 3.10 or later, install the latest release from PyPI using ``pip``:
 
 .. code-block:: bash
 
@@ -20,6 +27,8 @@ Install the latest release using ``pip``:
     # install with all optional dependencies
     $ pip install "pycontrails[complete]"
 
+Wheels are currently built for python 3.10 - 3.13 on Linux, macOS, and Windows. The python 3.13
+wheels are not yet tested in CI/CD and not all runtime dependencies are available for python 3.13.
 
 Install the latest development version directly from GitHub:
 
@@ -29,13 +38,13 @@ Install the latest development version directly from GitHub:
 
 
 Optional Dependencies
----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 The ``pycontrails`` package uses optional dependencies for specific features:
 
 .. code-block:: bash
 
-    # install all non-development optional dependencies
+    # install all optional runtime dependencies
     $ pip install "pycontrails[complete]"
 
     # install specific optional dependencies
@@ -57,7 +66,7 @@ for the latest optional dependencies.
 
 
 Pre-built wheels
------------------
+~~~~~~~~~~~~~~~~
 
 Wheels for common platforms are available on `PyPI <https://pypi.org/project/pycontrails/>`__. Currently, wheels are available for:
 

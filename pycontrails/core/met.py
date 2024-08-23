@@ -9,7 +9,15 @@ import pathlib
 import typing
 import warnings
 from abc import ABC, abstractmethod
-from collections.abc import Hashable, Iterable, Iterator, Mapping, MutableMapping, Sequence
+from collections.abc import (
+    Generator,
+    Hashable,
+    Iterable,
+    Iterator,
+    Mapping,
+    MutableMapping,
+    Sequence,
+)
 from contextlib import ExitStack
 from datetime import datetime
 from typing import (
@@ -62,12 +70,12 @@ class MetBase(ABC, Generic[XArrayType]):
     cachestore: CacheStore | None
 
     #: Default dimension order for DataArray or Dataset (x, y, z, t)
-    dim_order: list[Hashable] = [
+    dim_order: tuple[Hashable, Hashable, Hashable, Hashable] = (
         "longitude",
         "latitude",
         "level",
         "time",
-    ]
+    )
 
     def __repr__(self) -> str:
         data = getattr(self, "data", None)
@@ -192,10 +200,8 @@ class MetBase(ABC, Generic[XArrayType]):
     def _validate_transpose(self) -> None:
         """Check that data is transposed according to :attr:`dim_order`."""
 
-        dims_tuple = tuple(self.dim_order)
-
         def _check_da(da: xr.DataArray, key: Hashable | None = None) -> None:
-            if da.dims != dims_tuple:
+            if da.dims != self.dim_order:
                 if key is not None:
                     msg = (
                         f"Data dimension not transposed on variable '{key}'. Initiate with"
@@ -263,7 +269,7 @@ class MetBase(ABC, Generic[XArrayType]):
         self.data["time"] = self.data["time"].astype("datetime64[ns]", copy=False)
 
         # sortby to ensure each coordinate has ascending order
-        self.data = self.data.sortby(self.dim_order, ascending=True)
+        self.data = self.data.sortby(list(self.dim_order), ascending=True)
 
         if not self.is_wrapped:
             # Ensure longitude is contained in interval [-180, 180)
@@ -285,7 +291,7 @@ class MetBase(ABC, Generic[XArrayType]):
         self._validate_latitude()
 
         # transpose to have ordering (x, y, z, t, ...)
-        dim_order = self.dim_order + [d for d in self.data.dims if d not in self.dim_order]
+        dim_order = [*self.dim_order, *(d for d in self.data.dims if d not in self.dim_order)]
         self.data = self.data.transpose(*dim_order)
 
         # single level data
@@ -481,7 +487,7 @@ class MetBase(ABC, Generic[XArrayType]):
         self.cachestore = self.cachestore or DiskCacheStore()
 
         # group by hour and save one dataset for each hour to temp file
-        times, datasets = zip(*dataset.groupby("time", squeeze=False))
+        times, datasets = zip(*dataset.groupby("time", squeeze=False), strict=True)
 
         # Open ExitStack to control temp_file context manager
         with ExitStack() as stack:
@@ -912,7 +918,7 @@ class MetDataset(MetBase):
         KeyError
             Raises when dataset does not contain variable in ``vars``
         """
-        if isinstance(vars, (MetVariable, str)):
+        if isinstance(vars, MetVariable | str):
             vars = (vars,)
 
         met_keys: list[str] = []
@@ -1014,7 +1020,7 @@ class MetDataset(MetBase):
 
     @overrides
     def broadcast_coords(self, name: str) -> xr.DataArray:
-        da = xr.ones_like(self.data[list(self.data.keys())[0]]) * self.data[name]
+        da = xr.ones_like(self.data[next(iter(self.data.keys()))]) * self.data[name]
         da.name = name
 
         return da
@@ -1066,7 +1072,7 @@ class MetDataset(MetBase):
         coords_vals = [indexes[key].values for key in coords_keys]
         coords_meshes = np.meshgrid(*coords_vals, indexing="ij")
         raveled_coords = (mesh.ravel() for mesh in coords_meshes)
-        data = dict(zip(coords_keys, raveled_coords))
+        data = dict(zip(coords_keys, raveled_coords, strict=True))
 
         out = vector_module.GeoVectorDataset(data, copy=False)
         for key, da in self.data.items():
@@ -1375,9 +1381,10 @@ class MetDataArray(MetBase):
 
         # try to create DataArray out of input data and **kwargs
         if not isinstance(data, xr.DataArray):
-            DeprecationWarning(
+            warnings.warn(
                 "Input 'data' must be an xarray DataArray. "
-                "Passing arbitrary kwargs will be removed in future versions."
+                "Passing arbitrary kwargs will be removed in future versions.",
+                DeprecationWarning,
             )
             data = xr.DataArray(data, **kwargs)
 
@@ -1501,6 +1508,7 @@ class MetDataArray(MetBase):
         bounds_error: bool = ...,
         fill_value: float | np.float64 | None = ...,
         localize: bool = ...,
+        lowmem: bool = ...,
         indices: interpolation.RGIArtifacts | None = ...,
         return_indices: Literal[False] = ...,
     ) -> npt.NDArray[np.float64]: ...
@@ -1517,6 +1525,7 @@ class MetDataArray(MetBase):
         bounds_error: bool = ...,
         fill_value: float | np.float64 | None = ...,
         localize: bool = ...,
+        lowmem: bool = ...,
         indices: interpolation.RGIArtifacts | None = ...,
         return_indices: Literal[True],
     ) -> tuple[npt.NDArray[np.float64], interpolation.RGIArtifacts]: ...
@@ -1532,6 +1541,7 @@ class MetDataArray(MetBase):
         bounds_error: bool = False,
         fill_value: float | np.float64 | None = np.nan,
         localize: bool = False,
+        lowmem: bool = False,
         indices: interpolation.RGIArtifacts | None = None,
         return_indices: bool = False,
     ) -> npt.NDArray[np.float64] | tuple[npt.NDArray[np.float64], interpolation.RGIArtifacts]:
@@ -1539,7 +1549,9 @@ class MetDataArray(MetBase):
 
         Zero dimensional coordinates are reshaped to 1D arrays.
 
-        Method automatically loads underlying :attr:`data` into memory.
+        If ``lowmem == False``, method automatically loads underlying :attr:`data` into
+        memory. Otherwise, method iterates through smaller subsets of :attr:`data` and releases
+        subsets from memory once interpolation against each subset is finished.
 
         If ``method == "nearest"``, the out array will have the same ``dtype`` as
         the underlying :attr:`data`.
@@ -1585,10 +1597,18 @@ class MetDataArray(MetBase):
         localize: bool, optional
             Experimental. If True, downselect gridded data to smallest bounding box containing
             all points.  By default False.
+        lowmem: bool, optional
+            Experimental. If True, iterate through points binned by the time coordinate of the
+            grided data, and downselect gridded data to the smallest bounding box containing
+            each binned set of point *before loading into memory*. This can significantly reduce
+            memory consumption with large numbers of points at the cost of increased runtime.
+            By default False.
         indices: tuple | None, optional
             Experimental. See :func:`interpolation.interp`. None by default.
         return_indices: bool, optional
             Experimental. See :func:`interpolation.interp`. False by default.
+            Note that values returned differ when ``lowmem=True`` and ``lowmem=False``,
+            so output should only be re-used in calls with the same ``lowmem`` value.
 
         Returns
         -------
@@ -1634,7 +1654,26 @@ class MetDataArray(MetBase):
         array([220.44347694, 223.08900738, 225.74338924, 228.41642088,
                231.10858599, 233.54857391, 235.71504913, 237.86478872,
                239.99274623, 242.10792167])
+
+        >>> # Can easily switch to alternative low-memory implementation
+        >>> mda.interpolate(longitude, latitude, level, time, lowmem=True)
+        array([220.44347694, 223.08900738, 225.74338924, 228.41642088,
+               231.10858599, 233.54857391, 235.71504913, 237.86478872,
+               239.99274623, 242.10792167])
         """
+        if lowmem:
+            return self._interp_lowmem(
+                longitude,
+                latitude,
+                level,
+                time,
+                method=method,
+                bounds_error=bounds_error,
+                fill_value=fill_value,
+                indices=indices,
+                return_indices=return_indices,
+            )
+
         # Load if necessary
         if not self.in_memory:
             self._check_memory("Interpolation over")
@@ -1658,6 +1697,100 @@ class MetDataArray(MetBase):
             indices=indices,
             return_indices=return_indices,
         )
+
+    def _interp_lowmem(
+        self,
+        longitude: float | npt.NDArray[np.float64],
+        latitude: float | npt.NDArray[np.float64],
+        level: float | npt.NDArray[np.float64],
+        time: np.datetime64 | npt.NDArray[np.datetime64],
+        *,
+        method: str = "linear",
+        bounds_error: bool = False,
+        fill_value: float | np.float64 | None = np.nan,
+        minimize_memory: bool = False,
+        indices: interpolation.RGIArtifacts | None = None,
+        return_indices: bool = False,
+    ) -> npt.NDArray[np.float64] | tuple[npt.NDArray[np.float64], interpolation.RGIArtifacts]:
+        """Interpolate values against underlying DataArray.
+
+        This method is used by :meth:`interpolate` when ``lowmem=True``.
+        Parameters and return types are identical to :meth:`interpolate`, except
+        that the ``localize`` keyword argument is omitted.
+        """
+        # Convert all inputs to 1d arrays
+        # Not validating against ndim >= 2
+        longitude, latitude, level, time = np.atleast_1d(longitude, latitude, level, time)
+
+        if bounds_error:
+            _lowmem_boundscheck(time, self.data)
+
+        # Create buffers for holding interpolation output
+        # Use np.full rather than np.empty so points not covered
+        # by masks are filled with correct out-of-bounds values.
+        out = np.full(longitude.shape, fill_value, dtype=self.data.dtype)
+        if return_indices:
+            rgi_artifacts = interpolation.RGIArtifacts(
+                xi_indices=np.full((4, longitude.size), -1, dtype=np.int64),
+                norm_distances=np.full((4, longitude.size), np.nan, dtype=np.float64),
+                out_of_bounds=np.full((longitude.size,), True, dtype=np.bool_),
+            )
+
+        # Iterate over portions of points between adjacent time steps in gridded data
+        for mask in _lowmem_masks(time, self.data["time"].values):
+            if mask is None or not np.any(mask):
+                continue
+
+            lon_sl = longitude[mask]
+            lat_sl = latitude[mask]
+            lev_sl = level[mask]
+            t_sl = time[mask]
+            if indices is not None:
+                indices_sl = interpolation.RGIArtifacts(
+                    xi_indices=indices.xi_indices[:, mask],
+                    norm_distances=indices.norm_distances[:, mask],
+                    out_of_bounds=indices.out_of_bounds[mask],
+                )
+            else:
+                indices_sl = None
+
+            coords = {"longitude": lon_sl, "latitude": lat_sl, "level": lev_sl, "time": t_sl}
+            if any(np.all(np.isnan(coord)) for coord in coords.values()):
+                continue
+            da = interpolation._localize(self.data, coords)
+            if not da._in_memory:
+                logger.debug(
+                    "Loading %s MB subset of %s into memory.",
+                    round(da.nbytes / 1_000_000, 2),
+                    da.name,
+                )
+                da.load()
+
+            tmp = interpolation.interp(
+                longitude=lon_sl,
+                latitude=lat_sl,
+                level=lev_sl,
+                time=t_sl,
+                da=da,
+                method=method,
+                bounds_error=bounds_error,
+                fill_value=fill_value,
+                localize=False,  # would be no-op; da is localized already
+                indices=indices_sl,
+                return_indices=return_indices,
+            )
+
+            if return_indices:
+                out[mask], rgi_sl = tmp
+                rgi_artifacts.xi_indices[:, mask] = rgi_sl.xi_indices
+                rgi_artifacts.norm_distances[:, mask] = rgi_sl.norm_distances
+                rgi_artifacts.out_of_bounds[mask] = rgi_sl.out_of_bounds
+            else:
+                out[mask] = tmp
+
+        if return_indices:
+            return out, rgi_artifacts
+        return out
 
     def _check_memory(self, msg_start: str) -> None:
         """Check the memory usage of the underlying data.
@@ -1730,7 +1863,7 @@ class MetDataArray(MetBase):
         cachestore = cachestore or DiskCacheStore()
         chunks = chunks or {}
         data = _load(hash, cachestore, chunks)
-        return cls(data[list(data.data_vars)[0]])
+        return cls(data[next(iter(data.data_vars))])
 
     @property
     def proportion(self) -> float:
@@ -2123,7 +2256,7 @@ class MetDataArray(MetBase):
         -----
         Uses the `scikit-image Marching Cubes  <https://scikit-image.org/docs/dev/auto_examples/edges/plot_marching_cubes.html>`_
         algorithm to reconstruct a surface from the point-cloud like arrays.
-        """  # noqa: E501
+        """
         try:
             from skimage import measure
         except ModuleNotFoundError as e:
@@ -2609,13 +2742,14 @@ def _load(hash: str, cachestore: CacheStore, chunks: dict[str, int]) -> xr.Datas
 
 
 def _add_vertical_coords(data: XArrayType) -> XArrayType:
-    """Add "air_pressure" and "altitude" coordinates to data."""
+    """Add "air_pressure" and "altitude" coordinates to data.
+
+    .. versionchanged:: 0.52.1
+        Ensure that the ``dtype`` of the additional vertical coordinates agree
+        with the ``dtype`` of the underlying gridded data.
+    """
 
     data["level"].attrs.update(units="hPa", long_name="Pressure", positive="down")
-
-    coords = data.coords
-    if "air_pressure" in coords and "altitude" in coords:
-        return data
 
     # XXX: use the dtype of the data to determine the precision of these coordinates
     # There are two competing conventions here:
@@ -2625,25 +2759,75 @@ def _add_vertical_coords(data: XArrayType) -> XArrayType:
     # It is more important for air_pressure and altitude to be grid-aligned than to be
     # coordinate-aligned, so we use the dtype of the data to determine the precision of
     # these coordinates
-    if isinstance(data, xr.Dataset):
-        dtype = np.result_type(*data.data_vars.values(), np.float32)
-    else:
-        dtype = data.dtype
-    level = data["level"].values.astype(dtype, copy=False)
+    dtype = (
+        np.result_type(*data.data_vars.values(), np.float32)
+        if isinstance(data, xr.Dataset)
+        else data.dtype
+    )
 
-    if "air_pressure" not in coords:
+    level = data["level"].values
+
+    if "air_pressure" not in data.coords:
         data = data.assign_coords(air_pressure=("level", level * 100.0))
         data.coords["air_pressure"].attrs.update(
             standard_name=AirPressure.standard_name,
             long_name=AirPressure.long_name,
             units=AirPressure.units,
         )
-    if "altitude" not in coords:
+    if data.coords["air_pressure"].dtype != dtype:
+        data.coords["air_pressure"] = data.coords["air_pressure"].astype(dtype, copy=False)
+
+    if "altitude" not in data.coords:
         data = data.assign_coords(altitude=("level", units.pl_to_m(level)))
         data.coords["altitude"].attrs.update(
             standard_name=Altitude.standard_name,
             long_name=Altitude.long_name,
             units=Altitude.units,
         )
+    if data.coords["altitude"].dtype != dtype:
+        data.coords["altitude"] = data.coords["altitude"].astype(dtype, copy=False)
 
     return data
+
+
+def _lowmem_boundscheck(time: npt.NDArray[np.datetime64], da: xr.DataArray) -> None:
+    """Extra bounds check required with low-memory interpolation strategy.
+
+    Because the main loop in `_interp_lowmem` processes points between time steps
+    in gridded data, it will never encounter points that are out-of-bounds in time
+    and may fail to produce requested out-of-bounds errors.
+    """
+    da_time = da["time"].to_numpy()
+    if not np.all((time >= da_time.min()) & (time <= da_time.max())):
+        axis = da.get_axis_num("time")
+        msg = f"One of the requested xi is out of bounds in dimension {axis}"
+        raise ValueError(msg)
+
+
+def _lowmem_masks(
+    time: npt.NDArray[np.datetime64], t_met: npt.NDArray[np.datetime64]
+) -> Generator[npt.NDArray[np.bool_], None, None]:
+    """Generate sequence of masks for low-memory interpolation."""
+    t_met_max = t_met.max()
+    t_met_min = t_met.min()
+    inbounds = (time >= t_met_min) & (time <= t_met_max)
+    if not np.any(inbounds):
+        return
+
+    earliest = np.nanmin(time)
+    istart = 0 if earliest < t_met_min else np.flatnonzero(t_met <= earliest).max()
+    latest = np.nanmax(time)
+    iend = t_met.size - 1 if latest > t_met_max else np.flatnonzero(t_met >= latest).min()
+    if istart == iend:
+        yield inbounds
+        return
+
+    # Sequence of masks covers elements in time in the interval [t_met[istart], t_met[iend]].
+    # The first iteration masks elements in the interval [t_met[istart], t_met[istart+1]]
+    # (inclusive of both endpoints).
+    # Subsequent iterations mask elements in the interval (t_met[i], t_met[i+1]]
+    # (inclusive of right endpoint only).
+    for i in range(istart, iend):
+        mask = ((time >= t_met[i]) if i == istart else (time > t_met[i])) & (time <= t_met[i + 1])
+        if np.any(mask):
+            yield mask

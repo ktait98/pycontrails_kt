@@ -24,7 +24,6 @@ import pathlib
 import warnings
 from collections.abc import Hashable
 
-import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
@@ -32,7 +31,6 @@ import xarray as xr
 
 from pycontrails.core.met import MetDataArray, MetDataset
 from pycontrails.core.vector import GeoVectorDataset, vector_to_lon_lat_grid
-from pycontrails.datalib.goes import GOES, extract_goes_visualization
 from pycontrails.models.cocip.contrail_properties import contrail_edges, plume_mass_per_distance
 from pycontrails.models.cocip.radiative_forcing import albedo
 from pycontrails.models.humidity_scaling import HumidityScaling
@@ -217,7 +215,7 @@ def contrail_flight_summary_statistics(flight_waypoints: GeoVectorDataset) -> pd
     )
 
     flight_waypoints["persistent_contrail_length"] = np.where(
-        np.isnan(flight_waypoints["ef"]), 0.0, flight_waypoints["segment_length"]
+        np.nan_to_num(flight_waypoints["ef"]) == 0.0, 0.0, flight_waypoints["segment_length"]
     )
 
     # Calculate contrail statistics for each flight
@@ -640,7 +638,7 @@ def regional_statistics(da_var: xr.DataArray, *, agg: str) -> pd.Series:
     -----
     - The spatial bounding box for each region is defined in Teoh et al. (2023)
     - Teoh, R., Engberg, Z., Shapiro, M., Dray, L., and Stettler, M.: A high-resolution Global
-        Aviation emissions Inventory based on ADS-B (GAIA) for 2019–2021, EGUsphere [preprint],
+        Aviation emissions Inventory based on ADS-B (GAIA) for 2019-2021, EGUsphere [preprint],
         https://doi.org/10.5194/egusphere-2023-724, 2023.
     """
     if (agg == "mean") and (len(da_var.time) > 1):
@@ -717,7 +715,7 @@ def _regional_data_arrays(da_global: xr.DataArray) -> dict[str, xr.DataArray]:
     -----
     - The spatial bounding box for each region is defined in Teoh et al. (2023)
     - Teoh, R., Engberg, Z., Shapiro, M., Dray, L., and Stettler, M.: A high-resolution Global
-        Aviation emissions Inventory based on ADS-B (GAIA) for 2019–2021, EGUsphere [preprint],
+        Aviation emissions Inventory based on ADS-B (GAIA) for 2019-2021, EGUsphere [preprint],
         https://doi.org/10.5194/egusphere-2023-724, 2023.
     """
     return {
@@ -1192,6 +1190,7 @@ def meteorological_time_slice_statistics(
     # ISSR: Volume of airspace with RHi > 100% between FL300 and FL450
     met = humidity_scaling.eval(met)
     rhi = met["rhi"].data.sel(level=slice(150, 300))
+    rhi = rhi.interp(time=time)
     is_issr = rhi > 1
 
     # Cirrus in a longitude-latitude grid
@@ -1246,9 +1245,15 @@ def radiation_time_slice_statistics(
     surface_area = geo.grid_surface_area(rad["longitude"].values, rad["latitude"].values)
     weights = surface_area.values / np.nansum(surface_area)
     stats = {
-        "mean_sdr_domain": np.nansum(rad["sdr"].data.sel(level=-1, time=time).values * weights),
-        "mean_rsr_domain": np.nansum(rad["rsr"].data.sel(level=-1, time=time).values * weights),
-        "mean_olr_domain": np.nansum(rad["olr"].data.sel(level=-1, time=time).values * weights),
+        "mean_sdr_domain": np.nansum(
+            np.squeeze(rad["sdr"].data.interp(time=time).values) * weights
+        ),
+        "mean_rsr_domain": np.nansum(
+            np.squeeze(rad["rsr"].data.interp(time=time).values) * weights
+        ),
+        "mean_olr_domain": np.nansum(
+            np.squeeze(rad["olr"].data.interp(time=time).values) * weights
+        ),
     }
     return pd.Series(stats)
 
@@ -1599,7 +1604,7 @@ def contrails_to_hi_res_grid(
             module_not_found_error=exc,
         )
 
-    for i in tqdm(heads_t.index[:2000]):
+    for i in tqdm(heads_t.index):
         contrail_segment = GeoVectorDataset(
             pd.concat([heads_t[cols_req].loc[i], tails_t[cols_req].loc[i]], axis=1).T, copy=True
         )
@@ -2139,6 +2144,8 @@ def compare_cocip_with_goes(
         File path of saved CoCiP-GOES image if ``path_write_img`` is provided.
     """
 
+    from pycontrails.datalib.goes import GOES, extract_goes_visualization
+
     try:
         import cartopy.crs as ccrs
         from cartopy.mpl.ticker import LatitudeFormatter, LongitudeFormatter
@@ -2147,7 +2154,17 @@ def compare_cocip_with_goes(
             name="compare_cocip_with_goes function",
             package_name="cartopy",
             module_not_found_error=e,
-            pycontrails_optional_package="goes",
+            pycontrails_optional_package="sat",
+        )
+
+    try:
+        import matplotlib.pyplot as plt
+    except ModuleNotFoundError as e:
+        dependencies.raise_module_not_found_error(
+            name="compare_cocip_with_goes function",
+            package_name="matplotlib",
+            module_not_found_error=e,
+            pycontrails_optional_package="vis",
         )
 
     # Round `time` to nearest GOES image time slice

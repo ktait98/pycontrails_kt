@@ -9,6 +9,7 @@ from typing import Any, Generic, NoReturn, overload
 
 import numpy as np
 import numpy.typing as npt
+from overrides import overrides
 
 from pycontrails.core import flight, fuel
 from pycontrails.core.flight import Flight
@@ -38,6 +39,19 @@ class AircraftPerformanceParams(ModelParams):
     #: The number of iterations used to calculate aircraft mass and fuel flow.
     #: The default value of 3 is sufficient for most cases.
     n_iter: int = 3
+
+    #: Experimental. If True, fill waypoints below the lowest altitude met
+    #: level with ISA temperature when interpolating "air_temperature" or "t".
+    #: If the ``met`` data is not provided, the entire air temperature array
+    #: is approximated with the ISA temperature. Enabling this does NOT
+    #: remove any NaN values in the ``met`` data itself.
+    fill_low_altitude_with_isa_temperature: bool = False
+
+    #: Experimental. If True, fill waypoints below the lowest altitude met
+    #: level with zero wind when computing true airspeed. In other words,
+    #: approximate low-altitude true airspeed with the ground speed. Enabling
+    #: this does NOT remove any NaN values in the ``met`` data itself.
+    fill_low_altitude_with_zero_wind: bool = False
 
 
 class AircraftPerformance(Model):
@@ -103,6 +117,23 @@ class AircraftPerformance(Model):
         Flight
             Flight trajectory with aircraft performance data.
         """
+
+    @overrides
+    def set_source_met(self, *args: Any, **kwargs: Any) -> None:
+        fill_with_isa = self.params["fill_low_altitude_with_isa_temperature"]
+        if fill_with_isa and (self.met is None or "air_temperature" not in self.met):
+            if "air_temperature" in self.source:
+                _fill_low_altitude_with_isa_temperature(self.source, 0.0)
+            else:
+                self.source["air_temperature"] = self.source.T_isa()
+            fill_with_isa = False  # we've just filled it
+
+        super().set_source_met(*args, **kwargs)
+        if not fill_with_isa:
+            return
+
+        met_level_0 = self.met.data["level"][-1].item()  # type: ignore[union-attr]
+        _fill_low_altitude_with_isa_temperature(self.source, met_level_0)
 
     def simulate_fuel_and_performance(
         self,
@@ -426,27 +457,41 @@ class AircraftPerformance(Model):
             on :attr:`source`, this is returned directly. Otherwise, it is calculated
             using :meth:`Flight.segment_true_airspeed`.
         """
+        tas = self.source.get("true_airspeed")
+        fill_with_groundspeed = self.params["fill_low_altitude_with_zero_wind"]
 
-        try:
-            return self.source["true_airspeed"]
-        except KeyError:
-            pass
+        if tas is not None:
+            if not fill_with_groundspeed:
+                return tas
+            cond = np.isnan(tas)
+            tas[cond] = self.source.segment_groundspeed()[cond]
+            return tas
 
-        if not isinstance(self.source, Flight):
-            raise TypeError("Model source must be a Flight to calculate true airspeed.")
+        met_incomplete = (
+            self.met is None or "eastward_wind" not in self.met or "northward_wind" not in self.met
+        )
+        if met_incomplete:
+            if fill_with_groundspeed:
+                tas = self.source.segment_groundspeed()
+                self.source["true_airspeed"] = tas
+                return tas
+            msg = (
+                "Cannot compute 'true_airspeed' without 'eastward_wind' and 'northward_wind' "
+                "met data. Either include met data in the model constructor, define "
+                "'true_airspeed' data on the flight, or set "
+                "'fill_low_altitude_with_zero_wind' to True."
+            )
+            raise ValueError(msg)
 
-        # Two step fallback: try to find u_wind and v_wind.
-        try:
-            u = interpolate_met(self.met, self.source, "eastward_wind", **self.interp_kwargs)
-            v = interpolate_met(self.met, self.source, "northward_wind", **self.interp_kwargs)
+        u = interpolate_met(self.met, self.source, "eastward_wind", **self.interp_kwargs)
+        v = interpolate_met(self.met, self.source, "northward_wind", **self.interp_kwargs)
 
-        except (ValueError, KeyError) as exc:
-            raise ValueError(
-                "Variable 'true_airspeed' not found. Include 'eastward_wind' and"
-                " 'northward_wind' variables on 'met' in model constructor, or define"
-                " 'true_airspeed' data on flight. This can be achieved by calling the"
-                " 'Flight.segment_true_airspeed' method."
-            ) from exc
+        if fill_with_groundspeed:
+            met_level_max = self.met.data["level"][-1].item()  # type: ignore[union-attr]
+            cond = self.source.level > met_level_max
+            # We DON'T overwrite the original u and v arrays already attached to the source
+            u = np.where(cond, 0.0, u)
+            v = np.where(cond, 0.0, v)
 
         out = self.source.segment_true_airspeed(u, v)
         self.source["true_airspeed"] = out
@@ -543,3 +588,54 @@ class AircraftPerformanceGridData(Generic[ArrayOrFloat]):
 
     #: Engine efficiency, [:math:`0-1`]
     engine_efficiency: ArrayOrFloat
+
+
+def _fill_low_altitude_with_isa_temperature(vector: GeoVectorDataset, met_level_max: float) -> None:
+    """Fill low-altitude NaN values in ``air_temperature`` with ISA values.
+
+    The ``air_temperature`` param is assumed to have been computed by
+    interpolating against a gridded air temperature field that did not
+    necessarily extend to the surface. This function fills points below the
+    lowest altitude in the gridded data with ISA temperature values.
+
+    This function operates in-place and modifies the ``air_temperature`` field.
+
+    Parameters
+    ----------
+    vector : GeoVectorDataset
+        GeoVectorDataset instance associated with the ``air_temperature`` data.
+    met_level_max : float
+        The maximum level in the met data, [:math:`hPa`].
+    """
+    air_temperature = vector["air_temperature"]
+    is_nan = np.isnan(air_temperature)
+    low_alt = vector.level > met_level_max
+    cond = is_nan & low_alt
+
+    t_isa = vector.T_isa()
+    air_temperature[cond] = t_isa[cond]
+
+
+def _fill_low_altitude_tas_with_true_groundspeed(fl: Flight, met_level_max: float) -> None:
+    """Fill low-altitude NaN values in ``true_airspeed`` with ground speed.
+
+    The ``true_airspeed`` param is assumed to have been computed by
+    interpolating against a gridded wind field that did not necessarily
+    extend to the surface. This function fills points below the lowest
+    altitude in the gridded data with ground speed values.
+
+    This function operates in-place and modifies the ``true_airspeed`` field.
+
+    Parameters
+    ----------
+    fl : Flight
+        Flight instance associated with the ``true_airspeed`` data.
+    met_level_max : float
+        The maximum level in the met data, [:math:`hPa`].
+    """
+    tas = fl["true_airspeed"]
+    is_nan = np.isnan(tas)
+    low_alt = fl.level > met_level_max
+    cond = is_nan & low_alt
+
+    tas[cond] = fl.segment_groundspeed()[cond]

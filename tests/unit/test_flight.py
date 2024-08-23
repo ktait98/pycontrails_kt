@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from pyproj import Geod
+from scipy import signal
 
 from pycontrails import Flight, GeoVectorDataset, MetDataArray, MetDataset, SAFBlend, VectorDataset
 from pycontrails.core import flight
@@ -266,6 +267,7 @@ def test_ensure_vars(fl: Flight) -> None:
 
 
 def test_plot(fl: Flight) -> None:
+    """Test the Flight.plot() method."""
     ax = fl.plot()
     assert isinstance(ax, matplotlib.axes.Axes)
     assert ax.get_xlabel() == "longitude"
@@ -275,6 +277,14 @@ def test_plot(fl: Flight) -> None:
     assert isinstance(fl.plot(figsize=(20, 20)), matplotlib.axes.Axes)
     assert isinstance(fl.plot(alpha=0.5), matplotlib.axes.Axes)
     assert isinstance(fl.plot(marker="o", linestyle=""), matplotlib.axes.Axes)
+
+
+def test_plot_profile(fl: Flight) -> None:
+    """Test the Flight.plot_profile() method."""
+    ax = fl.plot_profile()
+    assert isinstance(ax, matplotlib.axes.Axes)
+    assert ax.get_xlabel() == "time"
+    assert ax.get_ylabel() == "altitude_ft"
 
 
 def test_flight_time_methods(fl: Flight) -> None:
@@ -533,7 +543,9 @@ def test_geojson_methods(fl: Flight, rng: np.random.Generator) -> None:
     assert d2["type"] == "FeatureCollection"
     assert json.dumps(d2)
     assert len(d1["features"]) == len(d2["features"][0]["geometry"]["coordinates"])
-    for feature, coord in zip(d1["features"], d2["features"][0]["geometry"]["coordinates"]):
+    for feature, coord in zip(
+        d1["features"], d2["features"][0]["geometry"]["coordinates"], strict=True
+    ):
         assert feature["geometry"]["coordinates"] == coord
 
     with pytest.raises(KeyError):
@@ -761,7 +773,8 @@ def test_interpolation_edge_cases(shift: int, freq: str) -> None:
         time=pd.date_range("2022-01-01", "2022-01-01T03", 20),
     )
     fl["longitude"][3] = np.nan  # make test more interesting
-    fl2 = fl.resample_and_fill(freq)
+    with pytest.warns(UserWarning, match="Anti-meridian crossings can't be reliably detected"):
+        fl2 = fl.resample_and_fill(freq)
     jump = np.nonzero(np.diff(fl2["longitude"]) < 0)[0]
     if shift == -180:
         assert jump.size == 0
@@ -805,6 +818,150 @@ def test_antimeridian_long_cross(direction: str, cross_anti: bool) -> None:
     assert np.all(np.isfinite(fl2["longitude"]))
     assert np.all(fl2.segment_length()[:-1] < 10000)
     assert np.all(fl2.segment_length()[:-1] > 8000)
+
+
+@pytest.mark.parametrize("direction", ["east", "west"])
+@pytest.mark.parametrize("cross_anti", [True, False])
+def test_antimeridian_extra_long_cross(direction: str, cross_anti: bool) -> None:
+    """Test interpolation adjustments for antimeridian crossing.
+
+    This test uses longitude values that span over 180 degrees. This is important
+    because flights may cover more than 180 degrees longitude when strong flight-level
+    winds favor travel in a particular direction (typically eastward).
+    """
+    # Intentionally keep the logic very boilerplate
+    # In all cases, d_lon = 340
+    n = 200
+    if direction == "east" and cross_anti:
+        longitude = np.linspace(10, 10 + 340, n)
+    elif direction == "east" and not cross_anti:
+        longitude = np.linspace(-170, -170 + 340, n)
+    elif direction == "west" and cross_anti:
+        longitude = np.linspace(350, 350 - 340, n)
+    elif direction == "west" and not cross_anti:
+        longitude = np.linspace(170, 170 - 340, n)
+    else:
+        raise ValueError("Unknown param")
+    longitude = (longitude + 180) % 360 - 180
+    fl = Flight(
+        longitude=longitude,
+        latitude=np.zeros(n),
+        altitude=np.full(n, 10000),
+        time=pd.date_range("2022-01-01", "2022-01-01T06", n),
+    )
+    fl2 = fl.resample_and_fill("5s")
+    assert np.all(fl2["longitude"] < 180)
+    assert np.all(fl2["longitude"] >= -180)
+    assert np.all(np.isfinite(fl2["longitude"]))
+    assert np.all(fl2.segment_length()[:-1] < 10000)
+    assert np.all(fl2.segment_length()[:-1] > 8000)
+
+
+@pytest.mark.parametrize("direction", ["east", "west"])
+def test_meridian_antimeridian_cross(direction: str) -> None:
+    """Test interpolation adjustments for antimeridian crossing.
+
+    This test uses longitude values that span both the meridian and antimeridian.
+    """
+    n = 200
+    if direction == "east":
+        longitude = np.linspace(-10, -10 + 340, n)
+    elif direction == "west":
+        longitude = np.linspace(10, 10 - 340, n)
+    else:
+        raise ValueError("Unknown param")
+    longitude = (longitude + 180) % 360 - 180
+    fl = Flight(
+        longitude=longitude,
+        latitude=np.zeros(n),
+        altitude=np.full(n, 10000),
+        time=pd.date_range("2022-01-01", "2022-01-01T06", n),
+    )
+    fl2 = fl.resample_and_fill("5s")
+    assert np.all(fl2["longitude"] < 180)
+    assert np.all(fl2["longitude"] >= -180)
+    assert np.all(np.isfinite(fl2["longitude"]))
+    assert np.all(fl2.segment_length()[:-1] < 10000)
+    assert np.all(fl2.segment_length()[:-1] > 8000)
+
+
+@pytest.mark.parametrize("where", ["meridian", "antimeridian"])
+@pytest.mark.parametrize("direction", ["east", "west"])
+@pytest.mark.parametrize("period", [2, 4, 6, 8])
+def test_interpolation_zipper(where: str, direction: str, period: int) -> None:
+    """Test interpolation with rapidly-oscillating longitude.
+
+    Include oscillations that cross meridian and antimeridian starting in both directions.
+    """
+    n = 200
+    if direction == "east":
+        longitude = (
+            period / 4 * signal.sawtooth(np.linspace(0, 2 * np.pi * (n - 1) / period, n), 0.5)
+        )
+    elif direction == "west":
+        longitude = (
+            -period / 4 * signal.sawtooth(np.linspace(0, 2 * np.pi * (n - 1) / period, n), 0.5)
+        )
+    else:
+        raise ValueError("Unknown param")
+    if where == "antimeridian":
+        longitude = longitude % 360 - 180
+    # speed of this flight is 1 degree/minute ~ 1850 m/s
+    fl = Flight(
+        longitude=longitude,
+        latitude=np.zeros(n),
+        altitude=np.full(n, 10000),
+        time=pd.date_range("2022-01-01", periods=n, freq="1min"),
+    )
+    # expect resampled trajectories to have lengths of ~9250 m
+    fl2 = fl.resample_and_fill("5s")
+    assert np.all(fl2["longitude"] < 180)
+    assert np.all(fl2["longitude"] >= -180)
+    assert np.all(np.isfinite(fl2["longitude"]))
+    assert np.all(fl2.segment_length()[:-1] < 9500)
+    assert np.all(fl2.segment_length()[:-1] > 9000)
+
+
+@pytest.mark.parametrize("direction", ["east", "west"])
+def test_consecutive_antimeridian_cross(direction: str) -> None:
+    """Test error on consecutive antimeridian crossings in the same direction."""
+    n = 100
+    if direction == "east":
+        longitude = np.linspace(90, 90 + 540, n)
+    elif direction == "west":
+        longitude = np.linspace(-90, -90 - 540, n)
+    else:
+        raise ValueError("Unknown param")
+    longitude = (longitude + 180) % 360 - 180
+    fl = Flight(
+        longitude=longitude,
+        latitude=np.zeros(n),
+        altitude=np.full(n, 10000),
+        time=pd.date_range("2022-01-01", "2022-01-01T10", n),
+    )
+    with pytest.raises(ValueError, match="Cannot handle consecutive"):
+        fl.resample_and_fill("5s")
+
+
+@pytest.mark.parametrize("direction", ["east", "west"])
+def test_no_viable_antimeridian_shift(direction: str) -> None:
+    """Test error for resampling flights that span 360 degrees longitude."""
+    n = 100
+    if direction == "east":
+        longitude = np.linspace(0, 360, n)
+    elif direction == "west":
+        longitude = np.linspace(0, -360, n)
+    else:
+        raise ValueError("Unknown param")
+    longitude = (longitude + 180) % 360 - 180
+    fl = Flight(
+        longitude=longitude,
+        latitude=np.zeros(n),
+        altitude=np.full(n, 10000),
+        time=pd.date_range("2022-01-01", "2022-01-01T06", n),
+    )
+    with pytest.raises(ValueError, match="Cannot handle flight that spans"):
+        fl.resample_and_fill("5s")
 
 
 def test_intersect_issr_met(met_era5_fake: MetDataset, flight_fake: Flight) -> None:

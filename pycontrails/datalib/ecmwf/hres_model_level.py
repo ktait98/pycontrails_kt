@@ -377,7 +377,7 @@ class HRESModelLevel(ECMWFAPI):
         time = self.forecast_time.strftime("%H:%M:%S")
         steps = self.get_forecast_steps(times)
         # param 152 = log surface pressure, needed for metview level conversion
-        grib_params = set(self.variable_ecmwfids + [152])
+        grib_params = set((*self.variable_ecmwfids, 152))
         return (
             f"retrieve,\n"
             f"class=od,\n"
@@ -473,8 +473,8 @@ class HRESModelLevel(ECMWFAPI):
             LOG.debug("Opening GRIB file")
             fs_ml = mv.read(target)
 
-            # reduce memory overhead by cacheing one timestep at a time
-            for time, step in zip(times, self.get_forecast_steps(times)):
+            # reduce memory overhead by caching one timestep at a time
+            for time, step in zip(times, self.get_forecast_steps(times), strict=True):
                 fs_pl = mv.Fieldset()
                 selection = dict(step=step)
                 lnsp = fs_ml.select(shortName="lnsp", **selection)

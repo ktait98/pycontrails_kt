@@ -153,6 +153,47 @@ def cocip_no_ef(fl: Flight, met: MetDataset, rad: MetDataset) -> Cocip:
 
 
 @pytest.fixture()
+def cocip_no_ef_lowmem(fl: Flight, met: MetDataset, rad: MetDataset) -> Cocip:
+    """Return `Cocip` instance evaluated on modified `fl` using low-memory interpolation."""
+    fl.update(longitude=np.linspace(-29, -32, 20))
+    fl.update(latitude=np.linspace(54, 55, 20))
+    fl.update(altitude=np.full(20, 10000))
+    rad2 = rad.copy()
+    rad2.data["top_net_solar_radiation"] = xr.zeros_like(rad2.data["top_net_solar_radiation"])
+    rad2.data["top_net_thermal_radiation"] = xr.zeros_like(rad2.data["top_net_thermal_radiation"])
+    params = {
+        "max_age": np.timedelta64(3, "h"),
+        "process_emissions": False,
+        "humidity_scaling": ExponentialBoostHumidityScaling(),
+        "preprocess_lowmem": True,
+    }
+    cocip = Cocip(met.copy(), rad=rad2, params=params)
+    cocip.eval(source=fl)
+    return cocip
+
+
+@pytest.fixture()
+def cocip_no_ef_lowmem_indices(fl: Flight, met: MetDataset, rad: MetDataset) -> Cocip:
+    """Return `Cocip` instance evaluated on modified `fl` using low-memory interp + indices."""
+    fl.update(longitude=np.linspace(-29, -32, 20))
+    fl.update(latitude=np.linspace(54, 55, 20))
+    fl.update(altitude=np.full(20, 10000))
+    rad2 = rad.copy()
+    rad2.data["top_net_solar_radiation"] = xr.zeros_like(rad2.data["top_net_solar_radiation"])
+    rad2.data["top_net_thermal_radiation"] = xr.zeros_like(rad2.data["top_net_thermal_radiation"])
+    params = {
+        "max_age": np.timedelta64(3, "h"),
+        "process_emissions": False,
+        "humidity_scaling": ExponentialBoostHumidityScaling(),
+        "preprocess_lowmem": True,
+        "interpolation_use_indices": True,
+    }
+    cocip = Cocip(met.copy(), rad=rad2, params=params)
+    cocip.eval(source=fl)
+    return cocip
+
+
+@pytest.fixture()
 def cocip_persistent(fl: Flight, met: MetDataset, rad: MetDataset) -> Cocip:
     """Return `Cocip` instance evaluated on modified `fl`."""
     fl.update(longitude=np.linspace(-29, -32, 20))
@@ -182,6 +223,49 @@ def cocip_persistent(fl: Flight, met: MetDataset, rad: MetDataset) -> Cocip:
 
 
 @pytest.fixture()
+def cocip_persistent_lowmem(fl: Flight, met: MetDataset, rad: MetDataset) -> Cocip:
+    """Return `Cocip` instance evaluated on modified `fl` using low-memory interpolation."""
+    fl.update(longitude=np.linspace(-29, -32, 20))
+    fl.update(latitude=np.linspace(56, 57, 20))
+    fl.update(altitude=np.linspace(10900, 10900, 20))
+    params = {
+        "max_age": np.timedelta64(3, "h"),
+        "process_emissions": False,
+        "verbose_outputs": True,
+        "met_time_buffer": (np.timedelta64(0, "h"), np.timedelta64(1, "h")),
+        "humidity_scaling": ExponentialBoostHumidityScaling(),
+        "compute_atr20": True,
+        "preprocess_lowmem": True,
+    }
+    cocip = Cocip(met.copy(), rad=rad.copy(), params=params)
+    with pytest.warns(UserWarning, match="At time .* contrail has no intersection with the met"):
+        cocip.eval(source=fl)
+    return cocip
+
+
+@pytest.fixture()
+def cocip_persistent_lowmem_indices(fl: Flight, met: MetDataset, rad: MetDataset) -> Cocip:
+    """Return `Cocip` instance evaluated on modified `fl` using low-mem interpolation + indices."""
+    fl.update(longitude=np.linspace(-29, -32, 20))
+    fl.update(latitude=np.linspace(56, 57, 20))
+    fl.update(altitude=np.linspace(10900, 10900, 20))
+    params = {
+        "max_age": np.timedelta64(3, "h"),
+        "process_emissions": False,
+        "verbose_outputs": True,
+        "met_time_buffer": (np.timedelta64(0, "h"), np.timedelta64(1, "h")),
+        "humidity_scaling": ExponentialBoostHumidityScaling(),
+        "compute_atr20": True,
+        "preprocess_lowmem": True,
+        "interpolation_use_indices": True,
+    }
+    cocip = Cocip(met.copy(), rad=rad.copy(), params=params)
+    with pytest.warns(UserWarning, match="At time .* contrail has no intersection with the met"):
+        cocip.eval(source=fl)
+    return cocip
+
+
+@pytest.fixture()
 def cocip_persistent2(
     flight_cocip2: Flight, met_cocip2: MetDataset, rad_cocip2: MetDataset
 ) -> Cocip:
@@ -200,6 +284,43 @@ def cocip_persistent2(
     cocip = Cocip(met=met_cocip2.copy(), rad=rad_cocip2.copy(), params=params)
     cocip.eval(source=flight_cocip2)
 
+    return cocip
+
+
+@pytest.fixture()
+def cocip_persistent2_lowmem(
+    flight_cocip2: Flight, met_cocip2: MetDataset, rad_cocip2: MetDataset
+) -> Cocip:
+    """Return ``Cocip`` instance evaluated on ``flight_cocip2`` using low-memory interpolation."""
+    params = {
+        "max_age": np.timedelta64(5, "h"),
+        "process_emissions": False,
+        "verbose_outputs": True,
+        "interpolation_bounds_error": True,
+        "humidity_scaling": ExponentialBoostHumidityScaling(),
+        "preprocess_lowmem": True,
+    }
+    cocip = Cocip(met=met_cocip2.copy(), rad=rad_cocip2.copy(), params=params)
+    cocip.eval(source=flight_cocip2)
+    return cocip
+
+
+@pytest.fixture()
+def cocip_persistent2_lowmem_indices(
+    flight_cocip2: Flight, met_cocip2: MetDataset, rad_cocip2: MetDataset
+) -> Cocip:
+    """Return ``Cocip`` instance evaluated on ``flight_cocip2`` using low-mem interp + indices."""
+    params = {
+        "max_age": np.timedelta64(5, "h"),
+        "process_emissions": False,
+        "verbose_outputs": True,
+        "interpolation_bounds_error": True,
+        "humidity_scaling": ExponentialBoostHumidityScaling(),
+        "preprocess_lowmem": True,
+        "interpolation_use_indices": True,
+    }
+    cocip = Cocip(met=met_cocip2.copy(), rad=rad_cocip2.copy(), params=params)
+    cocip.eval(source=flight_cocip2)
     return cocip
 
 
@@ -803,6 +924,25 @@ def test_eval_persistent2(cocip_persistent2: Cocip, regenerate_results: bool) ->
     )
 
 
+@pytest.mark.parametrize(
+    ("reference", "lowmem"),
+    [
+        ("cocip_no_ef", "cocip_no_ef_lowmem"),
+        ("cocip_no_ef", "cocip_no_ef_lowmem_indices"),
+        ("cocip_persistent", "cocip_persistent_lowmem"),
+        ("cocip_persistent", "cocip_persistent_lowmem_indices"),
+        ("cocip_persistent2", "cocip_persistent2_lowmem"),
+        ("cocip_persistent2", "cocip_persistent2_lowmem_indices"),
+    ],
+)
+def test_eval_lowmem(reference: str, lowmem: str, request: pytest.FixtureRequest) -> None:
+    """Check that CoCiP output does not change when low-memory interpolation is used."""
+    cocip = request.getfixturevalue(reference)
+    cocip_lowmem = request.getfixturevalue(lowmem)
+    pd.testing.assert_frame_equal(cocip.source.dataframe, cocip_lowmem.source.dataframe)
+    pd.testing.assert_frame_equal(cocip.contrail, cocip_lowmem.contrail)
+
+
 def test_xarray_contrail(cocip_persistent: Cocip) -> None:
     """Confirm expected contrail output on attribute `contrail_dataset`."""
     assert cocip_persistent.contrail_dataset["longitude"].shape == (8, 12)
@@ -1020,6 +1160,9 @@ def test_flight_waypoint_and_flight_summary_statistics() -> None:
         rtol=1,
     )
     assert (flight_summary["total_persistent_contrails_formed"] == 0.0).sum() == (
+        np.nan_to_num(flight_summary["total_energy_forcing"]) == 0.0
+    ).sum()
+    assert (flight_summary["total_persistent_contrails_formed"] == 0.0).sum() >= (
         flight_summary["mean_lifetime_rf_net"].isna()
     ).sum()
     np.testing.assert_allclose(
@@ -1185,6 +1328,8 @@ def test_cocip_fleet(fl: Flight, met: MetDataset, rad: MetDataset):
     """
     initial_keys = set(fl)
     fls = [fl.copy() for _ in range(10)]
+    del fl  # we don't want to accidentally use this below
+
     cocip = Cocip(
         met=met,
         rad=rad,

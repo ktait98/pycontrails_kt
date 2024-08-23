@@ -1,5 +1,90 @@
 # Changelog
 
+## v0.53.1
+
+### Features
+
+- Support `ERA5` downloads from [CDS-Beta](https://cds-beta.climate.copernicus.eu/). The updated interface is backwards compatible with the legacy CDS server. The choice of CDS server is governed by the `url` parameter in the `ERA5` constructor.
+
+## v0.53.0
+
+### Breaking changes
+
+- Drop python 3.9 support per [NEP 29](https://numpy.org/neps/nep-0029-deprecation_policy.html).
+
+### Features
+
+- Build wheels for [python 3.13](https://peps.python.org/pep-0719/). (These wheels are available on PyPI, but other pycontrails dependencies may not yet support python 3.13.)
+
+### Fixes
+
+- Fix `PycontrailsRegularGridInterpolator` for compatibility with the latest scipy version.
+
+### Internals
+
+- Defer import of `skimage` and `rasterio`.
+
+## v0.52.3
+
+### Features
+
+- Add experimental `preprocess_lowmem` parameter to `Cocip`. When set to `True`, `Cocip` will attempt to reduce memory consumption during flight preprocessing and initial formation/persistence calculations by using an alternate implementation of `MetDataArray.interpolate` (see below).
+- Add `lowmem` keyword-only argument to `MetDataArray.interpolate`. When `True`, attempt to reduce memory consumption by using an alternative interpolation strategy that loads at most two time steps of meteorology data into memory at a time.
+
+### Fixes
+
+- Defer import of `matplotlib` in `models.cocip.output_formats`.
+- Fix bug in `PycontrailsRegularGridInterpolator` that caused errors when dispatching to 1-d linear interpolation from in `rgi_cython.pyx`.
+
+### Internals
+
+- Implement low-memory paths in `Cocip.eval` and `MetDataArray.interpolate`.
+
+## v0.52.2
+
+### Breaking changes
+
+- Flight antimeridian crossings are now detected based on individual flight segments rather than minimum and maximum longitude values. This allows for correct detection of antimeridian crossings for flights that span more than 180 degrees longitude, and may change the output of `Flight.resample_and_fill` for such flights.
+
+### Features
+
+- Add experimental `fill_low_alt_with_isa_temperature` parameter on the `AircraftPerformance` base class. When set to `True`, aircraft performance models with `Flight` sources will fill points below the lowest altitude in the ``met["air_temperature]`` data with the ISA temperature. This is useful when the met data does not extend to the surface. In this case, we can still estimate fuel flow and other performance metrics through the entire climb phase. By default, this parameter is set to `False`.
+- Add experimental `fill_low_altitude_with_zero_wind` parameter on the `AircraftPerformance` base class. When set to `True`, aircraft performance models will estimate the true airspeed at low altitudes by assuming the wind speed is zero.
+- Add convenience `Flight.plot_profile` method.
+
+### Fixes
+
+- Fix missing `Fuel Flow Idle (kg/sec)` value in the `1ZM001` engine in the `edb-gaseous-v29b-engines.csv`.
+- Fix the `step_threshold` in `Flight._altitude_interpolation`. This correction is only relevant when passing in a non-default value for `freq` in `Flight.resample_and_fill`.
+- Fix the `VectorDataset.__eq__` method to check for the same keys. Previously, if the other dataset had a superset of the instance keys, the method may still return `True`.
+- Fix minor bug in `cocip.output_formats.radiation_time_slice_statistics` in which the function previously threw an error if `t_end` did not directly align with the time index in the `rad` dataset.
+- Remove the residual constraint in `cocip.output_formats.contrails_to_hi_res_grid` used during debugging.
+- Improve detection of antimeridian crossings for flights that span more than 180 degrees longitude.
+
+### Internals
+
+- Improve the runtime performance of `Fleet.to_flight_list`. For a large `Fleet`, this method is now 5x faster.
+- Improve the runtime performance and memory footprint of `Cocip._bundle_results`. When running `Cocip` with a large `Fleet` source, `Cocip.eval` is now slightly faster and uses much less memory.
+
+## v0.52.1
+
+### Breaking changes
+
+- Remove `lock=False` as a default keyword argument to `xr.open_mfdataset` in the `MetDataSource.open_dataset` method. This reverts a change from [v0.44.1](https://github.com/contrailcirrus/pycontrails/releases/tag/v0.44.1) and prevents segmentation faults when using recent versions of [netCDF4](https://pypi.org/project/netCDF4/) (1.7.0 and above).
+- GOES imagery is now loaded from a temporary file on disk rather than directly from memory when using `GOES.get` without a cachestore.
+
+### Internals
+
+- Remove upper limits on netCDF4 and numpy versions.
+- Remove h5netcdf dependency.
+- Update doctests with numpy 2 scalar representation (see [NEP 51](https://numpy.org/neps/nep-0051-scalar-representation.html)). Doctests will now fail when run with numpy 1.
+- Run certain tests in `test_ecmwf.py` and `test_met.py` using the single-threaded dask scheduler to prevent tests from hanging while waiting for a lock that is never released. (This issue was [encountered previously](https://github.com/contrailcirrus/pycontrails/pull/68), and removing `lock=False` in `MetDataSource.open_dataset` reverts the fix.)
+- Document pycontrails installation from conda-forge.
+
+### Fixes
+
+- Ensure the `MetDataset` vertical coordinates `"air_pressure"` and `"altitude"` have the correct dtype.
+
 ## v0.52.0
 
 ### Breaking changes
@@ -9,13 +94,13 @@
 ### Features
 
 - Add tools for running [APCEMM](https://github.com/MIT-LAE/APCEMM) from within pycontrails. This includes:
-    - utilities for generating APCEMM input files and running APCEMM (`pycontrails.models.apcemm.utils`)
-    - an interface (`pycontrails.models.apcemm.apcemm`) that allows users to run APCEMM as a pycontrails `Model`.
+  - utilities for generating APCEMM input files and running APCEMM (`pycontrails.models.apcemm.utils`)
+  - an interface (`pycontrails.models.apcemm.apcemm`) that allows users to run APCEMM as a pycontrails `Model`.
 - Add [APCEMM tutorial notebook](https://py.contrails.org/integrations/APCEMM.html).
 - Add prescribed sedimentation rate to `DryAdvection` model.
 - Add `Landsat` and `Sentinel` datalibs for searching, retrieving, and visualizing Landsat 8-9 and Sentinel-2 imagery. The datalibs include:
-    - Tools for querying Landsat and Sentinel-2 imagery for intersections with user-defined regions (`landsat.query`, `sentinel.query`) or flights (`landsat.intersect`, `sentinel.intersect`). These tools use BigQuery tables and require a Google Cloud Platform account with access to the BigQuery API.
-    - Tools for downloading and visualizing imagery from Landsat (`Landsat`) and Sentinel-2 (`Sentinel`). These tools retrieve data anonymously from Google Cloud Platform storage buckets and can be used without a Google Cloud Platform account.
+  - Tools for querying Landsat and Sentinel-2 imagery for intersections with user-defined regions (`landsat.query`, `sentinel.query`) or flights (`landsat.intersect`, `sentinel.intersect`). These tools use BigQuery tables and require a Google Cloud Platform account with access to the BigQuery API.
+  - Tools for downloading and visualizing imagery from Landsat (`Landsat`) and Sentinel-2 (`Sentinel`). These tools retrieve data anonymously from Google Cloud Platform storage buckets and can be used without a Google Cloud Platform account.
 - Add tutorial notebooks demonstrating how to use `Landsat` and `Sentinel` datalibs to find flights in high-resolution satellite imagery.
 - Modify `Flight.to_geojson_multilinestring` to make grouping key optional and to support multiple antimeridian crossings.
 - Update the `pycontrails` build system to require `numpy 2.0` per the [official numpy guidelines](https://numpy.org/devdocs/dev/depending_on_numpy.html#numpy-2-0-specific-advice). Note that the runtime requirement for `pycontrails` remains `numpy>=1.22`.
@@ -138,7 +223,7 @@ The Unterstrasser (2016) parameterization can be used in CoCiP by setting a new 
 - Update flight resampling logic to align with expected behavior for very short flights, which is now detailed in the `Flight.resample_and_fill` docstring.
 
 ### Internals
-  
+
 - Adds a parameter to `CoCipParams`, `unterstrasser_ice_survival_fraction`, that activates the Unterstrasser (2016) survival parameterization when set to `True`. This is disabled by default, and only implemented for `CoCiP`. `CoCiPGrid` will produce an error if run with `unterstrasser_ice_surival_fraction=True`.
 - Modifies `CoCiPGrid` so that setting `compute_atr_20` (defined in `CoCipParams`) to `True` adds `global_yearly_mean_rf` and `atr20` to CoCiP-grid output.
 - Replaces `pycontrails.datalib.GOES` ash convention label "MIT" with "SEVIRI"
@@ -169,7 +254,7 @@ The Unterstrasser (2016) parameterization can be used in CoCiP by setting a new 
 - Add new `MetDataSource.is_single_level` property.
 - Add `ecmwf.Divergence` (a subclass of `MetVariable`) for accessing ERA5 divergence data.
 - Update the [specific humidity interpolation notebook](https://py.contrails.org/notebooks/specific-humidity-interpolation.html) to use the new `ARCOERA5` interface.
-- Adds two parameters to `CoCipParams`, `compute_atr20` and `global_rf_to_atr20_factor`. Setting the former to `True` will add both `global_yearly_mean_rf` and `atr20` to the CoCiP output. 
+- Adds two parameters to `CoCipParams`, `compute_atr20` and `global_rf_to_atr20_factor`. Setting the former to `True` will add both `global_yearly_mean_rf` and `atr20` to the CoCiP output.
 - Bump minimum pytest version to 8.1 to avoid failures in release workflow.
 
 ## v0.49.5

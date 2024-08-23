@@ -320,7 +320,7 @@ def test_to_dataframe(random_path: VectorDataset, random_geo_path: GeoVectorData
     # reverse gives same data dictionary
     data = df.to_dict(orient="list")
     assert random_path.data.keys() == data.keys()
-    for arr1, arr2 in zip(random_path.data.values(), data.values()):
+    for arr1, arr2 in zip(random_path.data.values(), data.values(), strict=True):
         np.testing.assert_array_equal(arr1, arr2)
 
     df = random_geo_path.to_dataframe()
@@ -721,12 +721,12 @@ def test_vector_copy(random_path: VectorDataset) -> None:
     assert len(data) == 3
 
     # Here, when we grab the original data, the base is None
-    random_path4 = VectorDataset(data, copy=False)
+    random_path4 = VectorDataset(data, copy=False, attrs=random_path.attrs)
     assert random_path4 == random_path
     assert random_path4["a"].base is None
     assert np.may_share_memory(random_path4["a"], random_path["a"])
 
-    random_path5 = VectorDataset(data, copy=True)
+    random_path5 = VectorDataset(data, copy=True, attrs=random_path.attrs)
     assert random_path5 == random_path
     assert random_path5["a"].base is None
     assert not np.may_share_memory(random_path5["a"], random_path["a"])

@@ -143,7 +143,7 @@ class CocipGrid(models.Model):
 
     def eval(
         self, source: GeoVectorDataset | MetDataset | None = None, **params: Any
-    ) -> GeoVectorDataset | MetDataset | NoReturn:
+    ) -> GeoVectorDataset | MetDataset:
         """Run CoCiP simulation on a 4d coordinate grid or arbitrary set of 4d points.
 
         If the :attr:`params` ``verbose_outputs_evolution`` is True, the model holds
@@ -322,7 +322,7 @@ class CocipGrid(models.Model):
 
         if met is None:
             # idx is the first index at which self.met.variables["time"].to_numpy() >= time_end
-            idx = np.searchsorted(self.met.indexes["time"].to_numpy(), time_end)
+            idx = np.searchsorted(self.met.indexes["time"].to_numpy(), time_end).item()
             sl = slice(max(0, idx - 1), idx + 1)
             logger.debug("Select met slice %s", sl)
             met = MetDataset(self.met.data.isel(time=sl), copy=False)
@@ -331,7 +331,7 @@ class CocipGrid(models.Model):
             current_times = met.indexes["time"].to_numpy()
             all_times = self.met.indexes["time"].to_numpy()
             # idx is the first index at which all_times >= time_end
-            idx = np.searchsorted(all_times, time_end)
+            idx = np.searchsorted(all_times, time_end).item()
             sl = slice(max(0, idx - 1), idx + 1)
 
             # case 1: cannot re-use end of current met as start of new met
@@ -353,7 +353,7 @@ class CocipGrid(models.Model):
 
         if rad is None:
             # idx is the first index at which self.rad.variables["time"].to_numpy() >= time_end
-            idx = np.searchsorted(self.rad.indexes["time"].to_numpy(), time_end)
+            idx = np.searchsorted(self.rad.indexes["time"].to_numpy(), time_end).item()
             sl = slice(max(0, idx - 1), idx + 1)
             logger.debug("Select rad slice %s", sl)
             rad = MetDataset(self.rad.data.isel(time=sl), copy=False)
@@ -362,7 +362,7 @@ class CocipGrid(models.Model):
             current_times = rad.indexes["time"].to_numpy()
             all_times = self.rad.indexes["time"].to_numpy()
             # idx is the first index at which all_times >= time_end
-            idx = np.searchsorted(all_times, time_end)
+            idx = np.searchsorted(all_times, time_end).item()
             sl = slice(max(0, idx - 1), idx + 1)
 
             # case 1: cannot re-use end of current rad as start of new rad
@@ -446,9 +446,9 @@ class CocipGrid(models.Model):
         if ap_model := self.params["aircraft_performance"]:
             attrs["ap_model"] = type(ap_model).__name__
 
-        if isinstance(azimuth, (np.floating, np.integer)):
+        if isinstance(azimuth, np.floating | np.integer):
             attrs["azimuth"] = azimuth.item()
-        elif isinstance(azimuth, (float, int)):
+        elif isinstance(azimuth, float | int):
             attrs["azimuth"] = azimuth
 
         if isinstance(self.source, MetDataset):
@@ -897,7 +897,7 @@ def _setdefault_from_params(key: str, vector: GeoVectorDataset, params: dict[str
     if scalar is None:
         return
 
-    if not isinstance(scalar, (int, float)):
+    if not isinstance(scalar, int | float):
         msg = (
             f"Parameter {key} must be a scalar. For non-scalar values, directly "
             "set the data on the 'source'."
