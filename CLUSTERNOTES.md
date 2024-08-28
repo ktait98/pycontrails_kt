@@ -67,6 +67,8 @@ That needs to output to separate directories and name everything appropriately
 
 # Actually I don't like this. I think both temp and pressure should be correlated with altitude. I don't see any point in testing 280 K at 40k ft, other than to test the model limits. But the main purpose of this sensitivity study is to explore conditions within the realms of feasibility. Therefore, need to develop simple relation to find avg temp, spec hum and pressure for each altitude level. Almost definitely an answer to this in pycontrails - maybe ISA function or something.
 
+# Oh wait a sec.. There are data files in Species that cover both temp and H2O concs! Lets use those as that will be more consistent with prior studies done by us.
+
 # fl params
   - t0 fl   : e.g. pd.to_datetime("2022-01-20 14:00:00") some sensible time after model initialisation. E.g. if doing a 5 day run, maybe input emission after 24 hours?
   - rt fl   : e.g. pd.Timedelta(minutes=60) set to 60 mins. I think all flights should have a runtime equal to the time it takes for the ac to pass through the box. Maybe this can just be set arbitrarily high and let the lat/lon bounds be what constrains the flight simulation.
