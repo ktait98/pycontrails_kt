@@ -51,9 +51,16 @@ That needs to output to separate directories and name everything appropriately
 ```
 # Scripts/programs to focus on
   - boxm_v_1_ac.py is the latest notebook. It is what currently works with the files it calls, in their current state.
+
   - flight_gen.py is everything aircraft and plume related. Key output is the emi dataset, which is created once the plumes are aggregated to the grid.
-  - boxm.py is the python wrapper around the fortran program boxm.f90. This is its own class and does some of the data wrangling between xarray and netcdf to pass over to fortran. 
+
+  - boxm_ac.py is the python wrapper around the fortran program boxm.f90. This is its own class and does some of the data wrangling between xarray and netcdf to pass over to fortran. boxm.py is the clean version, meant for validation with original model. These should be merged into one its quite messy as is.
+
   - boxm.f90 is the new implementation of the original box model. It allows for parallelised boxm calcs across a whole region of grid cells. Its outputs match very well with the original boxm, but this validation study needs to be expanded ideally.
+
+  Command line for compile:
+  gfortran -o boxm boxm.f90 $(/home/ktait98/miniconda3/envs/contrails/bin/nf-config --fflags) $(/home/ktait98/miniconda3/envs/contrails/bin/nf-config --flibs)
+
   - boxm_orig.for is the old box model code (ew). Caused me great pain over the years staring at and dealing with this code. Oh well, we're basically there with the new version now. Some final validation runs and its good riddance!
 
 # Parameters to vary
