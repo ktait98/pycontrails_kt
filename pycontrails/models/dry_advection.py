@@ -6,6 +6,7 @@ import dataclasses
 from typing import Any, NoReturn, overload
 
 import numpy as np
+import numpy.typing as npt
 
 from pycontrails.core import models
 from pycontrails.core.flight import Flight
@@ -228,7 +229,7 @@ class DryAdvection(models.Model):
 
         if pointwise_only:
             return
-        
+
         self.source["sigma_yy"] = np.zeros_like(self.source["longitude"])
         self.source["sigma_zz"] = np.zeros_like(self.source["longitude"])
         self.source["sigma_yz"] = np.zeros_like(self.source["longitude"])
@@ -336,7 +337,7 @@ def _perform_interp_for_step(
 def _calc_geometry(
     vector: GeoVectorDataset,
     dz_m: float,
-    dt: np.timedelta64,
+    dt: npt.NDArray[np.timedelta64] | np.timedelta64,
     max_depth: float | None,
     shear: float | None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -367,13 +368,13 @@ def _calc_geometry(
         dsn_dz = np.full_like(u_wind, shear)
     else:
         dsn_dz = wind_shear.wind_shear_normal(
-        u_wind_top=u_wind,
-        u_wind_btm=u_wind_lower,
-        v_wind_top=v_wind,
-        v_wind_btm=v_wind_lower,
-        cos_a=cos_a,
-        sin_a=sin_a,
-        dz=dz_m,
+            u_wind_top=u_wind,
+            u_wind_btm=u_wind_lower,
+            v_wind_top=v_wind,
+            v_wind_btm=v_wind_lower,
+            cos_a=cos_a,
+            sin_a=sin_a,
+            dz=dz_m,
         )
 
     dT_dz = thermo.T_potential_gradient(
@@ -442,7 +443,6 @@ def _calc_geometry(
     return azimuth_2, width_2, depth_2, sigma_yy_2, sigma_zz_2, sigma_yz_2, area_eff_2, dsn_dz
 
 
-
 def _evolve_one_step(
     met: MetDataset,
     vector: GeoVectorDataset,
@@ -455,7 +455,7 @@ def _evolve_one_step(
     **interp_kwargs: Any,
 ) -> GeoVectorDataset:
     """Evolve plume geometry by one step."""
-    
+
     _perform_interp_for_step(met, vector, dz_m, **interp_kwargs)
     u_wind = vector["u_wind"]
     v_wind = vector["v_wind"]
@@ -468,7 +468,11 @@ def _evolve_one_step(
     longitude_2 = geo.advect_longitude(longitude, latitude, u_wind, dt)  # type: ignore[arg-type]
     latitude_2 = geo.advect_latitude(latitude, v_wind, dt)  # type: ignore[arg-type]
     level_2 = geo.advect_level(
-        vector.level, vertical_velocity, 0.0, 0.0, dt  # type: ignore[arg-type]
+        vector.level,
+        vertical_velocity,
+        0.0,
+        0.0,
+        dt,  # type: ignore[arg-type]
     )
 
     out = GeoVectorDataset(
@@ -487,10 +491,16 @@ def _evolve_one_step(
         return out
 
     # Attach wind-shear-derived geometry to output vector
-    azimuth_2, width_2, depth_2, sigma_yy_2, sigma_zz_2, sigma_yz_2, area_eff_2, dsn_dz = _calc_geometry(
-        vector, dz_m, dt, max_depth, shear  # type: ignore[arg-type]
+    azimuth_2, width_2, depth_2, sigma_yy_2, sigma_zz_2, sigma_yz_2, area_eff_2, dsn_dz = (
+        _calc_geometry(
+            vector,
+            dz_m,
+            dt,
+            max_depth,
+            shear,  # type: ignore[arg-type]
         )
-    
+    )
+
     out["azimuth"] = azimuth_2
     out["width"] = width_2
     out["depth"] = depth_2
@@ -499,6 +509,5 @@ def _evolve_one_step(
     out["sigma_yz"] = sigma_yz_2
     out["area_eff"] = area_eff_2
     out["dsn_dz"] = dsn_dz
-
 
     return out

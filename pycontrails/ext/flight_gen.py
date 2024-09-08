@@ -90,6 +90,13 @@ class FlightGen:
                 fl["longitude"] += dlon
                 fl["altitude"] += dalt
                 fl.attrs = {"flight_id": int(i), "aircraft_type": fl_params["ac_type"]}
+
+                mask = (
+                    (fl["latitude"] > self.chem_params["lat_bounds"][0] + 0.05) & (fl["latitude"] < self.chem_params["lat_bounds"][1] - 0.05) &
+                    (fl["longitude"] > self.chem_params["lon_bounds"][0] + 0.05) & (fl["longitude"] < self.chem_params["lon_bounds"][1] - 0.05) &
+                    (fl["altitude"] > self.chem_params["alt_bounds"][0]) & (fl["altitude"] < self.chem_params["alt_bounds"][1])
+                )
+                fl = fl.filter(mask)
                 flights.append(fl)
 
                 # Update starting coordinates for next flight
@@ -149,13 +156,20 @@ class FlightGen:
                 "BENZENE": 0.02 * flights[i]["hc_ei"],  # benzene
             }
 
-            # calculate emission mass per metre squared for each species
-            for species, ei in eis.items():
+            # # calculate emission mass per metre squared for each species
+            # for species, ei in eis.items():
                
+            #     flights[i][species] = (
+            #         (ei * flights[i]["fuel_flow"] / flights[i]["true_airspeed"])
+            #         / chem_params["vres_chem"] / plume_params["width"]
+            #     )
+
+            # calculate emission mass total at each waypoint
+            for species, ei in eis.items():
                 flights[i][species] = (
-                    (ei * flights[i]["fuel_flow"] / flights[i]["true_airspeed"])
-                    / chem_params["vres_chem"] / plume_params["width"]
+                    ei * flights[i]["fuel_flow"] * plume_params["dt_integration"].seconds
                 )
+                
 
         return flights
 
@@ -295,14 +309,14 @@ class FlightGen:
                         spatial_grid_res=chem_params["hres_pl"],
                     )
 
-                    plume = (plume_property_data / 1E+03) * NA / mm[p] # kg/m^3 to molecules/cm^3 
+                    # convert mass to density [kg/m^3]
+                    density = plume_property_data / (self.chem_params["vres_chem"] \
+                    * units.latitude_distance_to_m(self.chem_params["hres_chem"]) \
+                    * units.longitude_distance_to_m(self.chem_params["hres_chem"], (self.chem_params["lat_bounds"][0] + self.chem_params["lat_bounds"][1]) / 2))
+
+                    plume = (density / 1E+03) * NA / mm[p] # [kg/m^3] to [molecules/cm^3] 
                     # kg -> g (* 1E+03)
                     # m^3 -> cm^3 (/ 1E+06)
-
-                    # Check if the 'plumes' directory exists, and create it if it does not
-                    # if not os.path.exists("plumes"):
-                    #     os.makedirs("plumes")
-                    # np.savetxt("plumes/plume_data_" + repr(t) + "_" + repr(property) + ".csv", plume, delimiter=",") 
 
                     # find altitude index for flight level
                     emi.loc[:, :, units.m_to_pl(self.fl_params["fl0_coords0"][2]), time, property] = (
@@ -315,6 +329,7 @@ class FlightGen:
         """Animate formation flight trajectories and associated plume dispersion/advection."""
 
         fig1, ax1 = plt.subplots()
+        plt.grid()
 
         scat_fl = ax1.scatter([], [], s=5, c="red", label="Flight path")
         scat_pl = ax1.scatter([], [], s=0.1, c="blue", label="Plume evolution")

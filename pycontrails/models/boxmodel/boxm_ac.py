@@ -73,23 +73,23 @@ class Boxm(Model):
     def __init__(
         self,
         met: MetDataset,
-        # bg_chem: MetDataset,
-        params: dict[str, Any] | None = None,
+        fl_params: dict, plume_params: dict, chem_params: dict,
         **params_kwargs: Any,
     ) -> None:
 
         # call Model init
-        super().__init__(met, params=params, **params_kwargs)
+        super().__init__(met, params=chem_params, **params_kwargs)
 
         # check if met and chem datasets are provided
         if met:
             self.met = met
 
-        # if bg_chem:
-        #     self.bg_chem = bg_chem
-        # else:
         self.bg_chem = grab_bg_chem(met)
 
+        self.fl_params = fl_params
+        self.plume_params = plume_params
+        self.chem_params = chem_params
+        
         # need to add tests to see if all variables are there and if they are
         # within the bounds of the model
 
@@ -263,7 +263,7 @@ class Boxm(Model):
         # # Compute the result to trigger the lazy evaluation
         self.boxm_ds_unstacked = self.boxm_ds_unstacked.compute()
 
-    def anim_chem(self, var1, var2, level, resample_freq='5min'):
+    def anim_chem(self, var1, var2, level, resample_freq='2min'):
         """Animate the chemical concentrations."""
         fig, (ax, cbar_ax) = plt.subplots(
             1, 2, gridspec_kw={"width_ratios": (0.9, 0.05), "wspace": 0.2}, figsize=(12, 8)
@@ -304,6 +304,64 @@ class Boxm(Model):
         filename = pathlib.Path(self.file_path + var1 + "_" + var2 + ".gif")
 
         anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
+
+    def mc_test(self, fl_df):
+        """Check if mass is conserved in the box model."""
+
+        mm = [30.01, 46.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
+        NA = 6.022e23  # Avogadro's number
+
+        total_vector_mass = 0
+        total_grid_mass = 0
+        for ts, time in enumerate(fl_df["time"][:-1]):
+
+            # grab vector data
+            for s, emi_species in enumerate(["NO"]):# self.boxm_ds_unstacked["emi_species"].data):
+                
+                vector_mass = fl_df[emi_species][ts] 
+                # \
+                #         * self.plume_params["width"] \
+                #         * self.chem_params["vres_chem"] \
+                #         * fl_df["true_airspeed"][ts] \
+                #         * self.plume_params["dt_integration"].seconds
+            
+                total_vector_mass += vector_mass
+
+                # grab plume mass from grid data
+                grid_concs = self.boxm_ds_unstacked["emi"].sel(emi_species=emi_species, time=time).sel(level=178.6, method="nearest")
+
+                grid_concs_over_zero = grid_concs.where(grid_concs > 0, drop=True)
+
+                grid_mass = grid_concs_over_zero \
+                    * self.boxm_ds_unstacked["M"].sel(time=time).sel(level=178.6, method="nearest") \
+                    * 1e-9 \
+                    * (mm[s] / NA) \
+                    * self.chem_params["vres_chem"] \
+                    * units.latitude_distance_to_m(self.chem_params["hres_chem"]) \
+                    * units.longitude_distance_to_m(self.chem_params["hres_chem"], (self.chem_params["lat_bounds"][0] + self.chem_params["lat_bounds"][1]) / 2) \
+                    * 1E+03 # convert to kg/m^3
+                    
+
+                grid_mass_sum = grid_mass.sum().values
+
+                total_grid_mass += grid_mass_sum
+            
+            print(total_vector_mass, total_grid_mass)
+            
+            
+
+        
+
+
+    #     for emi_species in self.boxm_ds_unstacked["emi_species"].data:
+    #         emi_m3_fl = fl_df[emi_species]
+
+
+    #         emi_m3_boxm = self.boxm_ds_unstacked["emi"].sel(emi_species=emi_species).sum()
+
+    #         print(f"Mass emitted in {emi_species}: {emi} g")
+    #         print(f"Mass emitted in {emi_species}: {emi_m3} g")
+        
 
 ### functions used in boxm ###
 
