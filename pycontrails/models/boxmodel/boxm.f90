@@ -69,7 +69,13 @@ CONTAINS
     SUBROUTINE OPEN_NC
         IMPLICIT NONE
         ! OPEN BOXM INPUT NC
-        IERR = NF90_OPEN('/home/ktait98/pycontrails_kt/pycontrails/models/files/boxm_ds.nc', NF90_WRITE, NCID)
+#ifdef PYCONTRAILSDIR
+#define NCSRCFILE 'PYCONTRAILSDIR/models/files/boxm_ds.nc'
+#warn   NCSRCFILE
+        IERR = NF90_OPEN( NCSRCFILE , NF90_WRITE, NCID)
+#else
+!        IERR = NF90_OPEN('/home/ktait98/pycontrails_kt/pycontrails/models/files/boxm_ds.nc', NF90_WRITE, NCID)
+#endif
         IF (IERR /= NF90_NOERR) THEN
             PRINT *, NF90_STRERROR(IERR)
         END IF
