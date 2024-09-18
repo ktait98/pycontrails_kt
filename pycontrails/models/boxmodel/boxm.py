@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os as os
 import pathlib
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -103,8 +104,8 @@ class Boxm(Model):
         Evaluate the photochemical trajectory model to compute the evolution
         of chemical concentrations, subject to emissions.
         """
-        self.path = "/home/ktait98/pycontrails_kt/pycontrails/models/boxmodel/"
-        self.file_path = "/home/ktait98/pycontrails_kt/pycontrails/models/files/"
+        self.path = os.environ['PYCONTRAILSDIR'] + "/models/boxmodel/"
+        self.file_path = os.environ['PYCONTRAILSDIR'] + "/models/files/"
         self.update_params(params)
         self.set_source(emi)
         self.source = self.require_source_type(MetDataset)

@@ -13,4 +13,5 @@
    #default 
 #isys015562
 
-PYCONTRAILSDIR=/user/home/aesbr/pycontrails_kt/pycontrails/ ./boxm_script.py 
+
+PYCONTRAILSDIR=/user/home/aesbr/pycontrails_kt/pycontrails ./boxm_script.py
