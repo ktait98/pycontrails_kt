@@ -6,27 +6,20 @@ NFCONFIG=$(which nf-config)
 FCOMP=$(shell nf-config --fc)
 FFLAG=$(shell nf-config --fflags)
 FLIBS=$(shell nf-config --flibs)
+CLIBS=$(shell nc-config --libs)
 
+#Annoyingly the above does not provide a LD_LIBRARY_PATH type result, so to run things
+#one will still need to add them, this should do:
 
-# THESE ARE HACKS FOR BLUECRYSTAL WHICH HAS INCOMPLETE INSTALLATIONS OF NETCDF
-#
-#  When netcdf-fortran is configured properly, the following command will
-#  output the needed info.
-#
-# nf-config --fflags --flibs
-#
-# However, currently on bluecrystal we need to fudge the library and header locations
-# (much of the problem due to module add not having he correct paths below)
-CDFCINST=/software/spack/linux-rocky8-broadwell/gcc-12.3.0/netcdf-c-4.9.2-uujg
-CDFFINST=/software/spack/linux-rocky8-broadwell/gcc-12.3.0/netcdf-fortran-4.6.1-fdfq
-HACKLIB=-L${CDFCINST}/lib -L${CDFFINST}/lib
+CLPATH=$(shell nc-config --libdir)
+FLPATH=$(shell nf-config --prefix)
 
-LPATH=${CDFCINST}/lib:${CDFFINST}/lib
-
-all: boxm
+# We have to guess that nf-config libs are in /lib and not /lib64, nf-config has no --libdir
+LPATH=${CLPATH}:${FLPATH}/lib
 
 RUNDIR=/user/home/aesbr/pycontrails_kt/pycontrails
 
+#This is a horrible hack because 'traditional' preprocessing in 30yo fortran code is not fun.
 pathsetup.finc: PHONY
 	echo "        IERR = NF90_OPEN( '${RUNDIR}/models/files/boxm_ds.nc'  , NF90_WRITE, NCID)" > pathsetup.finc
 
@@ -34,7 +27,7 @@ pathsetup.finc: PHONY
 PHONY:
 
 boxm: boxm.f90 Makefile pathsetup.finc
-	${FCOMP} -cpp -o boxm boxm.f90 ${FFLAG} ${FLIBS} ${HACKLIB} -DPYCONTRAILSDIR=/user/home/aesbr/pycontrails_kt/pycontrails
+	${FCOMP} -cpp -o boxm boxm.f90 ${FFLAG} ${FLIBS} ${CLIBS} -DPYCONTRAILSDIR=/user/home/aesbr/pycontrails_kt/pycontrails
 
 test: boxm
 	LD_LIBRARY_PATH=${LPATH}:${LD_LIBRARY_PATH} ./boxm
