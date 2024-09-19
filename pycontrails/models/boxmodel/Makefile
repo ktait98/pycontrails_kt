@@ -18,7 +18,7 @@ FLPATH=$(shell nf-config --prefix)
 # We have to guess that nf-config libs are in /lib and not /lib64, nf-config has no --libdir
 LPATH=${CLPATH}:${FLPATH}/lib
 
-RUNDIR=/user/home/aesbr/pycontrails_kt/pycontrails
+RUNDIR=/user/home/kt16229/pycontrails_kt/pycontrails
 
 #This is a horrible hack because 'traditional' preprocessing in 30yo fortran code is not fun.
 pathsetup.finc: PHONY
@@ -28,7 +28,7 @@ pathsetup.finc: PHONY
 PHONY:
 
 boxm: boxm.f90 Makefile pathsetup.finc
-	${FCOMP} -cpp -o boxm boxm.f90 ${FFLAG} ${FLIBS} ${CLIBS} -DPYCONTRAILSDIR=/user/home/aesbr/pycontrails_kt/pycontrails
+	${FCOMP} -cpp -o boxm boxm.f90 ${FFLAG} ${FLIBS} ${CLIBS} -DPYCONTRAILSDIR=${RUNDIR}
 
 test: boxm
 	LD_LIBRARY_PATH=${LPATH}:${LD_LIBRARY_PATH} ./boxm
