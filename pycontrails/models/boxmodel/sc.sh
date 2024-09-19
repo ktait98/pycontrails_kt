@@ -1,11 +1,11 @@
 #!/bin/bash
 
 #SBATCH --job-name=BoxModels
-#SBATCH --partition=test
+#SBATCH --partition=veryshort
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --time=0:10:0
-#SBATCH --mem=100M
+#SBATCH --time=2:0:0
+#SBATCH --mem=64G
 #SBATCH --account=aero004481
 
 #aero004301 

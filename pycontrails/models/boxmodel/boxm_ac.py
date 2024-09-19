@@ -232,6 +232,7 @@ class Boxm(Model):
             pathlib.Path(self.file_path + "FL.OUT").unlink()
 
         # Convert DataFrames to Datasets and write to netCDF
+        print("WARNING: " + self.file_path + "boxm_ds.nc")
         self.boxm_ds_stacked.to_netcdf(self.file_path + "boxm_ds.nc", mode="w")
 
     def run_boxm(self):
