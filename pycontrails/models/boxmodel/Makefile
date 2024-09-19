@@ -1,3 +1,4 @@
+all: boxm
 
 #Find the nf-config executable from netcdf-fortran that gives us the netcdf setup
 NFCONFIG=$(which nf-config)
