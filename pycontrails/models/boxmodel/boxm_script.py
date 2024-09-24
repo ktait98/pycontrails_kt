@@ -72,8 +72,8 @@ chem_params = {
     "lat_bounds": (0.0, 1.0),  # lat bounds [deg]
     "lon_bounds": (0.0, 1.0),  # lon bounds [deg]
     "alt_bounds": (12000, 13000),  # alt bounds [m]
-    "hres_pl": 0.01,  # horizontal resolution of the plume, [deg]
-    "hres_chem": 0.01,  # horizontal resolution [deg]
+    "hres_pl": 0.05,  # horizontal resolution of the plume, [deg]
+    "hres_chem": 0.05,  # horizontal resolution [deg]
     "vres_chem": 500,  # vertical resolution [m]
 }
 
@@ -104,7 +104,7 @@ times = pd.date_range(
 )
 
 def boxm_run(lons, lons_pl, lats, lats_pl, alts, times, fl_params, plume_params, chem_params, met_params):
-        
+
         met = gen_met(lons, lats, alts, times, met_params)
 
         fl_gen = FlightGen(met, fl_params, plume_params, chem_params)
@@ -118,7 +118,7 @@ def boxm_run(lons, lons_pl, lats, lats_pl, alts, times, fl_params, plume_params,
         emi = fl_gen.plume_to_grid(lats_pl, lons_pl, alts, times)
 
         boxm = Boxm(met=met, fl_params=fl_params, plume_params=plume_params, chem_params=chem_params)
-        
+
         boxm.eval(emi)
 
         return fl_df, pl_df, boxm
@@ -150,7 +150,9 @@ def gen_met(lons, lats, alts, times, met_params):
 # Run the box model
 fl_df, pl_df, boxm = boxm_run(lons, lons_pl, lats, lats_pl, alts, times, fl_params, plume_params, chem_params, met_params)
 
-
+fl_df.to_csv("fl_df.csv")
+pl_df.to_csv("pl_df.csv")
+boxm.boxm_ds_unstacked.to_netcdf('boxm_ds.nc')
 
 # Plot the heatmap
 fig1, ax1 = plt.subplots()
@@ -166,7 +168,7 @@ heatmap_data.plot(ax=ax1, cmap='summer')  # You can choose a colormap of your pr
 
 
 scat_fl = ax1.scatter(fl_df["longitude"].loc[fl_df["time"] == fl_df["time"][ts]],
-                      fl_df["latitude"].loc[fl_df["time"] == fl_df["time"][ts]], 
+                      fl_df["latitude"].loc[fl_df["time"] == fl_df["time"][ts]],
                       s=5, c="red", label="Flight path")
 
 scat_pl = ax1.scatter(pl_df["longitude"].loc[pl_df["time"] == fl_df["time"][ts]],
@@ -177,4 +179,4 @@ ax1.legend(loc="upper left")
 ax1.set_xlim([chem_params["lon_bounds"][0], chem_params["lon_bounds"][1]])
 ax1.set_ylim([chem_params["lat_bounds"][0], chem_params["lat_bounds"][1]])
 #plt.grid()
-plt.show()
+plt.savefig('output.png')
