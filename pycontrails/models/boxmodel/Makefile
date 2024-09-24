@@ -18,7 +18,7 @@ FLPATH=$(shell nf-config --prefix)
 # We have to guess that nf-config libs are in /lib and not /lib64, nf-config has no --libdir
 LPATH=${CLPATH}:${FLPATH}/lib
 
-RUNDIR=/user/home/kt16229/pycontrails_kt/pycontrails
+RUNDIR=/user/work/${USER}/pycontrails_kt/pycontrails
 
 #This is a horrible hack because 'traditional' preprocessing in 30yo fortran code is not fun.
 pathsetup.finc: PHONY
