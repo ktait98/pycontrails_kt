@@ -72,8 +72,8 @@ chem_params = {
     "lat_bounds": (0.0, 1.0),  # lat bounds [deg]
     "lon_bounds": (0.0, 1.0),  # lon bounds [deg]
     "alt_bounds": (12000, 13000),  # alt bounds [m]
-    "hres_pl": 0.05,  # horizontal resolution of the plume, [deg]
-    "hres_chem": 0.05,  # horizontal resolution [deg]
+    "hres_pl": 0.01,  # horizontal resolution of the plume, [deg]
+    "hres_chem": 0.01,  # horizontal resolution [deg]
     "vres_chem": 500,  # vertical resolution [m]
 }
 
