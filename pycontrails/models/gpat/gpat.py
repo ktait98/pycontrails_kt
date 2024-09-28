@@ -22,6 +22,7 @@ from pycontrails.models.cocip import contrails_to_hi_res_grid
 from pycontrails.physics import geo, thermo, units, constants
 from dataclasses import dataclass
 from typing import Tuple
+import pathlib
 
 ### GPAT Model Parameters ###
 @dataclass
@@ -61,11 +62,11 @@ class SimParams(ModelParams):
     northward_wind: float = 0.0 # m/s
     lagrangian_tendency_of_air_pressure: float = 0.0 # m/s
     species_out: np.array = np.array(["O3", "NO2", "NO", 
-                             "NO3", "N2O5", "HNO3", 
-                             "HONO", "HO2", "OH", 
-                             "H2O2", "H2O", "CO", 
-                             "CH4", "C2H6", "C3H8", 
-                             "C2H4", "C3H6"])
+                                    "NO3", "N2O5", "HNO3", 
+                                    "HONO", "HO2", "OH", 
+                                    "H2O2", "H2O", "CO", 
+                                    "CH4", "C2H6", "C3H8", 
+                                    "C2H4", "C3H6"])
 
 class GPAT(Model):
     """Gridded Plume Analysis Tool (GPAT).
@@ -124,11 +125,11 @@ class GPAT(Model):
         )
 
         # Set the path to the model and files
-        self.path = "~/pycontrails_kt/pycontrails/models/gpat/" 
+        self.path = "/home/ktait98/pycontrails_kt/pycontrails/models/gpat/" 
         #os.environ['PYCONTRAILSDIR'] + "/models/boxmodel/"
-        self.inputs = "~/pycontrails_kt/pycontrails/models/gpat/inputs" 
+        self.inputs = "/home/ktait98/pycontrails_kt/pycontrails/models/gpat/inputs/" 
         #os.environ['PYCONTRAILSDIR'] + "/models/files/"
-        self.outputs = "~/pycontrails_kt/pycontrails/models/gpat/outputs" 
+        self.outputs = "/home/ktait98/pycontrails_kt/pycontrails/models/gpat/outputs/" 
         #os.environ['PYCONTRAILSDIR'] + "/models/files/"
 
     def eval(self):
@@ -278,6 +279,12 @@ class GPAT(Model):
 
         met.data["specific_humidity"] = met.data["H2O"] * constants.M_d / (N_A * rho_d * 1e-6)
 
+        met.data["relative_humidity"] = thermo.rhi(
+            met.data["specific_humidity"], 
+            met.data["air_temperature"], 
+            met.data["air_pressure"]
+        )
+
         # Calculate number density of air (M) to feed into box model calcs
         met.data["M"] = (N_A / constants.M_d) * rho_d * 1e-6  # [molecules / cm^3]
         met.data["M"] = met.data["M"].transpose("latitude", "longitude", "level", "time")
@@ -310,6 +317,11 @@ class GPAT(Model):
             bg_chem[:, :, :, s-1] = 0
 
         bg_chem = bg_chem * 1e09  # convert mixing ratio to ppb
+
+        # downselect and interpolate bg_chem to the simulation grid
+        bg_chem = bg_chem.interp(
+            longitude=self.lons, latitude=self.lats, level=self.levels
+    )
 
         return bg_chem
 
@@ -543,24 +555,25 @@ class GPAT(Model):
     
     def run_boxm(self) -> xr.Dataset:
         """Run BOXM."""
-        met = self.met
-        bg_chem = self.bg_chem
-        emi = self.emi
-
         # Initialize the box model dataset
         self.init_boxm_ds()
+        # Convert the datasets to netCDF
         self.to_netcdf()
+        # Run the box model
         self.do_boxm()
+        # Unstack the box model dataset
+        self.unstack()
 
+        chem = self.boxm_ds_unstacked
 
-
+        # Save the box model dataset to a netCDF file
+        chem.to_netcdf(self.outputs + "chem.nc")
 
         return chem
     
     # Methods for running the box model
     def init_boxm_ds(self):
-        self.boxm_ds = xr.merge([self.met.data, self.bg_chem, self.source.data])
-
+        self.boxm_ds = xr.merge([self.met.data, self.bg_chem, self.emi.data])
         self.boxm_ds = self.boxm_ds.drop_vars(
             [
                 "specific_humidity",
@@ -583,7 +596,7 @@ class GPAT(Model):
 
         self.boxm_ds["RC"] = (["time", "level", "longitude", "latitude", "therm_coeffs"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 5)))
 
-        self.boxm_ds["Y"] = (["time", "level", "longitude", "latitude", "species"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], len(self.boxm_ds.species_out))))
+        self.boxm_ds["Y"] = (["time", "level", "longitude", "latitude", "species_out"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], len(self.sim_params["species_out"]))))
 
     def to_netcdf(self):
         """Convert the met, bg_chem, and emi datasets to boxm_ds.nc for use in the box model."""
@@ -601,6 +614,12 @@ class GPAT(Model):
             print("deleting boxm_ds.nc")
             pathlib.Path(self.inputs + "boxm_ds.nc").unlink()
 
+        # Convert DataFrames to Datasets and write to netCDF
+        print("WARNING: " + self.inputs + "boxm_ds.nc")
+        self.boxm_ds_stacked.to_netcdf(self.inputs + "boxm_ds.nc", mode="w")
+
+        print(self.boxm_ds_stacked)
+
     def do_boxm(self):
         """Run the box model in fortran using subprocess."""
         
@@ -609,8 +628,8 @@ class GPAT(Model):
         )
         
         # open nc file
-        self.chem = xr.open_dataset(self.inputs + "boxm_ds.nc")
-        print(self.chem)
+        self.boxm_ds = xr.open_dataset(self.inputs + "boxm_ds.nc")
+        print(self.boxm_ds)
 
     def unstack(self):
         """Unstack the box model dataset."""
