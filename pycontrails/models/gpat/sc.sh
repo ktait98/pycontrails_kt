@@ -1,4 +1,4 @@
-#!/bin/bash
+:q#!/bin/bash
 
 #SBATCH --job-name=BoxModels
 #SBATCH --partition=veryshort

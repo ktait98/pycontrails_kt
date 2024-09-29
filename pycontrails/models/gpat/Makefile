@@ -20,15 +20,34 @@ LPATH=${CLPATH}:${FLPATH}/lib
 
 RUNDIR=/user/work/${USER}/pycontrails_kt/pycontrails
 
-#This is a horrible hack because 'traditional' preprocessing in 30yo fortran code is not fun.
-pathsetup.finc: PHONY
-	echo "        IERR = NF90_OPEN( '${RUNDIR}/models/inputs/boxm_ds.nc'  , NF90_WRITE, NCID)" > pathsetup.finc
-
 #Anything relying on PHONY will ALWAYS be rebuilt when make us run
 PHONY:
 
-boxm: boxm.f90 Makefile pathsetup.finc
-	${FCOMP} -cpp -o boxm boxm.f90 ${FFLAG} ${FLIBS} ${CLIBS} -DPYCONTRAILSDIR=${RUNDIR}
+# Directories to be created
+DIRS = inputs outputs
+
+# Target to create directories
+.PHONY: create_dirs
+create_dirs:
+    mkdir -p $(DIRS)
+
+
+# Target to download files from Google Drive
+.PHONY: download_files
+download_files: create_dirs
+    wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1qNQsHfmQAJKKhMfn27BbpJBAH-1UdIgQ' -O inputs/species.nc
+    wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1gEJQ_XH4RJ6SLJCUs3LLDv8Bn1oiROtk' -O inputs/h2o_concs.nc
+    wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=12Qu-8pVXLVb-WH1MphzwJSx9y6xfEtuG' -O inputs/air_temperature.nc
+
+# Main target to build the boxm executable
+boxm: create_dirs download_files boxm.f90 Makefile pathsetup.finc
+    ${FCOMP} -cpp -o boxm boxm.f90 ${FFLAG} ${FLIBS} ${CLIBS} -DPYCONTRAILSDIR=${RUNDIR}
+
+# Clean target to remove the executable and directories
+.PHONY: clean
+clean:
+    rm -f boxm
+    rm -rf $(DIRS)
 
 test: boxm
 	LD_LIBRARY_PATH=${LPATH}:${LD_LIBRARY_PATH} ./boxm
