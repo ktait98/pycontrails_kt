@@ -125,12 +125,9 @@ class GPAT(Model):
         )
 
         # Set the path to the model and files
-        self.path = "/home/ktait98/pycontrails_kt/pycontrails/models/gpat/" 
-        #os.environ['PYCONTRAILSDIR'] + "/models/boxmodel/"
-        self.inputs = "/home/ktait98/pycontrails_kt/pycontrails/models/gpat/inputs/" 
-        #os.environ['PYCONTRAILSDIR'] + "/models/files/"
-        self.outputs = "/home/ktait98/pycontrails_kt/pycontrails/models/gpat/outputs/" 
-        #os.environ['PYCONTRAILSDIR'] + "/models/files/"
+        self.path = os.environ['PYCONTRAILSDIR']
+        self.inputs = os.environ['PYCONTRAILSDIR'] + "inputs/" 
+        self.outputs = os.environ['PYCONTRAILSDIR'] + "outputs/"  
 
     def eval(self):
         """Run the GPAT model."""
@@ -261,7 +258,6 @@ class GPAT(Model):
         ).sel(month=month - 1).interp(
             longitude=self.lons, latitude=self.lats, level=self.levels,
             method="linear").broadcast_like(met.data)
-        #os.environ['PYCONTRAILSDIR'] + "/models/boxmodel/air_temperature.nc"
         
         h2o_concs = xr.open_dataarray(
             self.inputs + "h2o_concs.nc"
