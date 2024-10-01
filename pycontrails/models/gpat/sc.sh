@@ -9,7 +9,6 @@
 #SBATCH --account=aero004481
 
 #SBATCH --ntasks-per-node=1
-#
 
 #Apparently this requires the entire memory on the node, which is what we want rather than --exclusive
 
@@ -25,4 +24,4 @@
 NCLIBS=`nc-config --libdir`
 NFLIBS=`nf-config --prefix`/lib
 
-LD_LIBRARY_PATH=${NCLIBS}:${NFLIBS} PYCONTRAILSDIR=/user/work/${USER}/pycontrails_kt/pycontrails ./boxm_script.py
+LD_LIBRARY_PATH=${NCLIBS}:${NFLIBS} PYCONTRAILSDIR=/user/work/${USER}/pycontrails_kt/pycontrails ./run_gpat.py
