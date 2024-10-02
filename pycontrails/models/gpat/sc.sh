@@ -24,4 +24,4 @@
 NCLIBS=`nc-config --libdir`
 NFLIBS=`nf-config --prefix`/lib
 
-LD_LIBRARY_PATH=${NCLIBS}:${NFLIBS} PYCONTRAILSDIR=/user/work/${USER}/pycontrails_kt/pycontrails ./run_gpat.py
+LD_LIBRARY_PATH=${NCLIBS}:${NFLIBS} PYCONTRAILSDIR=/user/work/${USER}/pycontrails_kt/pycontrails/ ./run_gpat.py
