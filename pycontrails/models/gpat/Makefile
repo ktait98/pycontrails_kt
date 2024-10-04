@@ -40,8 +40,6 @@ download_files: create_dirs
 	wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1gEJQ_XH4RJ6SLJCUs3LLDv8Bn1oiROtk' -O inputs/h2o_concs.nc
 	wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=12Qu-8pVXLVb-WH1MphzwJSx9y6xfEtuG' -O inputs/air_temperature.nc
 
-	
-
 # Main target to build the boxm executable
 boxm: create_dirs download_files boxm.f90 Makefile
 	${FCOMP} -cpp -o boxm boxm.f90 ${FFLAG} ${FLIBS} ${CLIBS} -DPYCONTRAILSDIR=${RUNDIR}

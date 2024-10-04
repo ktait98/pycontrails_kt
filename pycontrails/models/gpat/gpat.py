@@ -5,6 +5,7 @@ Simulate aircraft trajectories, estimate aircraft performance, fuel burn and emi
 Plot associated aircraft exhaust plumes, subject to Gaussian dispersion and advection. Aggregate plumes to an Eulerian grid for photochemical and microphysical processing."""
 
 import os
+import random
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -125,9 +126,23 @@ class GPAT(Model):
         )
 
         # Set the path to the model and files
+        pycontrails_dir =
+
+        try:
+            self.job_id = os.environ['SLURM_JOB_ID']
+        except KeyError:
+            # If SLURM_JOB_ID is not found, generate a random number as job ID
+            self.job_id = str(random.randint(100000, 999999))
+
+        print(f"Job ID: {self.job_id}")
+        # Make output dir unique to jobid
+        os.mkdir(self.path + "outputs/" + self.job_id)
+
         self.path = os.environ['PYCONTRAILSDIR'] + "models/gpat/"
         self.inputs = self.path + "inputs/"
-        self.outputs = self.path + "outputs/"
+        self.outputs = self.path + "outputs/" + self.job_id + "/"
+
+        
 
     def eval(self):
         """Run the GPAT model."""
@@ -158,6 +173,8 @@ class GPAT(Model):
 
         # Run BOXM
         self.chem = self.run_boxm()
+
+        self.gen_outputs()
 
     # Model methods
     def traj_gen(self) -> list[Flight]:
@@ -564,10 +581,18 @@ class GPAT(Model):
 
         chem = self.boxm_ds_unstacked
 
-        # Save the box model dataset to a netCDF file
-        chem.to_netcdf(self.outputs + "chem.nc")
-
         return chem
+
+    def gen_outputs(self):
+
+        # Save fl dataset to netCDF file
+        self.fl.to_netcdf(self.outputs + "fl_.nc")
+
+        # Save pl dataset to netCDF file
+        self.pl.to_netcdf(self.outputs + "pl_.nc")
+
+        # Save the box model dataset to netCDF file
+        self.chem.to_netcdf(self.outputs + "chem_" + self.job_id + ".nc")
 
     # Methods for running the box model
     def init_boxm_ds(self):
@@ -690,6 +715,51 @@ class GPAT(Model):
         filename = pathlib.Path(self.outputs + var1 + "_" + var2 + ".gif")
 
         anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
+
+    def mc_test(self, fl_df):
+        """Check if mass is conserved in the box model."""
+
+        mm = [30.01, 46.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
+        NA = 6.022e23  # Avogadro's number
+
+        total_vector_mass = 0
+        total_grid_mass = 0
+        for ts, time in enumerate(fl_df["time"][:-1]):
+
+            # grab vector data
+            for s, emi_species in enumerate(["NO"]):# self.boxm_ds_unstacked["emi_species"].data):
+                
+                vector_mass = fl_df[emi_species][ts] 
+                # \
+                #         * self.plume_params["width"] \
+                #         * self.chem_params["vres_chem"] \
+                #         * fl_df["true_airspeed"][ts] \
+                #         * self.plume_params["dt_integration"].seconds
+            
+                total_vector_mass += vector_mass
+
+                # grab plume mass from grid data
+                grid_concs = self.boxm_ds_unstacked["emi"].sel(emi_species=emi_species, time=time).sel(level=178.6, method="nearest")
+
+                grid_concs_over_zero = grid_concs.where(grid_concs > 0, drop=True)
+
+                grid_mass = grid_concs_over_zero \
+                    * self.boxm_ds_unstacked["M"].sel(time=time).sel(level=178.6, method="nearest") \
+                    * 1e-9 \
+                    * (mm[s] / NA) \
+                    * self.chem_params["vres_chem"] \
+                    * units.latitude_distance_to_m(self.chem_params["hres_chem"]) \
+                    * units.longitude_distance_to_m(self.chem_params["hres_chem"], (self.chem_params["lat_bounds"][0] + self.chem_params["lat_bounds"][1]) / 2) \
+                    * 1E+03 # convert to kg/m^3
+                    
+
+                grid_mass_sum = grid_mass.sum().values
+
+                total_grid_mass += grid_mass_sum
+            
+            print(total_vector_mass, total_grid_mass)
+            
+            
 
 
 # Functions used in GPAT Model
