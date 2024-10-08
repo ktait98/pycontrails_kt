@@ -10,6 +10,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import dask.array as da
+import yaml
+import pickle
 from pyproj import Geod
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
@@ -96,10 +98,17 @@ class GPAT(Model):
             ):
         super().__init__()
 
+        all_params = {
+            "fl_params": fl_params,
+            "plume_params": plume_params,
+            "sim_params": sim_params
+        }
+
         # Set the model parameters
         self.fl_params = fl_params
         self.plume_params = plume_params
         self.sim_params = sim_params
+        self.all_params = all_params
 
         # Generate the grid
         self.lats_pl = np.arange(
@@ -125,8 +134,7 @@ class GPAT(Model):
             freq=sim_params["ts_sim"],
         )
 
-        # Set the path to the model and files
-        pycontrails_dir =
+        self.path = os.environ['PYCONTRAILSDIR'] + "models/gpat/"
 
         try:
             self.job_id = os.environ['SLURM_JOB_ID']
@@ -135,14 +143,12 @@ class GPAT(Model):
             self.job_id = str(random.randint(100000, 999999))
 
         print(f"Job ID: {self.job_id}")
+
         # Make output dir unique to jobid
         os.mkdir(self.path + "outputs/" + self.job_id)
-
-        self.path = os.environ['PYCONTRAILSDIR'] + "models/gpat/"
+        
         self.inputs = self.path + "inputs/"
         self.outputs = self.path + "outputs/" + self.job_id + "/"
-
-        
 
     def eval(self):
         """Run the GPAT model."""
@@ -161,9 +167,12 @@ class GPAT(Model):
 
         # Estimate emissions using Pycontrails Emissions Model
         self.fl = self.emissions()
-
+        [print(self.fl[i].dataframe) for i, fl in enumerate(self.fl)]
         # Simulate plume dispersion/advection using Pycontrails Dry Advection Model
-        self.pl = self.sim_plumes()
+        self.fl, self.pl = self.sim_plumes()
+
+        print(self.fl)
+        print(self.pl)
 
         # Aggregate plumes to an Eulerian grid for photochemical and microphysical processing
         self.emi = self.plume_to_grid()
@@ -444,6 +453,8 @@ class GPAT(Model):
         pl_df = pd.concat(pl)
 
         # merge the two dataframes
+
+        fl = fl_df
         pl = pd.merge(
             fl_df[
                 [
@@ -485,7 +496,7 @@ class GPAT(Model):
         pl["cos_a"] = np.cos(np.radians(pl["heading"]))
         pl["altitude"] = units.pl_to_m(pl["level"])
 
-        return pl
+        return fl, pl
 
     def plume_to_grid(self) -> MetDataset:
         """Aggregate plumes to an Eulerian grid for photochemical and microphysical processing."""
@@ -585,11 +596,17 @@ class GPAT(Model):
 
     def gen_outputs(self):
 
+        # Save to pickle file
+        with open(self.outputs + "params_" + self.job_id + ".pkl", 'wb') as pkl_file:
+            pickle.dump(self.all_params, pkl_file)
+
+        print(self.all_params)
+
         # Save fl dataset to netCDF file
-        self.fl.to_netcdf(self.outputs + "fl_.nc")
+        self.fl.to_pickle(self.outputs + "fl_" + self.job_id + ".pkl")
 
         # Save pl dataset to netCDF file
-        self.pl.to_netcdf(self.outputs + "pl_.nc")
+        self.pl.to_pickle(self.outputs + "pl_" + self.job_id + ".pkl")
 
         # Save the box model dataset to netCDF file
         self.chem.to_netcdf(self.outputs + "chem_" + self.job_id + ".nc")
@@ -598,6 +615,7 @@ class GPAT(Model):
     def init_boxm_ds(self):
 
         self.boxm_ds = xr.merge([self.met.data, self.bg_chem, self.emi.data])
+
         self.boxm_ds = self.boxm_ds.drop_vars(
             [
                 "specific_humidity",
@@ -722,8 +740,8 @@ class GPAT(Model):
         mm = [30.01, 46.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
         NA = 6.022e23  # Avogadro's number
 
-        total_vector_mass = 0
-        total_grid_mass = 0
+        self.total_vector_mass = 0
+        self.total_grid_mass = 0
         for ts, time in enumerate(fl_df["time"][:-1]):
 
             # grab vector data
@@ -736,7 +754,7 @@ class GPAT(Model):
                 #         * fl_df["true_airspeed"][ts] \
                 #         * self.plume_params["dt_integration"].seconds
             
-                total_vector_mass += vector_mass
+                self.total_vector_mass += vector_mass
 
                 # grab plume mass from grid data
                 grid_concs = self.boxm_ds_unstacked["emi"].sel(emi_species=emi_species, time=time).sel(level=178.6, method="nearest")
@@ -755,9 +773,9 @@ class GPAT(Model):
 
                 grid_mass_sum = grid_mass.sum().values
 
-                total_grid_mass += grid_mass_sum
+                self.total_grid_mass += grid_mass_sum
             
-            print(total_vector_mass, total_grid_mass)
+            print(self.total_vector_mass, self.total_grid_mass)
             
             
 
