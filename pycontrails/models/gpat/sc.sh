@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=BoxModels
-#SBATCH --partition=test
+#SBATCH --partition=veryshort
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=2:0:0
@@ -21,7 +21,12 @@
    #default 
 #isys015562
 
+conda activate contrails
+
 NCLIBS=`nc-config --libdir`
 NFLIBS=`nf-config --prefix`/lib
 
-LD_LIBRARY_PATH=${NCLIBS}:${NFLIBS} PYCONTRAILSDIR=/user/work/${USER}/pycontrails_kt/pycontrails/ ./run_gpat.py
+
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${NCLIBS}:${NFLIBS}
+export PYCONTRAILSDIR=/user/work/${USER}/pycontrails_kt/pycontrails/
+./run_gpat.py
