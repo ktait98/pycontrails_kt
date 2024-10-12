@@ -1,14 +1,17 @@
-"""Gridded Plume Analysis Tool (GPAT). 
+"""Gridded Plume Analysis Tool (GPAT).
 
-Simulate aircraft trajectories, estimate aircraft performance, fuel burn and emissions. 
+Simulate aircraft trajectories, estimate aircraft performance, fuel burn and emissions.
 
 Plot associated aircraft exhaust plumes, subject to Gaussian dispersion and advection. Aggregate plumes to an Eulerian grid for photochemical and microphysical processing."""
 
 import os
+import random
 import numpy as np
 import pandas as pd
 import xarray as xr
 import dask.array as da
+import yaml
+import pickle
 from pyproj import Geod
 import scipy.stats as stats
 import matplotlib.pyplot as plt
@@ -63,18 +66,18 @@ class SimParams(ModelParams):
     eastward_wind: float = 0.0 # m/s
     northward_wind: float = 0.0 # m/s
     lagrangian_tendency_of_air_pressure: float = 0.0 # m/s
-    species_out: np.array = np.array(["O3", "NO2", "NO", 
-                                    "NO3", "N2O5", "HNO3", 
-                                    "HONO", "HO2", "OH", 
-                                    "H2O2", "H2O", "CO", 
-                                    "CH4", "C2H6", "C3H8", 
+    species_out: np.array = np.array(["O3", "NO2", "NO",
+                                    "NO3", "N2O5", "HNO3",
+                                    "HONO", "HO2", "OH",
+                                    "H2O2", "H2O", "CO",
+                                    "CH4", "C2H6", "C3H8",
                                     "C2H4", "C3H6"])
 
 class GPAT(Model):
     """Gridded Plume Analysis Tool (GPAT).
-    
+
     Simulate aircraft trajectories, estimate aircraft performance, fuel burn and emissions. Then aggregates emissions, bg chemistry and meteorology to an Eulerian grid for photochemical and microphysical processing.
-    
+
     Parameters
     ----------
     fl_params : FlParams
@@ -87,20 +90,27 @@ class GPAT(Model):
 
     name = "GPAT"
     long_name = "Gridded Plume Analysis Tool"
-    #default_params = (FlParams, PlumeParams, SimParams)    
+    #default_params = (FlParams, PlumeParams, SimParams)
 
     def __init__(
-            self, 
-            fl_params: FlParams, 
+            self,
+            fl_params: FlParams,
             plume_params: PlumeParams,
             sim_params: SimParams
             ):
         super().__init__()
 
+        all_params = {
+            "fl_params": fl_params,
+            "plume_params": plume_params,
+            "sim_params": sim_params
+        }
+
         # Set the model parameters
         self.fl_params = fl_params
         self.plume_params = plume_params
         self.sim_params = sim_params
+        self.all_params = all_params
 
         # Generate the grid
         self.lats_pl = np.arange(
@@ -126,10 +136,21 @@ class GPAT(Model):
             freq=sim_params["ts_sim"],
         )
 
-        # Set the path to the model and files
-        self.path = os.environ['PYCONTRAILSDIR']
-        self.inputs = os.environ['PYCONTRAILSDIR'] + "inputs/" 
-        self.outputs = os.environ['PYCONTRAILSDIR'] + "outputs/"  
+        self.path = os.environ['PYCONTRAILSDIR'] + "models/gpat/"
+
+        try:
+            self.job_id = os.environ['SLURM_JOB_ID']
+        except KeyError:
+            # If SLURM_JOB_ID is not found, generate a random number as job ID
+            self.job_id = str(random.randint(100000, 999999))
+
+        print(f"Job ID: {self.job_id}")
+
+        # Make output dir unique to jobid
+        os.mkdir(self.path + "outputs/" + self.job_id)
+        
+        self.inputs = self.path + "inputs/"
+        self.outputs = self.path + "outputs/" + self.job_id + "/"
 
     def eval(self):
         """Run the GPAT model."""
@@ -139,7 +160,7 @@ class GPAT(Model):
 
         # Generate meteorological data
         self.met = self.gen_met()
-        
+
         # # Generate background chemistry data
         self.bg_chem = self.gen_bg_chem()
 
@@ -148,9 +169,12 @@ class GPAT(Model):
 
         # Estimate emissions using Pycontrails Emissions Model
         self.fl = self.emissions()
-
+        [print(self.fl[i].dataframe) for i, fl in enumerate(self.fl)]
         # Simulate plume dispersion/advection using Pycontrails Dry Advection Model
-        self.pl = self.sim_plumes()
+        self.fl, self.pl = self.sim_plumes()
+
+        print(self.fl)
+        print(self.pl)
 
         # Aggregate plumes to an Eulerian grid for photochemical and microphysical processing
         self.emi = self.plume_to_grid()
@@ -160,6 +184,8 @@ class GPAT(Model):
 
         # Run BOXM
         self.chem = self.run_boxm()
+
+        self.gen_outputs()
 
     # Model methods
     def traj_gen(self) -> list[Flight]:
@@ -192,7 +218,7 @@ class GPAT(Model):
                     (fl0["altitude"] > self.sim_params["alt_bounds"][0]) & (fl0["altitude"] < self.sim_params["alt_bounds"][1])
 
                 )
-        
+
         fl0 = fl0.filter(mask)
         fl.append(fl0)
 
@@ -233,7 +259,7 @@ class GPAT(Model):
                 lon0, lat0, alt0 = lon_dx_dy, lat_dx_dy, alt_dx_dy
 
         return fl
-    
+
     def gen_met(self) -> MetDataset:
         """Generate meteorological data."""
         sim_params = self.sim_params
@@ -254,23 +280,24 @@ class GPAT(Model):
         met = MetDataset(met)
 
         month = self.times[0].month
+        print(self.inputs + "air_temperature.nc")
 
         air_temperature = xr.open_dataarray(
-            self.inputs + "air_temperature.nc"
+            self.inputs + "air_temperature.nc", engine='netcdf4'
         ).sel(month=month - 1).interp(
             longitude=self.lons, latitude=self.lats, level=self.levels,
             method="linear").broadcast_like(met.data)
-        
+
         h2o_concs = xr.open_dataarray(
-            self.inputs + "h2o_concs.nc"
+            self.inputs + "h2o_concs.nc", engine='netcdf4'
         ).sel(month=month - 1).interp(
             longitude=self.lons, latitude=self.lats, level=self.levels,
             method="linear").broadcast_like(met.data)
 
         met.data["air_temperature"] = air_temperature.transpose("latitude", "longitude", "level", "time")
-                
+
         met.data["H2O"] = h2o_concs.transpose("latitude", "longitude", "level", "time")
-        
+
         rho_d = met["air_pressure"].data / (constants.R_d * met["air_temperature"].data)
 
         N_A = 6.022e23  # Avogadro's number
@@ -278,8 +305,8 @@ class GPAT(Model):
         met.data["specific_humidity"] = met.data["H2O"] * constants.M_d / (N_A * rho_d * 1e-6)
 
         met.data["relative_humidity"] = thermo.rhi(
-            met.data["specific_humidity"], 
-            met.data["air_temperature"], 
+            met.data["specific_humidity"],
+            met.data["air_temperature"],
             met.data["air_pressure"]
         )
 
@@ -300,21 +327,22 @@ class GPAT(Model):
         )
 
         return met
-    
+
     def gen_bg_chem(self) -> xr.Dataset:
         """Generate background chemistry data."""
         sim_params = self.sim_params
 
         month = self.times[0].month
 
-        bg_chem = xr.open_dataarray(
-            self.inputs + "species.nc"
+        bg_chem = xr.open_dataset(
+            self.inputs + "species.nc", engine='netcdf4'
         ).sel(month=month - 1)
-
-        for s in [1, 2, 3, 5, 7, 9, 10, 13, 15, 16, 17, 18, 19, 20, 22, 24, 26, 27, 29, 31, 33, 35, 36, 37, 38, 40, 41, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 60, 62, 63, 65, 66, 68, 69, 70, 72, 74, 75, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 102, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 199, 200, 201, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219]:
-            bg_chem[:, :, :, s-1] = 0
+        print(bg_chem)
+        # for s in [1, 2, 3, 5, 7, 9, 10, 13, 15, 16, 17, 18, 19, 20, 22, 24, 26, 27, 29, 31, 33, 35, 36, 37, 38, 40, 41, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 60, 62, 63, 65, 66, 68, 69, 70, 72, 74, 75, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 102, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 199, 200, 201, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219]:
+        #     bg_chem[:, :, :, s-1] = 0
 
         bg_chem = bg_chem * 1e09  # convert mixing ratio to ppb
+        
 
         # downselect and interpolate bg_chem to the simulation grid
         bg_chem = bg_chem.interp(
@@ -336,7 +364,7 @@ class GPAT(Model):
             fl[i]["air_temperature"] = models.interpolate_met(met, fli, "air_temperature")
             fl[i]["specific_humidity"] = models.interpolate_met(met, fli, "specific_humidity")
             fl[i]["true_airspeed"] = fli.segment_groundspeed()
-        
+
             # get ac performance data using Poll-Schumann Model
             fl[i] = ps_model.eval(fl[i])
 
@@ -402,7 +430,7 @@ class GPAT(Model):
         dry_adv = DryAdvection(met, **filtered_plume_params)
 
         pl = []
-        
+
         for i, fli in enumerate(fl):
 
             pli = dry_adv.eval(fli)
@@ -413,7 +441,7 @@ class GPAT(Model):
             for column in fl[i].columns:
                 # Replace NaN values in the column with the value from the previous row
                 fl[i][column] = fl[i][column].fillna(method='ffill')
-                
+
             pl[i] = pl[i].dataframe
 
             # calc plume heading
@@ -427,6 +455,8 @@ class GPAT(Model):
         pl_df = pd.concat(pl)
 
         # merge the two dataframes
+
+        fl = fl_df
         pl = pd.merge(
             fl_df[
                 [
@@ -473,11 +503,7 @@ class GPAT(Model):
         # write for loop to split a gaussian into x slices of even proportion
         num_slices = 10
 
-
-
-
-
-        return pl
+        return fl, pl
 
     def plume_to_grid(self) -> MetDataset:
         """Aggregate plumes to an Eulerian grid for photochemical and microphysical processing."""
@@ -498,7 +524,7 @@ class GPAT(Model):
         )
 
         if self.fl_params["n_ac"] >= 1:
-            
+
             for t, time in enumerate(pl["time"].unique()):
                 print("Processing time: ", time)
                 # create geovectordataset to store instantaneous plume data
@@ -540,7 +566,7 @@ class GPAT(Model):
                     * units.latitude_distance_to_m(plume_params["hres_pl"]) \
                     * units.longitude_distance_to_m(plume_params["hres_pl"], (self.lats[0] + self.lats[-1]) / 2))
 
-                    plume = (density / 1E+03) * NA / mm[p] # [kg/m^3] to [molecules/cm^3] 
+                    plume = (density / 1E+03) * NA / mm[p] # [kg/m^3] to [molecules/cm^3]
                     # kg -> g (* 1E+03)
                     # m^3 -> cm^3 (/ 1E+06)
 
@@ -559,7 +585,7 @@ class GPAT(Model):
         emi = self.emi
 
         return contrail
-    
+
     def run_boxm(self) -> xr.Dataset:
         """Run BOXM."""
         # Initialize the box model dataset
@@ -573,14 +599,30 @@ class GPAT(Model):
 
         chem = self.boxm_ds_unstacked
 
-        # Save the box model dataset to a netCDF file
-        chem.to_netcdf(self.outputs + "chem.nc")
-
         return chem
-    
+
+    def gen_outputs(self):
+
+        # Save to pickle file
+        with open(self.outputs + "params_" + self.job_id + ".pkl", 'wb') as pkl_file:
+            pickle.dump(self.all_params, pkl_file)
+
+        print(self.all_params)
+
+        # Save fl dataset to netCDF file
+        self.fl.to_pickle(self.outputs + "fl_" + self.job_id + ".pkl")
+
+        # Save pl dataset to netCDF file
+        self.pl.to_pickle(self.outputs + "pl_" + self.job_id + ".pkl")
+
+        # Save the box model dataset to netCDF file
+        self.chem.to_netcdf(self.outputs + "chem_" + self.job_id + ".nc")
+
     # Methods for running the box model
     def init_boxm_ds(self):
+
         self.boxm_ds = xr.merge([self.met.data, self.bg_chem, self.emi.data])
+
         self.boxm_ds = self.boxm_ds.drop_vars(
             [
                 "specific_humidity",
@@ -615,7 +657,7 @@ class GPAT(Model):
         print(self.boxm_ds_stacked.indexes["cell"])
 
         self.boxm_ds_stacked = self.boxm_ds_stacked.reset_index("cell")
-
+        
         # Delete any existing netCDF files
         if pathlib.Path(self.inputs + "boxm_ds.nc").exists():
             print("deleting boxm_ds.nc")
@@ -629,31 +671,31 @@ class GPAT(Model):
 
     def do_boxm(self):
         """Run the box model in fortran using subprocess."""
-        
+
         subprocess.call(
             [self.path + "boxm"]
         )
-        
+
         # open nc file
         self.boxm_ds = xr.open_dataset(self.inputs + "boxm_ds.nc")
         print(self.boxm_ds)
 
     def unstack(self):
         """Unstack the box model dataset."""
-        
+
         # Convert the dataset to a Dask dataset
         self.boxm_ds = self.boxm_ds.chunk({'cell': 100})  # Adjust chunk size based on your memory
-        
+
         # Convert 'level', 'lat', and 'lon' to coordinates
         self.boxm_ds_unstacked = self.boxm_ds.set_coords(['level', 'longitude', 'latitude'])
         print("coords set")
-        
+
         # Create a multi-index for the 'cell' dimension
         self.boxm_ds_unstacked = self.boxm_ds_unstacked.set_index(cell=['level', 'longitude', 'latitude'])
-        
+
         # Unstack the dataset
         self.boxm_ds_unstacked = self.boxm_ds_unstacked.unstack("cell")
-        
+
         # # Compute the result to trigger the lazy evaluation
         self.boxm_ds_unstacked = self.boxm_ds_unstacked.compute()
 
@@ -684,7 +726,7 @@ class GPAT(Model):
         times_resampled = pd.to_datetime(times).to_series().resample(resample_freq).asfreq().dropna().index
 
         print(f"New number of frames: {len(times_resampled)}")
-       
+
         def heatmap_func(t):
             ax.cla()
             ax.set_title(t)
@@ -698,6 +740,51 @@ class GPAT(Model):
         filename = pathlib.Path(self.outputs + var1 + "_" + var2 + ".gif")
 
         anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
+
+    def mc_test(self, fl_df):
+        """Check if mass is conserved in the box model."""
+
+        mm = [30.01, 46.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
+        NA = 6.022e23  # Avogadro's number
+
+        self.total_vector_mass = 0
+        self.total_grid_mass = 0
+        for ts, time in enumerate(fl_df["time"][:-1]):
+
+            # grab vector data
+            for s, emi_species in enumerate(["NO"]):# self.boxm_ds_unstacked["emi_species"].data):
+                
+                vector_mass = fl_df[emi_species][ts] 
+                # \
+                #         * self.plume_params["width"] \
+                #         * self.chem_params["vres_chem"] \
+                #         * fl_df["true_airspeed"][ts] \
+                #         * self.plume_params["dt_integration"].seconds
+            
+                self.total_vector_mass += vector_mass
+
+                # grab plume mass from grid data
+                grid_concs = self.boxm_ds_unstacked["emi"].sel(emi_species=emi_species, time=time).sel(level=178.6, method="nearest")
+
+                grid_concs_over_zero = grid_concs.where(grid_concs > 0, drop=True)
+
+                grid_mass = grid_concs_over_zero \
+                    * self.boxm_ds_unstacked["M"].sel(time=time).sel(level=178.6, method="nearest") \
+                    * 1e-9 \
+                    * (mm[s] / NA) \
+                    * self.chem_params["vres_chem"] \
+                    * units.latitude_distance_to_m(self.chem_params["hres_chem"]) \
+                    * units.longitude_distance_to_m(self.chem_params["hres_chem"], (self.chem_params["lat_bounds"][0] + self.chem_params["lat_bounds"][1]) / 2) \
+                    * 1E+03 # convert to kg/m^3
+                    
+
+                grid_mass_sum = grid_mass.sum().values
+
+                self.total_grid_mass += grid_mass_sum
+            
+            print(self.total_vector_mass, self.total_grid_mass)
+            
+            
 
 
 # Functions used in GPAT Model

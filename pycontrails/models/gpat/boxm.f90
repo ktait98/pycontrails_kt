@@ -71,7 +71,7 @@ CONTAINS
     SUBROUTINE OPEN_NC
         IMPLICIT NONE
         ! OPEN BOXM INPUT NC
-        IERR = NF90_OPEN('/home/ktait98/pycontrails_kt/pycontrails/models/gpat/inputs/boxm_ds.nc', NF90_WRITE, NCID)
+        IERR = NF90_OPEN('inputs/boxm_ds.nc', NF90_WRITE, NCID)
         IF (IERR /= NF90_NOERR) THEN
             PRINT *, NF90_STRERROR(IERR)
         END IF

@@ -35,7 +35,8 @@ create_dirs:
 # Target to download files from Google Drive
 .PHONY: download_files
 download_files: create_dirs
-	wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1qNQsHfmQAJKKhMfn27BbpJBAH-1UdIgQ' -O inputs/species.nc
+	
+	./download_script.sh 'https://drive.google.com/uc?export=download&id=1-uoRiCyNl_e4o9bbF8ZZuiwYqQcXLfv9' 'inputs/species.nc'
 	wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1gEJQ_XH4RJ6SLJCUs3LLDv8Bn1oiROtk' -O inputs/h2o_concs.nc
 	wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=12Qu-8pVXLVb-WH1MphzwJSx9y6xfEtuG' -O inputs/air_temperature.nc
 
@@ -51,7 +52,3 @@ clean:
 
 test: boxm
 	LD_LIBRARY_PATH=${LPATH}:${LD_LIBRARY_PATH} ./boxm
-
-#To just see the .f90 file preprocessed run make boxmppre (it'll output to the terminal)
-# boxmpre: pathsetup.finc
-# 	${FCOMP} -cpp boxm.f90

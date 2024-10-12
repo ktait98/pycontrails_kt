@@ -21,7 +21,12 @@
    #default 
 #isys015562
 
+conda activate contrails
+
 NCLIBS=`nc-config --libdir`
 NFLIBS=`nf-config --prefix`/lib
 
-LD_LIBRARY_PATH=${NCLIBS}:${NFLIBS} PYCONTRAILSDIR=/user/work/${USER}/pycontrails_kt/pycontrails ./run_gpat.py
+
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${NCLIBS}:${NFLIBS}
+export PYCONTRAILSDIR=/user/work/${USER}/pycontrails_kt/pycontrails/
+./run_gpat.py
