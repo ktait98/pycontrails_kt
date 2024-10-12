@@ -10,6 +10,7 @@ import pandas as pd
 import xarray as xr
 import dask.array as da
 from pyproj import Geod
+import scipy.stats as stats
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
 import subprocess
@@ -18,6 +19,7 @@ from pycontrails.core.models import Model, ModelParams
 from pycontrails.models.emissions import Emissions
 from pycontrails.models.ps_model import PSFlight
 from pycontrails.models.dry_advection import DryAdvection
+from pycontrails.models.gpat.plume_to_grid import plume_to_grid
 from pycontrails.models.cocip import contrails_to_hi_res_grid
 from pycontrails.physics import geo, thermo, units, constants
 from dataclasses import dataclass
@@ -457,6 +459,8 @@ class GPAT(Model):
                     "level",
                     "width",
                     "heading",
+                    "sigma_yy",
+                    "sigma_zz",
                 ]
             ],
             on=["flight_id", "waypoint"],
@@ -465,6 +469,13 @@ class GPAT(Model):
         pl["sin_a"] = np.sin(np.radians(pl["heading"]))
         pl["cos_a"] = np.cos(np.radians(pl["heading"]))
         pl["altitude"] = units.pl_to_m(pl["level"])
+
+        # write for loop to split a gaussian into x slices of even proportion
+        num_slices = 10
+
+
+
+
 
         return pl
 
@@ -516,7 +527,7 @@ class GPAT(Model):
                     # 'benzene_m']):
 
                     # call contrails_to_hi_res_grid
-                    plume_property_data = contrails_to_hi_res_grid(
+                    plume_property_data = plume_to_grid(
                         time=time,
                         contrails_t=plume_time_data,
                         var_name=property,
