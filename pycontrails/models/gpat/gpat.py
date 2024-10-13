@@ -12,7 +12,7 @@ import xarray as xr
 import dask.array as da
 import yaml
 import pickle
-from pyproj import Geod
+#from pyproj import Geod
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
@@ -499,9 +499,6 @@ class GPAT(Model):
         pl["sin_a"] = np.sin(np.radians(pl["heading"]))
         pl["cos_a"] = np.cos(np.radians(pl["heading"]))
         pl["altitude"] = units.pl_to_m(pl["level"])
-
-        # write for loop to split a gaussian into x slices of even proportion
-        num_slices = 10
 
         return fl, pl
 
