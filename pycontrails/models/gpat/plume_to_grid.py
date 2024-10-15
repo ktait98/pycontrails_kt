@@ -3,7 +3,10 @@ import numpy.typing as npt
 import pandas as pd
 import xarray as xr
 import warnings
-
+import matplotlib.pyplot as plt
+from scipy.stats import norm
+from shapely.geometry import Point, Polygon, box 
+from shapely import intersection
 from pycontrails.core.met import MetDataArray, MetDataset
 from pycontrails.core.vector import GeoVectorDataset, vector_to_lon_lat_grid
 from pycontrails.models.cocip.contrail_properties import contrail_edges, plume_mass_per_distance
@@ -52,6 +55,7 @@ def plume_to_grid(
         "sin_a",
         "cos_a",
         "width",
+        "sigma_yy",
         var_name,
     ]
     plumes_t.ensure_vars(cols_req)
@@ -95,7 +99,10 @@ def plume_to_grid(
         )
 
         segment_grid = segment_property_to_hi_res_grid(
-            plume_segment, var_name=var_name, spatial_grid_res=spatial_grid_res
+            plume_segment, 
+            var_name=var_name, 
+            spatial_grid_res=spatial_grid_res,
+            n_slices=5
         )
         main_grid = _add_segment_to_main_grid(main_grid, segment_grid)
 
@@ -138,6 +145,7 @@ def segment_property_to_hi_res_grid(
     *,
     var_name: str,
     spatial_grid_res: float = 0.05,
+    n_slices: int
 ) -> xr.DataArray:
     r"""
     Convert the plume segment property to a high-resolution longitude-latitude grid.
@@ -178,19 +186,6 @@ def segment_property_to_hi_res_grid(
         plume_segment["width"],
     )
 
-    # Calculate plume slices
-    plume_segment["lon_slices"], plume_segment["lat_slices"] = plume_slices(
-        plume_segment["longitude"],
-        plume_segment["latitude"],
-        plume_segment["sin_a"],
-        plume_segment["cos_a"],
-        plume_segment["width"],
-        num_slices=5,
-    )
-
-    print(plume_segment["lon_slices"])
-    print(plume_segment["lat_slices"])
-
     # Initialise plume segment grid with spatial domain that covers the plume area.
     lon_edges = np.concatenate(
         [plume_segment["lon_edge_l"], plume_segment["lon_edge_r"]], axis=0
@@ -203,9 +198,71 @@ def segment_property_to_hi_res_grid(
     #print(spatial_bbox)
     segment_grid = _initialise_longitude_latitude_grid(spatial_bbox, spatial_grid_res)
 
+    # # Get slice percentage and absolute mass in each segment and slice
+    # slice_percentage = 1 / n_slices
+
+    # segment_mass = ((plume_segment[var_name][0] 
+    #                    + plume_segment[var_name][1]) / 2)
+    
+
     # Calculate gridded plume segment properties
+    for slice in range(n_slices):
+        
+        plume_slice = GeoVectorDataset()
+
+        plume_slice["longitude"] = plume_segment["longitude"]
+        plume_slice["latitude"] = plume_segment["latitude"]
+        plume_slice["sin_a"] = plume_segment["sin_a"]
+        plume_slice["cos_a"] = plume_segment["cos_a"]
+        plume_slice["segment_width"] = plume_segment["width"]
+        plume_slice["sigma_yy"] = plume_segment["sigma_yy"]
+        plume_slice.attrs["slice_percentage"] = 1 / n_slices
+        plume_slice.attrs["slice_mass"] = ((plume_segment[var_name][0] 
+                                    + plume_segment[var_name][1]) / 2) / n_slices
 
 
+        # Calculate plume slice lat lon positions
+        lon_edges_slice, lat_edges_slice = plume_slices(plume_slice, slice)
+
+        # Define shapely polygon
+        slice_coords = ((lon_edges_slice[0], lat_edges_slice[0]),
+                        (lon_edges_slice[1], lat_edges_slice[1]),
+                        (lon_edges_slice[3], lat_edges_slice[3]),
+                        (lon_edges_slice[2], lat_edges_slice[2]),
+                        (lon_edges_slice[0], lat_edges_slice[0]))
+
+        print(slice_coords)
+
+        slice_polygon = Polygon(slice_coords)
+
+        plt.plot(*slice_polygon.exterior.xy)
+        plt.savefig("polygon")
+
+        slice_area = slice_polygon.area
+
+        print(slice_area)
+
+        slice_grid = xr.DataArray(np.zeros_like(segment_grid), coords=segment_grid.coords, dims=segment_grid.dims)
+
+
+        # Iterate over each cell in the grid
+        cell_size = segment_grid.longitude[1] - segment_grid.longitude[0] # Grid cell size in degrees
+        for i, lon in enumerate(segment_grid.longitude[:-1]):
+            for j, lat in enumerate(segment_grid.latitude[:-1]):
+                # Define the grid cell as a Shapely box
+                cell = box(lon, lat, lon + cell_size, lat + cell_size)
+                
+                # Check intersection with the plume polygon
+                if slice_polygon.intersects(cell):
+                    intersection = slice_polygon.intersection(cell)
+                    intersection_area = intersection.area
+                    
+                    # Store the intersection area in the grid
+                    slice_grid[i, j] = (intersection_area / slice_area) * plume_slice.attrs["slice_mass"]
+
+        segment_grid += slice_grid
+
+        return(segment_grid)
 
 
 
@@ -261,30 +318,14 @@ def plume_edges(
     return lon_edge_l, lat_edge_l, lon_edge_r, lat_edge_r
 
 def plume_slices(
-    lon: npt.NDArray[np.float64],
-    lat: npt.NDArray[np.float64],
-    sin_a: npt.NDArray[np.float64],
-    cos_a: npt.NDArray[np.float64],
-    width: npt.NDArray[np.float64],
-    num_slices: npt.NDArray[np.float64],
+    plume_slice: GeoVectorDataset,
+    slice: int,
 ) -> npt.NDArray[np.float64]:
     """
     Calculate the longitude and latitude of the plume slice points, to discretise the Gaussian distribution along the cross section of the plume.
 
     Parameters
     ----------
-    lon : npt.NDArray[np.float64]
-        longitude of plume waypoint, degrees
-    lat : npt.NDArray[np.float64]
-        latitude of plume waypoint, degrees
-    sin_a : npt.NDArray[np.float64]
-        sin(a), where a is the angle between the plume and the longitudinal axis
-    cos_a : npt.NDArray[np.float64]
-        cos(a), where a is the angle between the plume and the longitudinal axis
-    width : npt.NDArray[np.float64]
-        plume width at each waypoint, [:math:`m`]
-    num_slices : npt.NDArray[np.float64]
-        number of slices along the width of the plume
 
     Returns
     -------
@@ -292,16 +333,89 @@ def plume_slices(
         (lon_slices, lat_slices), longitudes and latitudes
         at the increments of the plume cross section, degrees
     """  # noqa: E501
+    std_dev = plume_slice["sigma_yy"] ** 0.5
+    print(std_dev)
 
-    slices = np.linspace(-0.5 + 0.25 / num_slices, 0.5 - 0.25 / num_slices, num_slices)
+    lq = (plume_slice.attrs["slice_percentage"] / 4) + (plume_slice.attrs["slice_percentage"] / 2) * slice
+    uq = 1 - lq
 
-    n = slices.shape[0]  # n is the number of slices (rows in the slices array)
-    width = np.tile(width, (1, n))  # Repeat width for n columns
+    mean = 0 # centreline of the plume
 
-    dlon = units.m_to_longitude_distance(width ** sin_a * slices, lat)
-    dlat = units.m_to_latitude_distance(width * cos_a * slices)
+    z = norm.ppf(uq) - norm.ppf(lq)
 
-    lon_slices = lon + dlon
-    lat_slices = lat + dlat
+    plume_slice["width"] = z*std_dev
 
-    return lon_slices, lat_slices
+    # Ensure slice_width does not exceed width
+    plume_slice["width"] = np.minimum(plume_slice["width"], plume_slice["segment_width"])
+
+    print(plume_slice["segment_width"])
+    print(plume_slice["width"])
+
+    # Calculate slice edges
+    (
+        plume_slice["lon_edge_l"],
+        plume_slice["lat_edge_l"],
+        plume_slice["lon_edge_r"],
+        plume_slice["lat_edge_r"],
+    ) = plume_edges(
+        plume_slice["longitude"],
+        plume_slice["latitude"],
+        plume_slice["sin_a"],
+        plume_slice["cos_a"],
+        plume_slice["width"],
+    )
+
+    # Initialise plume segment grid with spatial domain that covers the plume area.
+    lon_edges = np.concatenate(
+        [plume_slice["lon_edge_l"], plume_slice["lon_edge_r"]], axis=0
+    )
+    lat_edges = np.concatenate(
+        [plume_slice["lat_edge_l"], plume_slice["lat_edge_r"]], axis=0
+    )
+
+    return lon_edges, lat_edges
+
+def _add_segment_to_main_grid(main_grid: xr.DataArray, segment_grid: xr.DataArray) -> xr.DataArray:
+    """
+    Add the gridded contrail segment to the main grid.
+
+    Parameters
+    ----------
+    main_grid : xr.DataArray
+        Aggregated contrail segment properties in a longitude-latitude grid.
+    segment_grid : xr.DataArray
+        Contrail segment dimension and property projected to a longitude-latitude grid.
+
+    Returns
+    -------
+    xr.DataArray
+        Aggregated contrail segment properties, including `segment_grid`.
+
+    Notes
+    -----
+    - The spatial domain of `segment_grid` only covers the contrail segment, which is added to
+        the `main_grid` which is expected to have a larger spatial domain than the `segment_grid`.
+    - This architecture is used to reduce the computational resources.
+    """
+    lon_main = np.round(main_grid["longitude"].values, decimals=2)
+    lat_main = np.round(main_grid["latitude"].values, decimals=2)
+
+    lon_segment_grid = np.round(segment_grid["longitude"].values, decimals=2)
+    lat_segment_grid = np.round(segment_grid["latitude"].values, decimals=2)
+
+    main_grid_arr = main_grid.values
+    subgrid_arr = segment_grid.values
+
+    try:
+        ix_ = np.searchsorted(lon_main, lon_segment_grid[0])
+        ix = np.searchsorted(lon_main, lon_segment_grid[-1]) + 1
+        iy_ = np.searchsorted(lat_main, lat_segment_grid[0])
+        iy = np.searchsorted(lat_main, lat_segment_grid[-1]) + 1
+    except IndexError:
+        warnings.warn(
+            "Contrail segment ignored as it is outside spatial bounding box of the main grid. "
+        )
+    else:
+        main_grid_arr[ix_:ix, iy_:iy] = main_grid_arr[ix_:ix, iy_:iy] + subgrid_arr
+
+    return xr.DataArray(main_grid_arr, coords=main_grid.coords)

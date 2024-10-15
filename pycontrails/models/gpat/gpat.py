@@ -12,7 +12,7 @@ import xarray as xr
 import dask.array as da
 import yaml
 import pickle
-#from pyproj import Geod
+from pyproj import Geod
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
@@ -552,7 +552,7 @@ class GPAT(Model):
                     # call contrails_to_hi_res_grid
                     plume_property_data = plume_to_grid(
                         time=time,
-                        contrails_t=plume_time_data,
+                        plumes_t=plume_time_data,
                         var_name=property,
                         spatial_bbox=bbox,
                         spatial_grid_res=plume_params["hres_pl"],
