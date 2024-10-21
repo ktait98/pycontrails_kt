@@ -22,7 +22,7 @@ fl_params = {
     "ts_fl": pd.Timedelta(minutes=2),  # flight time step
     "ac_type": "A320",  # aircraft type
     "fl0_speed": 100.0,  # m/s
-    "fl0_heading": 0.0,  # deg
+    "fl0_heading": 45.0,  # deg
     "fl0_coords0": (0.1, 0.125, 12500),  # lat, lon, alt [deg, deg, m]
     "sep_dist": (5000, 2000, 0),  # dx, dy, dz [m]
     "n_ac": 1,  # number of aircraft

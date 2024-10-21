@@ -169,12 +169,9 @@ class GPAT(Model):
 
         # Estimate emissions using Pycontrails Emissions Model
         self.fl = self.emissions()
-        [print(self.fl[i].dataframe) for i, fl in enumerate(self.fl)]
+
         # Simulate plume dispersion/advection using Pycontrails Dry Advection Model
         self.fl, self.pl = self.sim_plumes()
-
-        print(self.fl)
-        print(self.pl)
 
         # Aggregate plumes to an Eulerian grid for photochemical and microphysical processing
         self.emi = self.plume_to_grid()
@@ -615,6 +612,7 @@ class GPAT(Model):
         # Save the box model dataset to netCDF file
         self.chem.to_netcdf(self.outputs + "chem_" + self.job_id + ".nc")
 
+
     # Methods for running the box model
     def init_boxm_ds(self):
 
@@ -738,7 +736,7 @@ class GPAT(Model):
 
         anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
 
-    def mc_test(self, fl_df):
+    def mc_test(self):
         """Check if mass is conserved in the box model."""
 
         mm = [30.01, 46.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
@@ -746,12 +744,12 @@ class GPAT(Model):
 
         self.total_vector_mass = 0
         self.total_grid_mass = 0
-        for ts, time in enumerate(fl_df["time"][:-1]):
+        for ts, time in enumerate(self.fl["time"][:-1]):
 
             # grab vector data
             for s, emi_species in enumerate(["NO"]):# self.boxm_ds_unstacked["emi_species"].data):
                 
-                vector_mass = fl_df[emi_species][ts] 
+                vector_mass = self.fl[emi_species][ts] 
                 # \
                 #         * self.plume_params["width"] \
                 #         * self.chem_params["vres_chem"] \
@@ -780,9 +778,6 @@ class GPAT(Model):
                 self.total_grid_mass += grid_mass_sum
             
             print(self.total_vector_mass, self.total_grid_mass)
-            
-            
-
 
 # Functions used in GPAT Model
 

@@ -92,7 +92,7 @@ def plume_to_grid(
             package_name="tqdm",
             module_not_found_error=exc,
         )
-
+    
     for i in tqdm(heads_t.index):
         plume_segment = GeoVectorDataset(
             pd.concat([heads_t[cols_req].loc[i], tails_t[cols_req].loc[i]], axis=1).T, copy=True
@@ -231,16 +231,13 @@ def segment_property_to_hi_res_grid(
                         (lon_edges_slice[2], lat_edges_slice[2]),
                         (lon_edges_slice[0], lat_edges_slice[0]))
 
-        print(slice_coords)
 
         slice_polygon = Polygon(slice_coords)
 
-        plt.plot(*slice_polygon.exterior.xy)
-        plt.savefig("polygon")
+        # plt.plot(*slice_polygon.exterior.xy)
+        # plt.savefig("polygon")
 
         slice_area = slice_polygon.area
-
-        print(slice_area)
 
         slice_grid = xr.DataArray(np.zeros_like(segment_grid), coords=segment_grid.coords, dims=segment_grid.dims)
 
@@ -261,8 +258,8 @@ def segment_property_to_hi_res_grid(
                     slice_grid[i, j] = (intersection_area / slice_area) * plume_slice.attrs["slice_mass"]
 
         segment_grid += slice_grid
-
-        return(segment_grid)
+ 
+    return segment_grid
 
 
 
@@ -334,8 +331,6 @@ def plume_slices(
         at the increments of the plume cross section, degrees
     """  # noqa: E501
     std_dev = plume_slice["sigma_yy"] ** 0.5
-    print(std_dev)
-
     lq = (plume_slice.attrs["slice_percentage"] / 4) + (plume_slice.attrs["slice_percentage"] / 2) * slice
     uq = 1 - lq
 
@@ -343,13 +338,10 @@ def plume_slices(
 
     z = norm.ppf(uq) - norm.ppf(lq)
 
-    plume_slice["width"] = z*std_dev
+    plume_slice.update(width=(z*std_dev))
 
     # Ensure slice_width does not exceed width
-    plume_slice["width"] = np.minimum(plume_slice["width"], plume_slice["segment_width"])
-
-    print(plume_slice["segment_width"])
-    print(plume_slice["width"])
+    plume_slice.update(width=(np.minimum(plume_slice["width"], plume_slice["segment_width"])))
 
     # Calculate slice edges
     (
