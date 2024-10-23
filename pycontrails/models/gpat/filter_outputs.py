@@ -6,7 +6,7 @@ import pickle
 def load_params(job_id):
     params_path = f"outputs/{job_id}/params_{job_id}.pkl"
     with open(params_path, 'rb') as f:
-        params = pd.read_pickle("outputs/" + repr(job_id) + "/params_" + repr(job_id) + ".pkl")
+        params = pd.read_pickle("outputs/" + job_id + "/params_" + job_id + ".pkl")
         return params
     
 def match_params(params, criteria):
@@ -37,7 +37,7 @@ def search_jobs(criteria):
 # Example criteria
 criteria = {
     "sim_params": {
-        "rt_sim": pd.Timedelta(hours=3),  # chemistry runtime
+        "rt_sim": pd.Timedelta(hours=12),  # chemistry runtime
     },
     "fl_params": {
         "n_ac": 1,  # number of aircraft

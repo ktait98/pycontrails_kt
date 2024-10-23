@@ -496,6 +496,7 @@ class GPAT(Model):
         pl["sin_a"] = np.sin(np.radians(pl["heading"]))
         pl["cos_a"] = np.cos(np.radians(pl["heading"]))
         pl["altitude"] = units.pl_to_m(pl["level"])
+        pl["time"] = pl["time"] - self.plume_params["dt_integration"]
 
         return fl, pl
 

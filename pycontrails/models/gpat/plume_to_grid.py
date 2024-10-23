@@ -10,6 +10,7 @@ from shapely import intersection
 from pycontrails.core.met import MetDataArray, MetDataset
 from pycontrails.core.vector import GeoVectorDataset, vector_to_lon_lat_grid
 from pycontrails.models.cocip.contrail_properties import contrail_edges, plume_mass_per_distance
+from time import perf_counter
 
 from pycontrails.physics import geo, thermo, units
 from pycontrails.utils import dependencies
@@ -60,6 +61,8 @@ def plume_to_grid(
     ]
     plumes_t.ensure_vars(cols_req)
 
+    
+
     # Ensure that the times in `plumes_t` are the same.
     is_in_time = plumes_t["time"] == time
     if not np.all(is_in_time):
@@ -74,14 +77,13 @@ def plume_to_grid(
     heads_t = plumes_t.dataframe
     heads_t = heads_t.sort_values(["flight_id", "waypoint"])
     tails_t = heads_t.shift(periods=-1)
-
     is_continuous = heads_t["continuous"]
     heads_t = heads_t[is_continuous].copy()
     tails_t = tails_t[is_continuous].copy()
     tails_t["waypoint"] = tails_t["waypoint"].astype("int")
-
     heads_t = heads_t.set_index(["flight_id", "waypoint"], drop=False)
     tails_t.index = heads_t.index
+
 
     # Aggregate plume segments to a high resolution longitude-latitude grid
     try:
@@ -97,6 +99,8 @@ def plume_to_grid(
         plume_segment = GeoVectorDataset(
             pd.concat([heads_t[cols_req].loc[i], tails_t[cols_req].loc[i]], axis=1).T, copy=True
         )
+        end_time = perf_counter()
+
 
         segment_grid = segment_property_to_hi_res_grid(
             plume_segment, 
@@ -104,7 +108,9 @@ def plume_to_grid(
             spatial_grid_res=spatial_grid_res,
             n_slices=5
         )
+
         main_grid = _add_segment_to_main_grid(main_grid, segment_grid)
+    
 
     return main_grid
 
@@ -198,16 +204,10 @@ def segment_property_to_hi_res_grid(
     #print(spatial_bbox)
     segment_grid = _initialise_longitude_latitude_grid(spatial_bbox, spatial_grid_res)
 
-    # # Get slice percentage and absolute mass in each segment and slice
-    # slice_percentage = 1 / n_slices
-
-    # segment_mass = ((plume_segment[var_name][0] 
-    #                    + plume_segment[var_name][1]) / 2)
-    
-
     # Calculate gridded plume segment properties
     for slice in range(n_slices):
         
+        start_time = perf_counter()
         plume_slice = GeoVectorDataset()
 
         plume_slice["longitude"] = plume_segment["longitude"]
@@ -219,11 +219,16 @@ def segment_property_to_hi_res_grid(
         plume_slice.attrs["slice_percentage"] = 1 / n_slices
         plume_slice.attrs["slice_mass"] = ((plume_segment[var_name][0] 
                                     + plume_segment[var_name][1]) / 2) / n_slices
-
+        end_time = perf_counter()
+        print(f"Time to init plume_slice: {end_time - start_time:.4f} seconds")
 
         # Calculate plume slice lat lon positions
+        start_time = perf_counter()
         lon_edges_slice, lat_edges_slice = plume_slices(plume_slice, slice)
+        end_time = perf_counter()
+        print(f"Time to calc slice lat lon positions: {end_time - start_time:.4f} seconds")
 
+        start_time = perf_counter()
         # Define shapely polygon
         slice_coords = ((lon_edges_slice[0], lat_edges_slice[0]),
                         (lon_edges_slice[1], lat_edges_slice[1]),
@@ -231,34 +236,18 @@ def segment_property_to_hi_res_grid(
                         (lon_edges_slice[2], lat_edges_slice[2]),
                         (lon_edges_slice[0], lat_edges_slice[0]))
 
-
-        slice_polygon = Polygon(slice_coords)
-
+        plume_slice.attrs["slice_polygon"] = Polygon(slice_coords)
+        plume_slice.attrs["slice_area"] = plume_slice.attrs["slice_polygon"].area
+        end_time = perf_counter()
+        print(f"Time to calc slice coords: {end_time - start_time:.4f} seconds")
+        
         # plt.plot(*slice_polygon.exterior.xy)
         # plt.savefig("polygon")
+        start_time = perf_counter()
+        segment_grid = add_slice_grid(segment_grid, plume_slice)
+        end_time = perf_counter()
+        print(f"Time to add slice grid cell contributions: {end_time - start_time:.4f} seconds")
 
-        slice_area = slice_polygon.area
-
-        slice_grid = xr.DataArray(np.zeros_like(segment_grid), coords=segment_grid.coords, dims=segment_grid.dims)
-
-
-        # Iterate over each cell in the grid
-        cell_size = segment_grid.longitude[1] - segment_grid.longitude[0] # Grid cell size in degrees
-        for i, lon in enumerate(segment_grid.longitude[:-1]):
-            for j, lat in enumerate(segment_grid.latitude[:-1]):
-                # Define the grid cell as a Shapely box
-                cell = box(lon, lat, lon + cell_size, lat + cell_size)
-                
-                # Check intersection with the plume polygon
-                if slice_polygon.intersects(cell):
-                    intersection = slice_polygon.intersection(cell)
-                    intersection_area = intersection.area
-                    
-                    # Store the intersection area in the grid
-                    slice_grid[i, j] = (intersection_area / slice_area) * plume_slice.attrs["slice_mass"]
-
-        segment_grid += slice_grid
- 
     return segment_grid
 
 
@@ -367,7 +356,30 @@ def plume_slices(
 
     return lon_edges, lat_edges
 
+def add_slice_grid(segment_grid, plume_slice):
+    slice_grid = xr.DataArray(np.zeros_like(segment_grid), coords=segment_grid.coords, dims=segment_grid.dims)
+
+    # Iterate over each cell in the grid
+    cell_size = segment_grid.longitude[1] - segment_grid.longitude[0] # Grid cell size in degrees
+    for i, lon in enumerate(segment_grid.longitude[:-1]):
+        for j, lat in enumerate(segment_grid.latitude[:-1]):
+            # Define the grid cell as a Shapely box
+            cell = box(lon, lat, lon + cell_size, lat + cell_size)
+            
+            # Check intersection with the plume polygon
+            if plume_slice.attrs["slice_polygon"].intersects(cell):
+                intersection = plume_slice.attrs["slice_polygon"].intersection(cell)
+                intersection_area = intersection.area
+                
+                # Store the intersection area in the grid
+                slice_grid[i, j] = (intersection_area / plume_slice.attrs["slice_area"]) * plume_slice.attrs["slice_mass"]
+
+    segment_grid += slice_grid
+
+    return segment_grid
+
 def _add_segment_to_main_grid(main_grid: xr.DataArray, segment_grid: xr.DataArray) -> xr.DataArray:
+
     """
     Add the gridded contrail segment to the main grid.
 

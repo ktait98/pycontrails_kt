@@ -42,7 +42,7 @@ plume_params = {
 # chemistry sim parameters
 sim_params = {
     "t0_sim": pd.to_datetime("2022-01-20 12:00:00"),  # chemistry start time
-    "rt_sim": pd.Timedelta(hours=3),  # chemistry runtime
+    "rt_sim": pd.Timedelta(hours=12),  # chemistry runtime
     "ts_sim": pd.Timedelta(seconds=20),  # chemistry time step
     "lat_bounds": (0.0, 1.0),  # lat bounds [deg]
     "lon_bounds": (0.0, 1.0),  # lon bounds [deg]
