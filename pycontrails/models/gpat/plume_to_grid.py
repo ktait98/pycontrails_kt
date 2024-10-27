@@ -99,8 +99,6 @@ def plume_to_grid(
         plume_segment = GeoVectorDataset(
             pd.concat([heads_t[cols_req].loc[i], tails_t[cols_req].loc[i]], axis=1).T, copy=True
         )
-        end_time = perf_counter()
-
 
         segment_grid = segment_property_to_hi_res_grid(
             plume_segment, 
@@ -200,16 +198,13 @@ def segment_property_to_hi_res_grid(
         [plume_segment["lat_edge_l"], plume_segment["lat_edge_r"]], axis=0
     )
 
-    spatial_bbox = geo.spatial_bounding_box(lon_edges, lat_edges, buffer=0.01)
-    #print(spatial_bbox)
+    spatial_bbox = spatial_bounding_box(lon_edges, lat_edges, spatial_grid_res, buffer=0.01)
     segment_grid = _initialise_longitude_latitude_grid(spatial_bbox, spatial_grid_res)
 
     # Calculate gridded plume segment properties
     for slice in range(n_slices):
         
-        start_time = perf_counter()
         plume_slice = GeoVectorDataset()
-
         plume_slice["longitude"] = plume_segment["longitude"]
         plume_slice["latitude"] = plume_segment["latitude"]
         plume_slice["sin_a"] = plume_segment["sin_a"]
@@ -219,16 +214,10 @@ def segment_property_to_hi_res_grid(
         plume_slice.attrs["slice_percentage"] = 1 / n_slices
         plume_slice.attrs["slice_mass"] = ((plume_segment[var_name][0] 
                                     + plume_segment[var_name][1]) / 2) / n_slices
-        end_time = perf_counter()
-        print(f"Time to init plume_slice: {end_time - start_time:.4f} seconds")
 
         # Calculate plume slice lat lon positions
-        start_time = perf_counter()
         lon_edges_slice, lat_edges_slice = plume_slices(plume_slice, slice)
-        end_time = perf_counter()
-        print(f"Time to calc slice lat lon positions: {end_time - start_time:.4f} seconds")
 
-        start_time = perf_counter()
         # Define shapely polygon
         slice_coords = ((lon_edges_slice[0], lat_edges_slice[0]),
                         (lon_edges_slice[1], lat_edges_slice[1]),
@@ -238,15 +227,11 @@ def segment_property_to_hi_res_grid(
 
         plume_slice.attrs["slice_polygon"] = Polygon(slice_coords)
         plume_slice.attrs["slice_area"] = plume_slice.attrs["slice_polygon"].area
-        end_time = perf_counter()
-        print(f"Time to calc slice coords: {end_time - start_time:.4f} seconds")
         
         # plt.plot(*slice_polygon.exterior.xy)
         # plt.savefig("polygon")
-        start_time = perf_counter()
         segment_grid = add_slice_grid(segment_grid, plume_slice)
-        end_time = perf_counter()
-        print(f"Time to add slice grid cell contributions: {end_time - start_time:.4f} seconds")
+
 
     return segment_grid
 
@@ -363,14 +348,15 @@ def add_slice_grid(segment_grid, plume_slice):
     cell_size = segment_grid.longitude[1] - segment_grid.longitude[0] # Grid cell size in degrees
     for i, lon in enumerate(segment_grid.longitude[:-1]):
         for j, lat in enumerate(segment_grid.latitude[:-1]):
+
             # Define the grid cell as a Shapely box
             cell = box(lon, lat, lon + cell_size, lat + cell_size)
-            
+
             # Check intersection with the plume polygon
             if plume_slice.attrs["slice_polygon"].intersects(cell):
                 intersection = plume_slice.attrs["slice_polygon"].intersection(cell)
                 intersection_area = intersection.area
-                
+
                 # Store the intersection area in the grid
                 slice_grid[i, j] = (intersection_area / plume_slice.attrs["slice_area"]) * plume_slice.attrs["slice_mass"]
 
@@ -423,3 +409,45 @@ def _add_segment_to_main_grid(main_grid: xr.DataArray, segment_grid: xr.DataArra
         main_grid_arr[ix_:ix, iy_:iy] = main_grid_arr[ix_:ix, iy_:iy] + subgrid_arr
 
     return xr.DataArray(main_grid_arr, coords=main_grid.coords)
+
+def round_to_nearest(value: float, spatial_grid_res: float) -> float:
+    return round(value / spatial_grid_res) * spatial_grid_res
+
+def spatial_bounding_box(
+    longitude: npt.NDArray[np.float64], latitude: npt.NDArray[np.float64], spatial_grid_res, buffer: float = 1.0
+) -> tuple[float, float, float, float]:
+    r"""
+    Construct rectangular spatial bounding box from a set of waypoints.
+
+    Parameters
+    ----------
+    longitude : np.ndarray
+        1D Longitude values with index corresponding to longitude inputs, [:math:`\deg`]
+    latitude : np.ndarray
+        1D Latitude values with index corresponding to latitude inputs, [:math:`\deg`]
+    buffer: float
+        Add buffer to rectangular spatial bounding box, [:math:`\deg`]
+
+    Returns
+    -------
+    tuple[float, float, float, float]
+        Spatial bounding box, ``(lon_min, lat_min, lon_max, lat_max)``, [:math:`\deg`]
+
+    Examples
+    --------
+    >>> rng = np.random.default_rng(654321)
+    >>> lon = rng.uniform(-180, 180, size=30)
+    >>> lat = rng.uniform(-90, 90, size=30)
+    >>> spatial_bounding_box(lon, lat)
+    (np.float64(-168.0), np.float64(-77.0), np.float64(155.0), np.float64(82.0))
+    """
+    lon_min = max((np.min(longitude) - buffer), -180.0)
+    lon_max = min((np.max(longitude) + buffer), 179.99)
+    lat_min = max((np.min(latitude) - buffer), -90.0)
+    lat_max = min((np.max(latitude) + buffer), 90.0)
+
+    lon_min = round_to_nearest(lon_min, spatial_grid_res)
+    lon_max = round_to_nearest(lon_max, spatial_grid_res)
+    lat_min = round_to_nearest(lat_min, spatial_grid_res)
+    lat_max = round_to_nearest(lat_max, spatial_grid_res)
+    return lon_min, lat_min, lon_max, lat_max
