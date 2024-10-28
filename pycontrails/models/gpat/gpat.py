@@ -572,6 +572,8 @@ class GPAT(Model):
 
         emi = MetDataset(xr.Dataset({"emi": emi}))
 
+        self.mc = self.mc_test()
+
         return emi
 
     def run_cc(self) -> xr.Dataset:
@@ -740,45 +742,53 @@ class GPAT(Model):
     def mc_test(self):
         """Check if mass is conserved in the box model."""
 
+        # Initialize the dictionary
+        mc = {emi_species: [] for emi_species in self.boxm_ds_unstacked["emi_species"].data}
+
+        # Constants
         mm = [30.01, 46.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
         NA = 6.022e23  # Avogadro's number
 
-        self.total_vector_mass = 0
-        self.total_grid_mass = 0
-        for ts, time in enumerate(self.fl["time"][:-1]):
+        for s, emi_species in enumerate(self.boxm_ds_unstacked["emi_species"].data):
+            total_vector_mass = 0
+            total_grid_mass = 0
 
-            # grab vector data
-            for s, emi_species in enumerate(["NO"]):# self.boxm_ds_unstacked["emi_species"].data):
-                
-                vector_mass = self.fl[emi_species][ts] 
-                # \
-                #         * self.plume_params["width"] \
-                #         * self.chem_params["vres_chem"] \
-                #         * fl_df["true_airspeed"][ts] \
-                #         * self.plume_params["dt_integration"].seconds
-            
-                self.total_vector_mass += vector_mass
+            for ts, time in enumerate(self.fl["time"][:-1]):
+                vector_mass = self.fl[emi_species][ts]
+                total_vector_mass += vector_mass
 
-                # grab plume mass from grid data
+                # Grab plume mass from grid data
                 grid_concs = self.boxm_ds_unstacked["emi"].sel(emi_species=emi_species, time=time).sel(level=178.6, method="nearest")
+                if (grid_concs == 0).all():
+                    print("All values in grid_concs are zeros. Skipping processing.")
+                else:
+                    grid_concs_over_zero = grid_concs.where(grid_concs > 0, drop=True)
 
-                grid_concs_over_zero = grid_concs.where(grid_concs > 0, drop=True)
+                    grid_mass = grid_concs_over_zero \
+                        * self.boxm_ds_unstacked["M"].sel(time=time).sel(level=178.6, method="nearest") \
+                        * 1e-9 \
+                        * (mm[s] / NA) \
+                        * self.sim_params["vres_sim"] \
+                        * units.latitude_distance_to_m(self.sim_params["hres_sim"]) \
+                        * units.longitude_distance_to_m(self.sim_params["hres_sim"], (self.sim_params["lat_bounds"][0] + self.sim_params["lat_bounds"][1]) / 2) \
+                        * 1E+03  # convert to kg/m^3
 
-                grid_mass = grid_concs_over_zero \
-                    * self.boxm_ds_unstacked["M"].sel(time=time).sel(level=178.6, method="nearest") \
-                    * 1e-9 \
-                    * (mm[s] / NA) \
-                    * self.chem_params["vres_chem"] \
-                    * units.latitude_distance_to_m(self.chem_params["hres_chem"]) \
-                    * units.longitude_distance_to_m(self.chem_params["hres_chem"], (self.chem_params["lat_bounds"][0] + self.chem_params["lat_bounds"][1]) / 2) \
-                    * 1E+03 # convert to kg/m^3
-                    
+                    total_grid_mass = grid_mass.sum().values
 
-                grid_mass_sum = grid_mass.sum().values
+                # Calculate the percentage of mass conserved
+                if total_vector_mass > 0:
+                    percentage_mass_conserved = (total_grid_mass / total_vector_mass) * 100
+                else:
+                    percentage_mass_conserved = 0
 
-                self.total_grid_mass += grid_mass_sum
-            
-            print(self.total_vector_mass, self.total_grid_mass)
+                # Append the percentage to the list in the dictionary
+                mc[emi_species].append(percentage_mass_conserved)
+
+            print(f"{emi_species}: Total Vector Mass = {total_vector_mass}, Total Grid Mass = {total_grid_mass}")
+
+        # Print the mass conservation dictionary
+        print(mc)
+        return mc
 
 # Functions used in GPAT Model
 
