@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import xarray as xr
 import pandas as pd
 import pickle
 
@@ -33,6 +34,14 @@ def search_jobs(criteria):
                 print(f"Error loading params for job {job_id}: {e}")
 
     return matching_job_ids
+
+def create_dataset(matching_job_ids):
+    datasets = []
+    for job_id in matching_job_ids:
+        dataset_path = f"outputs/{job_id}/dataset_{job_id}.nc"
+        dataset = xr.open_dataset(dataset_path)
+        datasets.append(dataset)
+    return xr.concat(datasets, dim="time")
 
 # Example criteria
 criteria = {

@@ -182,6 +182,8 @@ class GPAT(Model):
         # Run BOXM
         self.chem = self.run_boxm()
 
+        self.mc = self.mc_test()
+        
         self.gen_outputs()
 
     # Model methods
@@ -571,8 +573,6 @@ class GPAT(Model):
                     )  # convert to molecules/cm^3
 
         emi = MetDataset(xr.Dataset({"emi": emi}))
-
-        self.mc = self.mc_test()
 
         return emi
 
