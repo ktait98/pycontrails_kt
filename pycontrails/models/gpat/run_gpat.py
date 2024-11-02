@@ -2,17 +2,6 @@
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import xarray as xr
-import dask.array as da
-import pyproj
-import sys
-from joblib import Parallel, delayed
-from tqdm import tqdm
-from pycontrails import Flight, Fleet, MetDataset
-from pycontrails.core import models
-from pycontrails.datalib.ecmwf import ERA5
-from pycontrails.physics import geo, thermo, units, constants
 from pycontrails.models.gpat.gpat import GPAT
 
 # flight trajectory parameters

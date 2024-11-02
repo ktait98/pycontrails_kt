@@ -236,7 +236,6 @@ def segment_property_to_hi_res_grid(
     return segment_grid
 
 
-
 def plume_edges(
     lon: npt.NDArray[np.float64],
     lat: npt.NDArray[np.float64],
@@ -364,9 +363,11 @@ def add_slice_grid(segment_grid, plume_slice):
 
     return segment_grid
 
-def _add_segment_to_main_grid(main_grid: xr.DataArray, segment_grid: xr.DataArray) -> xr.DataArray:
-
-    """
+def _add_segment_to_main_grid(
+        main_grid: xr.DataArray, 
+        segment_grid: xr.DataArray
+    ) -> xr.DataArray:
+    r"""
     Add the gridded contrail segment to the main grid.
 
     Parameters
@@ -410,11 +411,11 @@ def _add_segment_to_main_grid(main_grid: xr.DataArray, segment_grid: xr.DataArra
 
     return xr.DataArray(main_grid_arr, coords=main_grid.coords)
 
-def round_to_nearest(value: float, spatial_grid_res: float) -> float:
-    return round(value / spatial_grid_res) * spatial_grid_res
-
 def spatial_bounding_box(
-    longitude: npt.NDArray[np.float64], latitude: npt.NDArray[np.float64], spatial_grid_res, buffer: float = 1.0
+    longitude: npt.NDArray[np.float64], 
+    latitude: npt.NDArray[np.float64], 
+    spatial_grid_res: float = 0.1, 
+    buffer: float = 0.1
 ) -> tuple[float, float, float, float]:
     r"""
     Construct rectangular spatial bounding box from a set of waypoints.
@@ -425,6 +426,8 @@ def spatial_bounding_box(
         1D Longitude values with index corresponding to longitude inputs, [:math:`\deg`]
     latitude : np.ndarray
         1D Latitude values with index corresponding to latitude inputs, [:math:`\deg`]
+    spatial_grid_res: float
+        Horiz grid res that rounds the corner positions to the nearest grid cell edge, [:math:`\deg`]
     buffer: float
         Add buffer to rectangular spatial bounding box, [:math:`\deg`]
 
@@ -446,8 +449,8 @@ def spatial_bounding_box(
     lat_min = max((np.min(latitude) - buffer), -90.0)
     lat_max = min((np.max(latitude) + buffer), 90.0)
 
-    lon_min = round_to_nearest(lon_min, spatial_grid_res)
-    lon_max = round_to_nearest(lon_max, spatial_grid_res)
-    lat_min = round_to_nearest(lat_min, spatial_grid_res)
-    lat_max = round_to_nearest(lat_max, spatial_grid_res)
+    lon_min = round(lon_min / spatial_grid_res) * spatial_grid_res
+    lon_max = round(lon_max / spatial_grid_res) * spatial_grid_res
+    lat_min = round(lat_min / spatial_grid_res) * spatial_grid_res
+    lat_max = round(lat_max / spatial_grid_res) * spatial_grid_res
     return lon_min, lat_min, lon_max, lat_max

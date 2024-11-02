@@ -31,7 +31,7 @@ import pathlib
 
 ### GPAT Model Parameters ###
 @dataclass
-class FlParams():
+class FlParams(ModelParams):
     """Default flight/fleet parameters."""
     t0_fl: pd.Timestamp = pd.to_datetime("2022-01-20 13:00:00") # flight start time
     rt_fl: pd.Timedelta = pd.Timedelta(minutes=60) # flight run time
@@ -100,17 +100,7 @@ class GPAT(Model):
             ):
         super().__init__()
 
-        all_params = {
-            "fl_params": fl_params,
-            "plume_params": plume_params,
-            "sim_params": sim_params
-        }
 
-        # Set the model parameters
-        self.fl_params = fl_params
-        self.plume_params = plume_params
-        self.sim_params = sim_params
-        self.all_params = all_params
 
         # Generate the grid
         self.lats_pl = np.arange(
@@ -144,13 +134,26 @@ class GPAT(Model):
             # If SLURM_JOB_ID is not found, generate a random number as job ID
             self.job_id = str(random.randint(100000, 999999))
 
-        print(f"Job ID: {self.job_id}")
+        sim_params["job_id"] = self.job_id
+        sim_params["date_created"] = pd.Timestamp.now()
 
         # Make output dir unique to jobid
         os.mkdir(self.path + "outputs/" + self.job_id)
         
         self.inputs = self.path + "inputs/"
         self.outputs = self.path + "outputs/" + self.job_id + "/"
+
+        all_params = {
+            "fl_params": fl_params,
+            "plume_params": plume_params,
+            "sim_params": sim_params,
+        }
+
+        # Set the model parameters
+        self.fl_params = fl_params
+        self.plume_params = plume_params
+        self.sim_params = sim_params
+        self.all_params = all_params
 
     def eval(self):
         """Run the GPAT model."""
@@ -181,8 +184,6 @@ class GPAT(Model):
 
         # Run BOXM
         self.chem = self.run_boxm()
-
-        self.mc = self.mc_test()
         
         self.gen_outputs()
 
@@ -247,9 +248,9 @@ class GPAT(Model):
                 fli.attrs = {"flight_id": int(i), "aircraft_type": fl_params["ac_type"]}
 
                 mask = (
-                    (fli["latitude"] > self.sim_params["lat_bounds"][0] + 0.05) & (fl["latitude"] < self.sim_params["lat_bounds"][1] - 0.05) &
-                    (fli["longitude"] > self.sim_params["lon_bounds"][0] + 0.05) & (fl["longitude"] < self.sim_params["lon_bounds"][1] - 0.05) &
-                    (fli["altitude"] > self.sim_params["alt_bounds"][0]) & (fl["altitude"] < self.sim_params["alt_bounds"][1])
+                    (fli["latitude"] > self.sim_params["lat_bounds"][0] + 0.05) & (fli["latitude"] < self.sim_params["lat_bounds"][1] - 0.05) &
+                    (fli["longitude"] > self.sim_params["lon_bounds"][0] + 0.05) & (fli["longitude"] < self.sim_params["lon_bounds"][1] - 0.05) &
+                    (fli["altitude"] > self.sim_params["alt_bounds"][0]) & (fli["altitude"] < self.sim_params["alt_bounds"][1])
                 )
                 fli = fli.filter(mask)
                 fl.append(fli)
@@ -483,6 +484,7 @@ class GPAT(Model):
                     "flight_id",
                     "waypoint",
                     "time",
+                    "age",
                     "longitude",
                     "latitude",
                     "level",
@@ -615,8 +617,11 @@ class GPAT(Model):
         # Save the box model dataset to netCDF file
         self.chem.to_netcdf(self.outputs + "chem_" + self.job_id + ".nc")
 
+        # with open(self.outputs + "mc_" + self.job_id + ".pkl", 'wb') as pkl_file:
+        #     pickle.dump(self.mc, pkl_file)
 
-    # Methods for running the box model
+
+# Methods for running the box model
     def init_boxm_ds(self):
 
         self.boxm_ds = xr.merge([self.met.data, self.bg_chem, self.emi.data])
@@ -739,59 +744,10 @@ class GPAT(Model):
 
         anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
 
-    def mc_test(self):
-        """Check if mass is conserved in the box model."""
+    
 
-        # Initialize the dictionary
-        mc = {emi_species: [] for emi_species in self.boxm_ds_unstacked["emi_species"].data}
-
-        # Constants
-        mm = [30.01, 46.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
-        NA = 6.022e23  # Avogadro's number
-
-        for s, emi_species in enumerate(self.boxm_ds_unstacked["emi_species"].data):
-            total_vector_mass = 0
-            total_grid_mass = 0
-
-            for ts, time in enumerate(self.fl["time"][:-1]):
-                vector_mass = self.fl[emi_species][ts]
-                total_vector_mass += vector_mass
-
-                # Grab plume mass from grid data
-                grid_concs = self.boxm_ds_unstacked["emi"].sel(emi_species=emi_species, time=time).sel(level=178.6, method="nearest")
-                if (grid_concs == 0).all():
-                    print("All values in grid_concs are zeros. Skipping processing.")
-                else:
-                    grid_concs_over_zero = grid_concs.where(grid_concs > 0, drop=True)
-
-                    grid_mass = grid_concs_over_zero \
-                        * self.boxm_ds_unstacked["M"].sel(time=time).sel(level=178.6, method="nearest") \
-                        * 1e-9 \
-                        * (mm[s] / NA) \
-                        * self.sim_params["vres_sim"] \
-                        * units.latitude_distance_to_m(self.sim_params["hres_sim"]) \
-                        * units.longitude_distance_to_m(self.sim_params["hres_sim"], (self.sim_params["lat_bounds"][0] + self.sim_params["lat_bounds"][1]) / 2) \
-                        * 1E+03  # convert to kg/m^3
-
-                    total_grid_mass = grid_mass.sum().values
-
-                # Calculate the percentage of mass conserved
-                if total_vector_mass > 0:
-                    percentage_mass_conserved = (total_grid_mass / total_vector_mass) * 100
-                else:
-                    percentage_mass_conserved = 0
-
-                # Append the percentage to the list in the dictionary
-                mc[emi_species].append(percentage_mass_conserved)
-
-            print(f"{emi_species}: Total Vector Mass = {total_vector_mass}, Total Grid Mass = {total_grid_mass}")
-
-        # Print the mass conservation dictionary
-        print(mc)
-        return mc
 
 # Functions used in GPAT Model
-
 def calc_heading(pl_df: pd.DataFrame) -> pd.DataFrame:
     """Calculate heading for each plume."""
     # Sort the dataframe by time and waypoint
@@ -856,6 +812,8 @@ def calc_sza(latitudes, longitudes, timesteps):
             )
     return sza
 
+
+### FOR ORIGINAL BOXM RUNS ###
 # convert latitude to latbox
 def latitude_to_latbox(latitude):
         # Map the latitude to the range 0-1
@@ -890,3 +848,166 @@ def get_pressure_level(alt):
         idx = (np.abs(chem_pressure_levels - pressure)).argmin()
 
         return idx
+
+
+### Functions for post-processing
+def create_jobs_df(outputs_dir):
+    jobs = []
+
+    for job_id in os.listdir(outputs_dir):
+        job_dir = os.path.join(outputs_dir, job_id)
+        if os.path.isdir(job_dir):
+            # Check if the expected files exist in the subdirectory
+            expected_files = [
+                f"params_{job_id}.pkl",
+                f"fl_{job_id}.pkl",
+                f"pl_{job_id}.pkl",
+                f"chem_{job_id}.nc"
+            ]
+            if all(os.path.isfile(os.path.join(job_dir, file)) for file in expected_files):
+                
+                params = pd.read_pickle(outputs_dir + job_id + "/params_" + job_id + ".pkl")
+
+                # Flatten the dictionary
+                data_dict = {f"{inner_key}": inner_value 
+                                for outer_key, inner_dict in params.items() 
+                                for inner_key, inner_value in inner_dict.items()}
+
+                jobs.append(data_dict)
+
+                jobs_df = pd.DataFrame(jobs)
+                jobs_df = jobs_df.set_index("job_id")
+
+    return jobs_df
+
+def filter_jobs_df(jobs_df, criteria):
+    filtered_df = jobs_df.copy()
+    
+    for key, value in criteria.items():
+        if isinstance(value, tuple) and len(value) == 2:
+            # Range filter
+            filtered_df = filtered_df[(filtered_df[key] >= value[0]) & (filtered_df[key] <= value[1])]
+        else:
+            # Exact match filter
+            filtered_df = filtered_df[filtered_df[key] == value]
+
+    return filtered_df
+
+def load_fl_df(job_ids, outputs_dir):
+    flight_data = []
+    for job_id in job_ids:
+        df = pd.read_pickle(outputs_dir + job_id + "/fl_" + job_id + ".pkl")
+        df['job_id'] = job_id  # Add job_id to the DataFrame
+        flight_data.append(df)
+
+    fl_df = pd.concat(flight_data, ignore_index=True)
+    fl_df = fl_df.set_index("job_id")
+
+    return fl_df
+
+def load_pl_df(job_ids, outputs_dir):
+    plume_data = []
+    for job_id in job_ids:
+        df = pd.read_pickle(outputs_dir + job_id + "/pl_" + job_id + ".pkl")
+        df['job_id'] = job_id  # Add job_id to the DataFrame
+        plume_data.append(df)
+
+    pl_df = pd.concat(plume_data, ignore_index=True)
+    pl_df = pl_df.set_index("job_id")  
+
+    return pl_df
+
+def load_chem_ds(job_ids, outputs_dir):
+    chemistry_data = []
+    for job_id in job_ids:
+        ds = xr.open_dataset(outputs_dir + job_id + "/chem_" + job_id + ".nc")
+        ds = ds.expand_dims(job_id=[job_id])
+        chemistry_data.append(ds)
+    return xr.concat(chemistry_data, dim="job_id")
+
+# Validation
+def mc_test(job_ids, jobs_df, fl_df, pl_df, chem_ds):
+    """Check if mass is conserved in the box model."""
+
+    for job_id in job_ids:
+        params = jobs_df.loc[job_id]
+        fl_df_job = fl_df.loc[job_id]
+        pl_df_job = pl_df.loc[job_id]
+        chem_ds_job = chem_ds.sel(job_id=job_id)
+
+
+        # Initialize the dictionary
+        mc = {emi_species: [] for emi_species in chem_ds_job["emi_species"].values.tolist()}
+
+        # Constants
+        mm = [30.01, 46.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
+        NA = 6.022e23  # Avogadro's number
+
+        for s, emi_species in enumerate(chem_ds_job["emi_species"].values):
+            
+            max_fl_time = fl_df_job["time"].max()
+
+            for ts, time in enumerate(pl_df_job["time"].unique()[:-1]):
+                if ts == 0:
+                    total_vector_mass = 0
+                    total_grid_mass = 0
+                    percent_mass_conserved = 0
+                    mc[emi_species].append(percent_mass_conserved)
+                    continue
+                
+                previous_time = pl_df_job["time"].unique()[ts-1]
+                fl_snapshot = fl_df_job[fl_df_job["time"] == previous_time]
+                pl_snapshot = pl_df_job[pl_df_job["time"] == previous_time]
+
+
+                if time <= max_fl_time:
+                    # Accumulate vector mass for all flights
+                    
+                    vector_mass = fl_snapshot[emi_species]
+
+                    total_vector_mass += vector_mass.sum()
+
+                # Check if the plume age for a particular waypoint exceeds max_age
+                else:
+                    
+                    for waypoint in pl_snapshot["waypoint"].unique():
+
+                        if pl_snapshot[pl_snapshot["waypoint"] == waypoint]["age"].max() == params.loc["max_age"]:
+
+                            total_vector_mass -= pl_snapshot[pl_snapshot["waypoint"] == waypoint][emi_species].sum()
+
+                # Grab plume mass from grid data
+                grid_concs = chem_ds_job["emi"].sel(emi_species=emi_species, time=time).sel(level=178.6, method="nearest")
+
+                if (grid_concs == 0).all():
+                    pass
+                else:
+                    grid_concs_over_zero = grid_concs.where(grid_concs > 0, drop=True)
+
+                    grid_mass = grid_concs_over_zero \
+                        * chem_ds_job["M"].sel(time=time).sel(level=178.6, method="nearest") \
+                        * 1e-9 \
+                        * (mm[s] / NA) \
+                        * params.loc["vres_sim"] \
+                        * units.latitude_distance_to_m(params.loc["hres_sim"]) \
+                        * units.longitude_distance_to_m(params.loc["hres_sim"], (params.loc["lat_bounds"][0] + params.loc["lat_bounds"][1]) / 2) \
+                        * 1E+03  # convert to kg/m^3
+
+                    total_grid_mass = grid_mass.sum().item()
+
+                    percent_mass_conserved = total_grid_mass / total_vector_mass * 100
+                    
+                # Append the percentage to the list in the dictionary
+                # mc[emi_species].append([time, total_vector_mass, total_grid_mass, percent_mass_conserved])
+                mc[emi_species].append(percent_mass_conserved)
+
+        # convert the dictionary to a DataFrame
+        mc = pd.DataFrame(mc, index=pl_df_job["time"].unique()[:-1], columns=chem_ds_job["emi_species"].values.tolist())
+
+        # Save the mass conservation data to a pickle file
+        pd.to_pickle(mc, f"outputs/{job_id}/mc_{job_id}.pkl")
+
+
+
+# Data visualisation
+#def plot_heatmap(job_ids, sel_criteria)
