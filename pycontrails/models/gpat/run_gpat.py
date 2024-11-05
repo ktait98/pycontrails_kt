@@ -41,7 +41,14 @@ sim_params = {
     "eastward_wind": 0.0,  # m/s
     "northward_wind": 0.0,  # m/s
     "lagrangian_tendency_of_air_pressure": 0.0,  # m/s
-    "species_out": np.array([3, 4, 5, 6, 8, 9]) #, 14, 21, 22, 39, 198])
+    "species_out": np.array(["O3", "NO2", "NO",
+                            "NO3", "HNO3", "PAN",
+                            "HONO", "HO2", "OH",
+                            "H2O2", "CO", "HCHO",
+                            "CH4"
+                            ])
+    
+    # np.array([3, 4, 5, 6, 8, 9]) #, 14, 21, 22, 39, 198])
 }
 
 gpat = GPAT(fl_params, plume_params, sim_params)
