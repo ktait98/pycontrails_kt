@@ -49,6 +49,9 @@ download_files: create_dirs
 boxm: create_dirs download_files boxm.f90 Makefile
 	${FCOMP} -cpp -o boxm boxm.f90 ${FFLAG} ${FLIBS} ${CLIBS} -DPYCONTRAILSDIR=${RUNDIR}
 
+boxm_orig: boxm_orig.for Makefile
+	${FCOMP} -o boxm_orig boxm_orig.for ${FFLAG} ${FLIBS} ${CLIBS}
+
 # Clean target to remove the executable and directories
 .PHONY: clean
 clean:

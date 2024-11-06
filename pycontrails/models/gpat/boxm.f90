@@ -2943,7 +2943,39 @@ CONTAINS
             ENDIF
 
             YP(CELL,11) = Y(CELL,11) - EMIP(CELL,3) + EMI(CELL,3)
+
+            IF (EMI(CELL,4) == 0) THEN
+                EMIP(CELL,4) = 0
+            ENDIF
+            YP(CELL,39) = Y(CELL,39) - EMIP(CELL,4) + EMI(CELL,4)
+
+            IF (EMI(CELL,5) == 0) THEN
+                EMIP(CELL,5) = 0
+            ENDIF
+            YP(CELL,42) = Y(CELL,42) - EMIP(CELL,5) + EMI(CELL,5)
+
+            IF (EMI(CELL,6) == 0) THEN
+                EMIP(CELL,6) = 0
+            ENDIF
+            YP(CELL,30) = Y(CELL,30) - EMIP(CELL,6) + EMI(CELL,6)
+
+            IF (EMI(CELL,7) == 0) THEN
+                EMIP(CELL,7) = 0
+            ENDIF
+            YP(CELL,32) = Y(CELL,32) - EMIP(CELL,7) + EMI(CELL,7)
+
+            IF (EMI(CELL,8) == 0) THEN
+                EMIP(CELL,8) = 0
+            ENDIF
+            YP(CELL,59) = Y(CELL,59) - EMIP(CELL,8) + EMI(CELL,8)
+
+            IF (EMI(CELL,9) == 0) THEN
+                EMIP(CELL,9) = 0
+            ENDIF
+            YP(CELL,61) = Y(CELL,61) - EMIP(CELL,9) + EMI(CELL,9)
         END DO
+
+        
 
         ! PRINT *, Y(182,8), YP(182,8), EMIP(182,1), EMI(182,1)
         

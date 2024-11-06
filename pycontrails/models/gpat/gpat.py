@@ -66,6 +66,7 @@ class SimParams(ModelParams):
     eastward_wind: float = 0.0 # m/s
     northward_wind: float = 0.0 # m/s
     lagrangian_tendency_of_air_pressure: float = 0.0 # m/s
+    species_in: np.array = np.array(["NO", "NO2", "CO"])
     species_out: np.array = np.array(["O3", "NO2", "NO",
                                     "NO3", "N2O5", "HNO3",
                                     "HONO", "HO2", "OH",
@@ -139,6 +140,7 @@ class GPAT(Model):
         sim_params["species_out_num"] = grab_species_num(sim_params["species_out"])
 
         # Make output dir unique to jobid
+        os.mkdir(self.path + "inputs/" + self.job_id)
         os.mkdir(self.path + "outputs/" + self.job_id)
         
         self.inputs = self.path + "inputs/"
@@ -541,37 +543,31 @@ class GPAT(Model):
                     self.alts[-1],
                 )
 
-                for p, property in enumerate(["NO", "NO2", "CO"]):
-                    # ,
-                    # 'hcho_m',
-                    # 'ch3cho_m',
-                    # 'c2h4_m',
-                    # 'c3h6_m',
-                    # 'c2h2_m',
-                    # 'benzene_m']):
+                for p, property in enumerate(emi["emi_species"].values):
+                    
+                    if property in self.sim_params["species_in"]:
+                        # call contrails_to_hi_res_grid
+                        plume_property_data = plume_to_grid(
+                            time=time,
+                            plumes_t=plume_time_data,
+                            var_name=property,
+                            spatial_bbox=bbox,
+                            spatial_grid_res=plume_params["hres_pl"],
+                        )
 
-                    # call contrails_to_hi_res_grid
-                    plume_property_data = plume_to_grid(
-                        time=time,
-                        plumes_t=plume_time_data,
-                        var_name=property,
-                        spatial_bbox=bbox,
-                        spatial_grid_res=plume_params["hres_pl"],
-                    )
+                        # convert mass to density [kg/m^3]
+                        density = plume_property_data / (plume_params["vres_pl"] \
+                        * units.latitude_distance_to_m(plume_params["hres_pl"]) \
+                        * units.longitude_distance_to_m(plume_params["hres_pl"], (self.lats[0] + self.lats[-1]) / 2))
 
-                    # convert mass to density [kg/m^3]
-                    density = plume_property_data / (plume_params["vres_pl"] \
-                    * units.latitude_distance_to_m(plume_params["hres_pl"]) \
-                    * units.longitude_distance_to_m(plume_params["hres_pl"], (self.lats[0] + self.lats[-1]) / 2))
+                        plume = (density / 1E+03) * NA / mm[p] # [kg/m^3] to [molecules/cm^3]
+                        # kg -> g (* 1E+03)
+                        # m^3 -> cm^3 (/ 1E+06)
 
-                    plume = (density / 1E+03) * NA / mm[p] # [kg/m^3] to [molecules/cm^3]
-                    # kg -> g (* 1E+03)
-                    # m^3 -> cm^3 (/ 1E+06)
-
-                    # find altitude index for flight level
-                    emi.loc[:, :, units.m_to_pl(self.fl_params["fl0_coords0"][2]), time, property] = (
-                        plume
-                    )  # convert to molecules/cm^3
+                        # find altitude index for flight level
+                        alt = units.m_to_pl(self.fl_params["fl0_coords0"][2])
+                        time_slice = pl["time"]
+                        emi.loc[:, :, alt, time_slice, property] = plume 
 
         emi = MetDataset(xr.Dataset({"emi": emi}))
 
@@ -662,12 +658,12 @@ class GPAT(Model):
         """Convert the met, bg_chem, and emi datasets to boxm_ds.nc for use in the box model."""
 
         # Delete any existing netCDF files
-        if pathlib.Path(self.inputs + "boxm_ds.nc").exists():
+        if pathlib.Path(f"{self.inputs}/{self.job_id}/boxm_ds.nc").exists():
             print("deleting boxm_ds.nc")
-            pathlib.Path(self.inputs + "boxm_ds.nc").unlink()
+            pathlib.Path(f"{self.inputs}/{self.job_id}/boxm_ds.nc").unlink()
 
         # Convert DataFrames to Datasets and write to netCDF
-        self.boxm_ds_stacked.to_netcdf(self.inputs + "boxm_ds.nc", mode="w")
+        self.boxm_ds_stacked.to_netcdf(f"{self.inputs}/{self.job_id}/boxm_ds.nc", mode="w")
 
     def do_boxm(self):
         """Run the box model in fortran using subprocess."""
@@ -677,7 +673,7 @@ class GPAT(Model):
         )
 
         # open nc file
-        self.boxm_ds = xr.open_dataset(self.inputs + "boxm_ds.nc")
+        self.boxm_ds = xr.open_dataset(f"{self.inputs}/{self.job_id}/boxm_ds.nc")
 
     def unstack(self):
         """Unstack the box model dataset."""
@@ -697,48 +693,7 @@ class GPAT(Model):
         # # Compute the result to trigger the lazy evaluation
         self.boxm_ds_unstacked = self.boxm_ds_unstacked.compute()
 
-    def anim_chem(self, var1, var2, level, resample_freq='2min'):
-        """Animate the chemical concentrations."""
-        fig, (ax, cbar_ax) = plt.subplots(
-            1, 2, gridspec_kw={"width_ratios": (0.9, 0.05), "wspace": 0.2}, figsize=(12, 8)
-        )
-
-        if var1 == "Y":
-            boxm_da = self.boxm_ds_unstacked[var1].sel(species=var2).sel(level=level, method="nearest")
-
-        if var1 == "emi":
-            boxm_da = self.boxm_ds_unstacked[var1].sel(emi_species=var2).sel(level=level, method="nearest")
-
-        if var1 == "J":
-            boxm_da = self.boxm_ds_unstacked[var1].sel(photol_params=var2).sel(level=level, method="nearest")
-
-        if var1 == "DJ":
-            boxm_da = self.boxm_ds_unstacked[var1].sel(photol_coeffs=var2).sel(level=level, method="nearest")
-
-        if var1 == "RC":
-            boxm_da = self.boxm_ds_unstacked[var1].sel(therm_coeffs=var2).sel(level=level, method="nearest")
-
-        print(boxm_da)
-
-        times = boxm_da["time"].values
-        times_resampled = pd.to_datetime(times).to_series().resample(resample_freq).asfreq().dropna().index
-
-        print(f"New number of frames: {len(times_resampled)}")
-
-        def heatmap_func(t):
-            ax.cla()
-            ax.set_title(t)
-
-            boxm_da.sel(time=t).transpose("latitude", "longitude").plot(
-                ax=ax, cbar_kwargs={"cax": cbar_ax}, add_colorbar=True, vmin=boxm_da.min(), vmax=boxm_da.max()
-            )
-
-        anim = FuncAnimation(fig, heatmap_func, frames=times_resampled, blit=False)
-
-        filename = pathlib.Path(self.outputs + var1 + "_" + var2 + ".gif")
-
-        anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
-
+    
 # Functions used in GPAT Model
 def grab_species_num(species_out: np.array) -> np.array:
     """Grab the species numbers for the species of interest in output."""
@@ -892,125 +847,126 @@ def load_chem_ds(job_ids, outputs_dir):
     return xr.concat(chemistry_data, dim="job_id")
 
 # Validation
-def mc_test(job_ids, jobs_df, fl_df, pl_df, chem_ds):
+def mc_test(job_id, jobs_df, fl_df, pl_df, chem_ds):
     """Check if mass is conserved in the box model."""
 
-    for job_id in job_ids:
-        params = jobs_df.loc[job_id]
-        fl_df_job = fl_df.loc[job_id]
-        pl_df_job = pl_df.loc[job_id]
-        chem_ds_job = chem_ds.sel(job_id=job_id)
+    params = jobs_df.loc[job_id]
+    fl_df_job = fl_df.loc[job_id]
+    pl_df_job = pl_df.loc[job_id]
+    chem_ds_job = chem_ds.sel(job_id=job_id)
 
 
-        # Initialize the dictionary
-        mc = {emi_species: [] for emi_species in chem_ds_job["emi_species"].values.tolist()}
+    # Initialize the dictionary
+    mc = {emi_species: [] for emi_species in chem_ds_job["emi_species"].values.tolist()}
 
-        # Constants
-        mm = [30.01, 46.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
-        NA = 6.022e23  # Avogadro's number
+    # Constants
+    mm = [30.01, 46.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
+    NA = 6.022e23  # Avogadro's number
 
-        for s, emi_species in enumerate(chem_ds_job["emi_species"].values):
-            
-            max_fl_time = fl_df_job["time"].max()
+    for s, emi_species in enumerate(chem_ds_job["emi_species"].values):
+        
+        max_fl_time = fl_df_job["time"].max()
 
-            for ts, time in enumerate(pl_df_job["time"].unique()[:-1]):
-                if ts == 0:
-                    total_vector_mass = 0
-                    total_grid_mass = 0
-                    percent_mass_conserved = 0
-                    mc[emi_species].append(percent_mass_conserved)
-                    continue
-                
-                previous_time = pl_df_job["time"].unique()[ts-1]
-                fl_snapshot = fl_df_job[fl_df_job["time"] == previous_time]
-                pl_snapshot = pl_df_job[pl_df_job["time"] == previous_time]
-
-
-                if time <= max_fl_time:
-                    # Accumulate vector mass for all flights
-                    
-                    vector_mass = fl_snapshot[emi_species]
-
-                    total_vector_mass += vector_mass.sum()
-
-                # Check if the plume age for a particular waypoint exceeds max_age
-                else:
-                    
-                    for waypoint in pl_snapshot["waypoint"].unique():
-
-                        if pl_snapshot[pl_snapshot["waypoint"] == waypoint]["age"].max() == params.loc["max_age"]:
-
-                            total_vector_mass -= pl_snapshot[pl_snapshot["waypoint"] == waypoint][emi_species].sum()
-
-                # Grab plume mass from grid data
-                grid_concs = chem_ds_job["emi"].sel(emi_species=emi_species, time=time).sel(level=178.6, method="nearest")
-
-                if (grid_concs == 0).all():
-                    pass
-                else:
-                    grid_concs_over_zero = grid_concs.where(grid_concs > 0, drop=True)
-
-                    grid_mass = grid_concs_over_zero \
-                        * chem_ds_job["M"].sel(time=time).sel(level=178.6, method="nearest") \
-                        * 1e-9 \
-                        * (mm[s] / NA) \
-                        * params.loc["vres_sim"] \
-                        * units.latitude_distance_to_m(params.loc["hres_sim"]) \
-                        * units.longitude_distance_to_m(params.loc["hres_sim"], (params.loc["lat_bounds"][0] + params.loc["lat_bounds"][1]) / 2) \
-                        * 1E+03  # convert to kg/m^3
-
-                    total_grid_mass = grid_mass.sum().item()
-
-                    percent_mass_conserved = total_grid_mass / total_vector_mass * 100
-                    
-                # Append the percentage to the list in the dictionary
-                # mc[emi_species].append([time, total_vector_mass, total_grid_mass, percent_mass_conserved])
+        for ts, time in enumerate(pl_df_job["time"].unique()[:-1]):
+            if ts == 0:
+                total_vector_mass = 0
+                total_grid_mass = 0
+                percent_mass_conserved = 0
                 mc[emi_species].append(percent_mass_conserved)
+                continue
+            
+            previous_time = pl_df_job["time"].unique()[ts-1]
+            fl_snapshot = fl_df_job[fl_df_job["time"] == previous_time]
+            pl_snapshot = pl_df_job[pl_df_job["time"] == previous_time]
 
-        # convert the dictionary to a DataFrame
-        mc = pd.DataFrame(mc, index=pl_df_job["time"].unique()[:-1], columns=chem_ds_job["emi_species"].values.tolist())
 
-        # Save the mass conservation data to a pickle file
-        pd.to_pickle(mc, f"outputs/{job_id}/mc_{job_id}.pkl")
+            if time <= max_fl_time:
+                # Accumulate vector mass for all flights
+                
+                vector_mass = fl_snapshot[emi_species]
 
-        return mc
+                total_vector_mass += vector_mass.sum()
 
-def boxm_test(job_ids, cells, chem_ds_stacked, gpat_path, inputs_dir, outputs_dir):
+            # Check if the plume age for a particular waypoint exceeds max_age
+            else:
+                
+                for waypoint in pl_snapshot["waypoint"].unique():
+
+                    if pl_snapshot[pl_snapshot["waypoint"] == waypoint]["age"].max() == params.loc["max_age"]:
+
+                        total_vector_mass -= pl_snapshot[pl_snapshot["waypoint"] == waypoint][emi_species].sum()
+
+            # Grab plume mass from grid data
+            grid_concs = chem_ds_job["emi"].sel(emi_species=emi_species, time=time).sel(level=178.6, method="nearest")
+
+            if (grid_concs == 0).all():
+                pass
+            else:
+                grid_concs_over_zero = grid_concs.where(grid_concs > 0, drop=True)
+
+                grid_mass = grid_concs_over_zero \
+                    * chem_ds_job["M"].sel(time=time).sel(level=178.6, method="nearest") \
+                    * 1e-9 \
+                    * (mm[s] / NA) \
+                    * params.loc["vres_sim"] \
+                    * units.latitude_distance_to_m(params.loc["hres_sim"]) \
+                    * units.longitude_distance_to_m(params.loc["hres_sim"], (params.loc["lat_bounds"][0] + params.loc["lat_bounds"][1]) / 2) \
+                    * 1E+03  # convert to kg/m^3
+
+                total_grid_mass = grid_mass.sum().item()
+
+                percent_mass_conserved = total_grid_mass / total_vector_mass * 100
+                
+            # Append the percentage to the list in the dictionary
+            # mc[emi_species].append([time, total_vector_mass, total_grid_mass, percent_mass_conserved])
+            mc[emi_species].append(percent_mass_conserved)
+
+    # convert the dictionary to a DataFrame
+    mc = pd.DataFrame(mc, index=pl_df_job["time"].unique()[:-1], columns=chem_ds_job["emi_species"].values.tolist())
+
+    # Save the mass conservation data to a pickle file
+    pd.to_pickle(mc, f"outputs/{job_id}/mc_{job_id}.pkl")
+
+    return mc
+
+def boxm_test(job_id, cell, chem_ds):
     """Run the box model for selected cells and job_id."""
-    for job_id in job_ids:
-        for cell in cells:
 
-            cell_chem_ds = chem_ds_stacked.sel(job_id=job_id, cell=cell)
+    chem_ds_stacked = chem_ds.stack(
+            {"cell": ["level", "longitude", "latitude"]}
+        )
+    chem_ds_stacked = chem_ds_stacked.reset_index("cell")
 
-            # create input file for original boxm
-            gen_boxm_orig_input(cell_chem_ds, job_id, inputs_dir)
+    chem_ds_stacked = chem_ds_stacked.assign_coords(species_out=chem_ds_stacked.attrs["species_out"])
 
-            gen_zen_file(cell_chem_ds, job_id, inputs_dir)
+    cell_chem_ds = chem_ds_stacked.sel(job_id=job_id, cell=cell)
 
-            gen_emi_file(cell_chem_ds, job_id, inputs_dir)
+    # create input file for original boxm
+    gen_boxm_orig_input(cell_chem_ds, job_id)
 
-            # calls fortran with input file and generates .OUT files
-            subprocess.call(
-                [gpat_path + "boxm_orig"]
-            )
+    gen_zen_file(cell_chem_ds, job_id)
 
-            update_chem_ds(cell, cell_chem_ds, job_id)
+    gen_emi_file(cell_chem_ds, job_id)
 
-            # read output files to nc
-            output_to_nc(cell, chem_ds_stacked, job_id, outputs_dir)
+    # # calls fortran with input file and generates .OUT files
+    # subprocess.call(
+    #     ["boxm_orig"] + str(job_id)
+    # )
 
-    return chem_ds_stacked
+    # cell_chem_ds = update_chem_ds(cell_chem_ds, job_id, outputs_dir)
 
-def gen_boxm_orig_input(cell_chem_ds, job_id, inputs_dir):
+    return cell_chem_ds
+
+def gen_boxm_orig_input(cell_chem_ds, job_id):
     
     """Generate the input file for the original box model."""
 
     # delete any existing input files
-    if pathlib.Path(f"{inputs_dir}/{job_id}/boxm_orig_input_{job_id}.txt").exists():
-            pathlib.Path(f"{inputs_dir}/{job_id}/boxm_orig_input_{job_id}.txt").unlink()
+    if pathlib.Path(f"inputs/{job_id}/boxm_orig_input_{job_id}.txt").exists():
+            pathlib.Path(f"inputs/{job_id}/boxm_orig_input_{job_id}.txt").unlink()
 
     # open file
-    boxm_input = open(f"{inputs_dir}/{job_id}/boxm_orig_input_{job_id}.txt", "w")
+    boxm_input = open(f"inputs/{job_id}/boxm_orig_input_{job_id}.txt", "w")
 
     start_time = pd.to_datetime(cell_chem_ds["time"].values[0])
     end_time = pd.to_datetime(cell_chem_ds["time"].values[-1])
@@ -1018,15 +974,15 @@ def gen_boxm_orig_input(cell_chem_ds, job_id, inputs_dir):
     day = start_time.day
     month = start_time.month
     year = start_time.year
-    altitude = cell_chem_ds["altitude"].values[0]
-    plevel = cell_chem_ds["level"].values[0]
+    altitude = cell_chem_ds["altitude"].item()
+    plevel = cell_chem_ds["level"].item()
     level = get_pressure_level(altitude)
-    longitude = cell_chem_ds["longitude"].values[0]
+    longitude = cell_chem_ds["longitude"].item()
     longbox = longitude_to_longbox(longitude)
-    latitude = cell_chem_ds["latitude"].values[0]
+    latitude = cell_chem_ds["latitude"].item()
     latbox = latitude_to_latbox(latitude)
     M = cell_chem_ds["M"].values[0]
-    P = cell_chem_ds["air_pressure"].values[0]
+    P = cell_chem_ds["air_pressure"].item()
     H2O = cell_chem_ds["H2O"].values[0]
     temp = cell_chem_ds["air_temperature"].values[0]
 
@@ -1037,41 +993,39 @@ def gen_boxm_orig_input(cell_chem_ds, job_id, inputs_dir):
                         "BENZENE", "TOLUENE", "OXYL", "C5H8", "H2O2", "HNO3", "C2H5CHO",
                         "CH3OH", "MEK", "CH3OOH", "PAN", "MPAN"]:
         
-        boxm_input.write(repr(cell_chem_ds["bg_chem"].sel(species=s).values[0]) + "\n")
+        boxm_input.write(repr(cell_chem_ds["bg_chem"].sel(species=s).item()) + "\n")
         
     boxm_input.close()
 
-def gen_zen_file(cell_chem_ds, job_id, inputs_dir):
+def gen_zen_file(cell_chem_ds, job_id):
     """Generate the ZEN file for the original box model."""
 
     # delete any existing input files
-    if pathlib.Path(f"{inputs_dir}/{job_id}/zen_{job_id}.txt").exists():
-            pathlib.Path(f"{inputs_dir}/{job_id}/zen_{job_id}.txt").unlink()
+    if pathlib.Path(f"inputs/{job_id}/zen_{job_id}.txt").exists():
+            pathlib.Path(f"inputs/{job_id}/zen_{job_id}.txt").unlink()
 
     # open file
-    zen_file = open(f"{inputs_dir}/{job_id}/zen_{job_id}.txt", "w")
+    zen_file = open(f"inputs/{job_id}/zen_{job_id}.txt", "w")
 
     for t, time in enumerate(cell_chem_ds["time"].values):
         zen_file.write(repr(cell_chem_ds["sza"].values[t]) + "\n")
 
     zen_file.close()
 
-def gen_emi_file(cell_chem_ds, job_id, inputs_dir):
+def gen_emi_file(cell_chem_ds, job_id):
     """Generate the EMI file for the original box model."""
 
-    for emi_species in cell_chem_ds["emi_species"].values:
-                
-        # delete any existing input files
-        if pathlib.Path(f"{inputs_dir}/{job_id}/emi_{emi_species}_{job_id}.txt").exists():
-                pathlib.Path(f"{inputs_dir}/{job_id}/emi_{emi_species}_{job_id}.txt").unlink()
+    # delete any existing input files
+    if pathlib.Path(f"inputs/{job_id}/emi_{job_id}.txt").exists():
+        pathlib.Path(f"inputs/{job_id}/emi_{job_id}.txt").unlink()
 
-        # open file
-        emi_species_file = open(f"{inputs_dir}/{job_id}/emi_{emi_species}_{job_id}.txt", "w")
+    # open file
+    emi_file = open(f"inputs/{job_id}/emi_{job_id}.txt", "w")
 
-        for t, time in enumerate(cell_chem_ds["time"].values):
-            emi_species_file.write(repr(cell_chem_ds["emi"].sel(emi_species=emi_species).values[t]) + "\n")
+    for t, time in enumerate(cell_chem_ds["time"].values):
+        emi_file.write(repr(cell_chem_ds["emi"].isel(time=t).values) + "\n")
 
-        emi_species_file.close()
+    emi_file.close()
 
 def latitude_to_latbox(latitude):
         # Map the latitude to the range 0-1
@@ -1105,46 +1059,125 @@ def get_pressure_level(alt):
 
         return idx
 
-def update_chem_ds(cell, chem_ds_stacked, job_id, outputs_dir):
-    ZEN_df = pd.read_csv(f"{outputs_dir}/{job_id}/ZEN.OUT", header=0,
+def update_chem_ds(cell_chem_ds, job_id):
+    sza_df = pd.read_csv(f"outputs/{job_id}/ZEN.OUT", header=0,
                         names=['TIME', 'ZEN'], dtype=np.float64)
         
-    J_df = pd.read_csv(f"{outputs_dir}/{job_id}/J.OUT", header=0,
+    J_df = pd.read_csv(f"outputs/{job_id}/J.OUT", header=0,
                         names=['TIME', 'J1', 'J2', 'J3', 'J4', 'J5', 'J6', 'J7', 'J8', 'J9', 'J10', 'J11', 'J12', 'J13','J14', 'J15', 'J16', 'J17', 'J18', 'J19', 'J20', 'J21', 'J22', 'J23', 'J24', 'J25', 'J26', 'J27', 'J28', 'J29', 'J30', 'J31', 'J32', 'J33', 'J34', 'J35', 'J36', 'J37', 'J38', 'J39', 'J40', 'J41', 'J42', 'J43', 'J44', 'J45', 'J46', 'J47', 'J48', 'J49', 'J50'], dtype=np.float64)
 
-    DJ_df = pd.read_csv(f"{outputs_dir}/{job_id}/DJ.OUT", header=0,
+    DJ_df = pd.read_csv(f"outputs/{job_id}/DJ.OUT", header=0,
                             names=['TIME', 'DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6', 'DJ7', 'DJ8', 'DJ9', 'DJ10', 'DJ11', 'DJ12', 'DJ13','DJ14', 'DJ15', 'DJ16', 'DJ17', 'DJ18', 'DJ19', 'DJ20', 'DJ21', 'DJ22', 'DJ23', 'DJ24', 'DJ25', 'DJ26', 'DJ27', 'DJ28', 'DJ29', 'DJ30', 'DJ31', 'DJ32', 'DJ33', 'DJ34', 'DJ35', 'DJ36', 'DJ37', 'DJ38', 'DJ39', 'DJ40', 'DJ41', 'DJ42', 'DJ43', 'DJ44', 'DJ45', 'DJ46', 'DJ47', 'DJ48', 'DJ49', 'DJ50'], dtype=np.float64)
 
-    RC_df = pd.read_csv(f"{outputs_dir}/{job_id}/RC.OUT", header=0,
+    RC_df = pd.read_csv(f"outputs/{job_id}/RC.OUT", header=0,
                         names=['TIME', 'RC1', 'RC2', 'RC3', 'RC4', 'RC5', 'RC6', 'RC7', 'RC8', 'RC9', 'RC10', 'RC11', 'RC12', 'RC13','RC14', 'RC15', 'RC16', 'RC17', 'RC18', 'RC19', 'RC20', 'RC21', 'RC22', 'RC23', 'RC24', 'RC25', 'RC26', 'RC27', 'RC28', 'RC29', 'RC30', 'RC31', 'RC32', 'RC33', 'RC34', 'RC35', 'RC36', 'RC37', 'RC38', 'RC39', 'RC40', 'RC41', 'RC42', 'RC43', 'RC44', 'RC45', 'RC46', 'RC47', 'RC48', 'RC49', 'RC50'], dtype=np.float64)
 
-    species = chem_ds_stacked["species"].values
+    # get species names
+    header_names = ['TIME'] + list(cell_chem_ds["species"].values)
 
-    # Prepend "TIME" to the species list
-    header_names = ['TIME'] + list(species)
-
-    Y_df = pd.read_csv(f"{outputs_dir}/{job_id}/Y.OUT", header=0,
+    Y_df = pd.read_csv(f"outputs/{job_id}/Y.OUT", header=0,
                             names=header_names, dtype=np.float64) 
-
-    # Update the chem_ds_stacked with the new data
-    # Update the J data
-    chem_ds_stacked["ZEN_orig"].loc[:] = ZEN_df["ZEN"].values * np.pi / 180
-
-    for pp, photol_params in enumerate(J_df.columns[1:6]):
-        self.boxm_ds["J_orig"].loc[:, pp] = J_df[photol_params].values
-
-    for pc, photol_coeffs in enumerate(DJ_df.columns[1:6]):
-        self.boxm_ds["DJ_orig"].loc[:, pc] = DJ_df[photol_coeffs].values
-
-    for tc, therm_coeffs in enumerate(RC_df.columns[1:6]):
-        self.boxm_ds["RC_orig"].loc[:, tc] = RC_df[therm_coeffs].values
-        
-    for s, species in enumerate(Y_df.columns[1:]):
-        self.boxm_ds["Y_orig"].loc[:, species] = Y_df[species].values
-     
     
-def output_to_nc(cell, job_id, outputs_dir):
+    # # Update the chem_ds_stacked with the new data
+    # Update zen data
+    cell_chem_ds["sza_orig"] = (["time"], da.zeros((cell_chem_ds.dims["time"])))
+    cell_chem_ds["sza_orig"].loc[:] = sza_df["ZEN"].values * np.pi / 180
 
+    cell_chem_ds["J_orig"] = (["time", "photol_params"], da.zeros((cell_chem_ds.dims["time"], 5)))
+    for pp, photol_params in enumerate(J_df.columns[1:6]):
+        cell_chem_ds["J_orig"].loc[:, pp] = J_df[photol_params].values
 
+    cell_chem_ds["DJ_orig"] = (["time", "photol_coeffs"], da.zeros((cell_chem_ds.dims["time"], 5)))
+    for pc, photol_coeffs in enumerate(DJ_df.columns[1:6]):
+        cell_chem_ds["DJ_orig"].loc[:, pc] = DJ_df[photol_coeffs].values
+
+    cell_chem_ds["RC_orig"] = (["time", "therm_coeffs"], da.zeros((cell_chem_ds.dims["time"], 5)))
+    for tc, therm_coeffs in enumerate(RC_df.columns[1:6]):
+        cell_chem_ds["RC_orig"].loc[:, tc] = RC_df[therm_coeffs].values
+        
+    cell_chem_ds["Y_orig"] = (["time", "species_out"], da.zeros((cell_chem_ds.dims["time"], cell_chem_ds.dims["species_out"])))
+    for s, species_out in enumerate(cell_chem_ds["species_out"].values):
+        cell_chem_ds["Y_orig"].loc[:, species_out] = Y_df[species_out].values
+     
+    return cell_chem_ds
+    
 # Data visualisation
 #def plot_heatmap(job_ids, sel_criteria)
+# fig1, ax1 = plt.subplots()
+# ax1.set_xticks(np.arange(chem["longitude"][0], chem["longitude"][-1], 0.05))
+# ax1.set_yticks(np.arange(chem["latitude"][0], chem["latitude"][-1], 0.05))
+
+# ts = 26
+
+# # Plot the heatmap
+# heatmap_data = (
+#     chem.Y.sel(species_out=0, time=pl.time[ts])
+#     .sel(level=178.6, method="nearest")
+#     .transpose("latitude", "longitude")
+# )
+# heatmap_data.plot(ax=ax1, cmap="summer")  # You can choose a colormap of your preference
+
+
+# # scat_fl = ax1.scatter(
+# #     fl["longitude"].loc[fl["time"] == pl["time"][ts]],
+# #     fl["latitude"].loc[fl["time"] == pl["time"][ts]],
+# #     s=5,
+# #     c="red",
+# #     label="Flight path",
+# # )
+
+# scat_pl = ax1.scatter(
+#     pl["longitude"].loc[pl["time"] == pl["time"][ts]],
+#     pl["latitude"].loc[pl["time"] == pl["time"][ts]],
+#     s=10e-2 * pl["width"].loc[pl["time"] == pl["time"][ts]],
+#     c="blue",
+#     label="Plume evolution",
+# )
+
+# ax1.legend(loc="upper left")
+# ax1.set_xlim([params["sim_params"]["lon_bounds"][0], params["sim_params"]["lon_bounds"][1]])
+# ax1.set_ylim([params["sim_params"]["lat_bounds"][0], params["sim_params"]["lat_bounds"][1]])
+# # plt.grid()
+# plt.show()
+
+# def anim_chem(self, var1, var2, level, resample_freq='2min'):
+#         """Animate the chemical concentrations."""
+#         fig, (ax, cbar_ax) = plt.subplots(
+#             1, 2, gridspec_kw={"width_ratios": (0.9, 0.05), "wspace": 0.2}, figsize=(12, 8)
+#         )
+
+#         if var1 == "Y":
+#             boxm_da = self.boxm_ds_unstacked[var1].sel(species=var2).sel(level=level, method="nearest")
+
+#         if var1 == "emi":
+#             boxm_da = self.boxm_ds_unstacked[var1].sel(emi_species=var2).sel(level=level, method="nearest")
+
+#         if var1 == "J":
+#             boxm_da = self.boxm_ds_unstacked[var1].sel(photol_params=var2).sel(level=level, method="nearest")
+
+#         if var1 == "DJ":
+#             boxm_da = self.boxm_ds_unstacked[var1].sel(photol_coeffs=var2).sel(level=level, method="nearest")
+
+#         if var1 == "RC":
+#             boxm_da = self.boxm_ds_unstacked[var1].sel(therm_coeffs=var2).sel(level=level, method="nearest")
+
+#         print(boxm_da)
+
+#         times = boxm_da["time"].values
+#         times_resampled = pd.to_datetime(times).to_series().resample(resample_freq).asfreq().dropna().index
+
+#         print(f"New number of frames: {len(times_resampled)}")
+
+#         def heatmap_func(t):
+#             ax.cla()
+#             ax.set_title(t)
+
+#             boxm_da.sel(time=t).transpose("latitude", "longitude").plot(
+#                 ax=ax, cbar_kwargs={"cax": cbar_ax}, add_colorbar=True, vmin=boxm_da.min(), vmax=boxm_da.max()
+#             )
+
+#         anim = FuncAnimation(fig, heatmap_func, frames=times_resampled, blit=False)
+
+#         filename = pathlib.Path(self.outputs + var1 + "_" + var2 + ".gif")
+
+#         anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
