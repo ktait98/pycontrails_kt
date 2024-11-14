@@ -20,7 +20,7 @@ fl_params = {
 # plume dispersion parameters
 plume_params = {
     "dt_integration": pd.Timedelta(minutes=2),  # integration time step
-    "max_age": pd.Timedelta(hours=1),  # maximum age of the plume
+    "max_age": pd.Timedelta(hours=2),  # maximum age of the plume
     "depth": 50.0,  # initial plume depth, [m]
     "width": 50.0,  # initial plume width, [m]
     "shear": 0.01,  # wind shear [1/s]
@@ -31,7 +31,7 @@ plume_params = {
 # chemistry sim parameters
 sim_params = {
     "t0_sim": pd.to_datetime("2022-01-20 12:00:00"),  # chemistry start time
-    "rt_sim": pd.Timedelta(hours=12),  # chemistry runtime
+    "rt_sim": pd.Timedelta(hours=24),  # chemistry runtime
     "ts_sim": pd.Timedelta(seconds=20),  # chemistry time step
     "lat_bounds": (0.0, 1.0),  # lat bounds [deg]
     "lon_bounds": (0.0, 1.0),  # lon bounds [deg]
@@ -47,7 +47,7 @@ sim_params = {
                             "HONO", "HO2", "OH",
                             "H2O2", "CO", "HCHO",
                             "CH4"
-                            ])
+                            ]),
 }
 
 gpat = GPAT(fl_params, plume_params, sim_params)

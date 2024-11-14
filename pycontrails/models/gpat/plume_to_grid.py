@@ -108,7 +108,6 @@ def plume_to_grid(
         )
 
         main_grid = _add_segment_to_main_grid(main_grid, segment_grid)
-    
 
     return main_grid
 

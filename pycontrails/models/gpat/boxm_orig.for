@@ -19,7 +19,7 @@ C-----------------------------------------------------------------------
       DOUBLE PRECISION EMI(9), EMIP(9)
       DOUBLE PRECISION RC(512),DJ(96),M,H2O,DTS,O2,FI,
      &                 A(17),B(17),DECL,XLHA,SEC,TIME,XZ,TV,PPB
-      DOUBLE PRECISION EB,EA,HFRAC(22),MOLWTHC(22),EMI(NC),DIL
+      DOUBLE PRECISION EB,EA,HFRAC(22),MOLWTHC(22),DIL
       DOUBLE PRECISION MICROGSA, MICROGNA, BGOAM, TEMP, NAV,N2
       DOUBLE PRECISION ECO0,ESO20,EPM0,EPM,EPOA,NAM,SAM
       DOUBLE PRECISION ENOX,EAVOC0,EAVOC,EBVOC0,EBVOC,EAFAC
@@ -133,20 +133,20 @@ C
      &inCH3OH, inMEK, inCH3OOH, inPAN, inMPAN, 
      &inFF, inT0, inA0, inV0, inKZ, inDTS
 
-      CHARACTER(LEN=100) :: PATH, JOBID
+      CHARACTER(LEN=100) :: PATH, JOBID, EMI_LINE
 C
       PATH='/home/ktait98/pycontrails_kt/pycontrails/models/gpat/'
 C
       CALL GETARG(1,JOBID)
 C
-      OPEN(8, FILE = TRIM(PATH)//'outputs/'//TRIM(JOBID)//'/Y_'//TRIM(JOBID)//'.OUT', STATUS = 'OLD') 
-      OPEN(9, FILE = TRIM(PATH)//'outputs/'//TRIM(JOBID)//'/ZEN_'//TRIM(JOBID)//'.OUT', STATUS = 'OLD')
-      OPEN(10, FILE = TRIM(PATH)//'outputs/'//TRIM(JOBID)//'/J_'//TRIM(JOBID)//'.OUT', STATUS = 'OLD')
-      OPEN(11, FILE = TRIM(PATH)//'outputs/'//TRIM(JOBID)//'/DJ_'//TRIM(JOBID)//'.OUT', STATUS = 'OLD')
-      OPEN(12, FILE = TRIM(PATH)//'outputs/'//TRIM(JOBID)//'/RC_'//TRIM(JOBID)//'.OUT', STATUS = 'OLD') 
-      OPEN(13, FILE = TRIM(PATH)//'inputs/'//TRIM(JOBID)//'/boxm_orig_input_'//TRIM(JOBID)//'.txt', STATUS = 'OLD')
-      OPEN(14, FILE = TRIM(PATH)//'inputs/'//TRIM(JOBID)//'/zen_'//TRIM(JOBID)//'.txt', STATUS = 'OLD')
-      OPEN(15, FILE = TRIM(PATH)//'outputs/'//TRIM(JOBID)//'emi_'//TRIM(JOBID)//'.txt', STATUS = 'OLD')
+      OPEN(8, FILE=TRIM(PATH)//'outputs/'//TRIM(JOBID)//'/Y_'//TRIM(JOBID)//'.OUT', STATUS = 'UNKNOWN')
+      OPEN(9, FILE=TRIM(PATH)//'outputs/'//TRIM(JOBID)//'/ZEN_'//TRIM(JOBID)//'.OUT', STATUS = 'OLD')
+      OPEN(10, FILE=TRIM(PATH)//'outputs/'//TRIM(JOBID)//'/J_'//TRIM(JOBID)//'.OUT', STATUS = 'OLD')
+      OPEN(11, FILE=TRIM(PATH)//'outputs/'//TRIM(JOBID)//'/DJ_'//TRIM(JOBID)//'.OUT', STATUS = 'OLD')
+      OPEN(12, FILE=TRIM(PATH)//'outputs/'//TRIM(JOBID)//'/RC_'//TRIM(JOBID)//'.OUT', STATUS = 'OLD')
+      OPEN(13, FILE=TRIM(PATH)//'inputs/'//TRIM(JOBID)//'/boxm_orig_input_'//TRIM(JOBID)//'.txt', STATUS = 'OLD')
+      OPEN(14, FILE=TRIM(PATH)//'inputs/'//TRIM(JOBID)//'/zen_'//TRIM(JOBID)//'.csv', STATUS = 'OLD')
+      OPEN(15, FILE=TRIM(PATH)//'outputs/'//TRIM(JOBID)//'emi_'//TRIM(JOBID)//'.csv', STATUS = 'OLD')
 
       READ(13, *) inDAY, inMONTH, inYEAR, inLEVEL, inLONG,
      &inLAT, inRUNTIME, inM, inP, inH2O, inTEMP, inNO2, inNO, 
@@ -298,6 +298,9 @@ C
 C
       TIME = TSTART
 C
+      DO 113 I=1,NC
+        EM(I) = 0.0
+C
 C      START INTEGRATION
 C
       NSTEP=0
@@ -318,16 +321,10 @@ C
       WRITE(9,521) TIME1,ZENNOW ! TEMP,COSX,SECX                      
 C
 C     Read emissions
-      READ(15, *) EMI(1)
-      READ(16, *) EMI(2)
-      READ(17, *) EMI(3)
-      READ(18, *) EMI(4)
-      READ(19, *) EMI(5)
-      READ(20, *) EMI(6)
-      READ(21, *) EMI(7)
-      READ(22, *) EMI(8)
-      READ(23, *) EMI(9)
+      READ(15, '(A)') EMI_LINE
 C
+      READ(EMI_LINE, *) EMI(1), EMI(2), EMI(3), EMI(4), EMI(5), EMI(6), EMI(7), EMI(8), EMI(9)
+      
 C Mass of organic particulate material             
 C -------------------------------------------------------------------
 C     
@@ -486,7 +483,7 @@ C-----------------------------------------------------------------------
 C-----------------------------------------------------------------------
       INTEGER NC,NR,NE,NIT,I,J,IZ
       PARAMETER(NC=220,NR=606,NE=14,NIT=6)
-      DOUBLE PRECISION EMI(9),EMIP(9),RO2,ZP(NC),Z(NC),ZRO2
+      DOUBLE PRECISION EM(NC),EMI(9),EMIP(9),RO2,ZP(NC),Z(NC),ZRO2
       DOUBLE PRECISION RC(512),DJ(96),D(NR),E(NE),H2O,M,O2,DTS
       DOUBLE PRECISION Y(NC),YP(NC),FL(NR)
       DOUBLE PRECISION P,L,L1,L2,L3,R1,R2,TIME1,KZ

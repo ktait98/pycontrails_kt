@@ -66,7 +66,7 @@ class SimParams(ModelParams):
     eastward_wind: float = 0.0 # m/s
     northward_wind: float = 0.0 # m/s
     lagrangian_tendency_of_air_pressure: float = 0.0 # m/s
-    species_in: np.array = np.array(["NO", "NO2", "CO"])
+    species_in: np.array = np.array(["NO"]) #, "NO2", "CO"])
     species_out: np.array = np.array(["O3", "NO2", "NO",
                                     "NO3", "N2O5", "HNO3",
                                     "HONO", "HO2", "OH",
@@ -125,6 +125,12 @@ class GPAT(Model):
             start=sim_params["t0_sim"],
             end=sim_params["t0_sim"] + sim_params["rt_sim"],
             freq=sim_params["ts_sim"],
+        )
+
+        self.total_volume = (
+            (self.lats_pl[-1] - self.lats_pl[0])
+            * (self.lons_pl[-1] - self.lons_pl[0])
+            * (self.alts[-1] - self.alts[0])
         )
 
         self.path = os.environ['PYCONTRAILSDIR'] + "models/gpat/"
@@ -508,6 +514,7 @@ class GPAT(Model):
     def plume_to_grid(self) -> MetDataset:
         """Aggregate plumes to an Eulerian grid for photochemical and microphysical processing."""
         plume_params = self.plume_params
+        fl = self.fl
         pl = self.pl
 
         # loop over time and plume property
@@ -524,28 +531,35 @@ class GPAT(Model):
         )
 
         if self.fl_params["n_ac"] >= 1:
+            
+            # define molar masses of species g/mol
+            mm = [30.01, 46.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
+            NA = 6.022e23  # Avogadro's number
+            bbox = (
+                self.lons[0],
+                self.lats[0],
+                self.lons[-1],
+                self.lats[-1],
+                self.alts[0],
+                self.alts[-1],
+            )
 
+            max_age = self.plume_params["max_age"]  # Define the maximum age for plume waypoints
+            bg_property_data = {property: 0 for property in emi["emi_species"].values}  # Placeholder for background emissions
+
+            
             for t, time in enumerate(pl["time"].unique()):
                 print("Processing time: ", time)
                 # create geovectordataset to store instantaneous plume data
                 plume_time_data = GeoVectorDataset(data=pl.loc[pl["time"] == time])
                 calc_continuous(plume_time_data)
 
-                # define molar masses of species g/mol
-                mm = [30.01, 46.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
-                NA = 6.022e23  # Avogadro's number
-                bbox = (
-                    self.lons[0],
-                    self.lats[0],
-                    self.lons[-1],
-                    self.lats[-1],
-                    self.alts[0],
-                    self.alts[-1],
-                )
+                # Find max age plume waypoints
+                max_age_segments = plume_time_data.dataframe.loc[plume_time_data.dataframe["age"] == max_age]
 
                 for p, property in enumerate(emi["emi_species"].values):
-                    
                     if property in self.sim_params["species_in"]:
+
                         # call contrails_to_hi_res_grid
                         plume_property_data = plume_to_grid(
                             time=time,
@@ -554,6 +568,12 @@ class GPAT(Model):
                             spatial_bbox=bbox,
                             spatial_grid_res=plume_params["hres_pl"],
                         )
+
+                        # add background emissions mass
+                        plume_property_data += bg_property_data[property]
+
+                        # now that aggregation is done, can add max age plumes to bg_property_data
+                        bg_property_data[property] += max_age_segments[property].sum() / (len(self.lons) * len(self.lats))
 
                         # convert mass to density [kg/m^3]
                         density = plume_property_data / (plume_params["vres_pl"] \
@@ -566,8 +586,17 @@ class GPAT(Model):
 
                         # find altitude index for flight level
                         alt = units.m_to_pl(self.fl_params["fl0_coords0"][2])
-                        time_slice = pl["time"]
-                        emi.loc[:, :, alt, time_slice, property] = plume 
+
+                        # find time index for time slice covering dt_integration
+                        if time < pl["time"].unique()[-1]:
+                            next_time = pl["time"].unique()[t + 1]
+                            time_slice = slice(time, next_time)
+                            emi.loc[:, :, alt, time_slice, property] = plume
+
+                        if time == pl["time"].unique()[-1]:
+                            end_time = emi["time"].max()
+                            time_slice = slice(time, end_time)
+                            emi.loc[:, :, alt, time_slice, property] = plume
 
         emi = MetDataset(xr.Dataset({"emi": emi}))
 
@@ -658,12 +687,12 @@ class GPAT(Model):
         """Convert the met, bg_chem, and emi datasets to boxm_ds.nc for use in the box model."""
 
         # Delete any existing netCDF files
-        if pathlib.Path(f"{self.inputs}/{self.job_id}/boxm_ds.nc").exists():
+        if pathlib.Path(f"{self.inputs}/boxm_ds.nc").exists():
             print("deleting boxm_ds.nc")
-            pathlib.Path(f"{self.inputs}/{self.job_id}/boxm_ds.nc").unlink()
+            pathlib.Path(f"{self.inputs}/boxm_ds.nc").unlink()
 
         # Convert DataFrames to Datasets and write to netCDF
-        self.boxm_ds_stacked.to_netcdf(f"{self.inputs}/{self.job_id}/boxm_ds.nc", mode="w")
+        self.boxm_ds_stacked.to_netcdf(f"{self.inputs}/boxm_ds.nc", mode="w")
 
     def do_boxm(self):
         """Run the box model in fortran using subprocess."""
@@ -673,7 +702,7 @@ class GPAT(Model):
         )
 
         # open nc file
-        self.boxm_ds = xr.open_dataset(f"{self.inputs}/{self.job_id}/boxm_ds.nc")
+        self.boxm_ds = xr.open_dataset(f"{self.inputs}/boxm_ds.nc")
 
     def unstack(self):
         """Unstack the box model dataset."""
@@ -693,7 +722,7 @@ class GPAT(Model):
         # # Compute the result to trigger the lazy evaluation
         self.boxm_ds_unstacked = self.boxm_ds_unstacked.compute()
 
-    
+
 # Functions used in GPAT Model
 def grab_species_num(species_out: np.array) -> np.array:
     """Grab the species numbers for the species of interest in output."""
@@ -846,6 +875,154 @@ def load_chem_ds(job_ids, outputs_dir):
         chemistry_data.append(ds)
     return xr.concat(chemistry_data, dim="job_id")
 
+
+# Data visualisation
+def plot_heatmap(job_id, jobs_df, fl_df, pl_df, chem_ds, **plot_params):
+    fig1, ax1 = plt.subplots()
+    ax1.set_xticks(np.arange(chem_ds["longitude"][0], chem_ds["longitude"][-1], 0.05))
+    ax1.set_yticks(np.arange(chem_ds["latitude"][0], chem_ds["latitude"][-1], 0.05))
+
+    params = jobs_df.loc[job_id]
+    fl_df_job = fl_df.loc[job_id]
+    pl_df_job = pl_df.loc[job_id]
+    chem_ds_job = chem_ds.sel(job_id=job_id)
+
+    print(f"ts: {plot_params['ts']}")
+    print(f"plume time: {pl_df_job['time'].iloc[plot_params['ts']]}")
+    print(f"chem time: {chem_ds_job["time"][plot_params["ts"]].item()}")
+
+    print(chem_ds_job)
+    # Plot the heatmap
+    heatmap_data = (
+        chem_ds_job["Y"].sel(species_out=plot_params['property'], time=pl_df_job["time"].iloc[plot_params["ts"]])
+        .sel(level=178.6, method="nearest")
+        .transpose("latitude", "longitude")
+    )
+    heatmap_data.plot(ax=ax1, cmap="summer")  # You can choose a colormap of your preference
+
+    scat_fl = ax1.scatter(
+        fl_df_job["longitude"].loc[fl_df_job["time"] == pl_df_job["time"].iloc[plot_params["ts"]]],
+        fl_df_job["latitude"].loc[fl_df_job["time"] == pl_df_job["time"].iloc[plot_params["ts"]]],
+        s=5,
+        c="red",
+        label="Flight path",
+    )
+
+    scat_pl = ax1.scatter(
+        pl_df_job["longitude"].loc[pl_df_job["time"] == pl_df_job["time"].iloc[plot_params["ts"]]],
+        pl_df_job["latitude"].loc[pl_df_job["time"] == pl_df_job["time"].iloc[plot_params["ts"]]],
+        s=10e-2 * pl_df_job["width"].loc[pl_df_job["time"] == pl_df_job["time"].iloc[plot_params["ts"]]],
+        c="blue",
+        label="Plume evolution",
+    )
+
+    ax1.legend(loc="upper left")
+    ax1.set_xlim([params["lon_bounds"][0], params["lon_bounds"][1]])
+    ax1.set_ylim([params["lat_bounds"][0], params["lat_bounds"][1]])
+    plt.grid()
+    plt.show()
+
+    # print(boxm_da)
+
+    # times = boxm_da["time"].values
+    # times_resampled = pd.to_datetime(times).to_series().resample(resample_freq).asfreq().dropna().index
+
+    # print(f"New number of frames: {len(times_resampled)}")
+
+    # def heatmap_func(t):
+    #     ax.cla()
+    #     ax.set_title(t)
+
+    #     boxm_da.sel(time=t).transpose("latitude", "longitude").plot(
+    #         ax=ax, cbar_kwargs={"cax": cbar_ax}, add_colorbar=True, vmin=boxm_da.min(), vmax=boxm_da.max()
+    #     )
+
+    # anim = FuncAnimation(fig, heatmap_func, frames=times_resampled, blit=False)
+
+    # filename = pathlib.Path(self.outputs + var1 + "_" + var2 + ".gif")
+
+    # anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
+
+def anim_chem(job_id, jobs_df, fl_df, pl_df, chem_ds, var1, var2, level, resample_freq='4min'):
+    """Animate the chemical concentrations with plume vector data."""
+    fig, (ax, cbar_ax) = plt.subplots(
+        1, 2, gridspec_kw={"width_ratios": (0.9, 0.05), "wspace": 0.2}, figsize=(12, 8)
+    )
+
+    params = jobs_df.loc[job_id]
+    fl_df_job = fl_df.loc[job_id]
+    pl_df_job = pl_df.loc[job_id]
+    chem_ds_job = chem_ds.sel(job_id=job_id)
+
+    if var1 == "Y":
+        boxm_da = chem_ds_job[var1].sel(species_out=var2).sel(level=level, method="nearest")
+
+    if var1 == "emi":
+        boxm_da = chem_ds_job[var1].sel(emi_species=var2).sel(level=level, method="nearest")
+
+    if var1 == "J":
+        boxm_da = chem_ds_job[var1].sel(photol_params=var2).sel(level=level, method="nearest")
+
+    if var1 == "DJ":
+        boxm_da = chem_ds_job[var1].sel(photol_coeffs=var2).sel(level=level, method="nearest")
+
+    if var1 == "RC":
+        boxm_da = chem_ds_job[var1].sel(therm_coeffs=var2).sel(level=level, method="nearest")
+
+    print(boxm_da)
+
+    times = boxm_da["time"].values
+    times_resampled = pd.to_datetime(times).to_series().resample(resample_freq).asfreq().dropna().index
+
+    print(f"New number of frames: {len(times_resampled)}")
+
+    # Initialize the first frame to set up the colorbar
+    initial_frame = times_resampled[0]
+    heatmap_data = boxm_da.sel(time=initial_frame).transpose("latitude", "longitude")
+    heatmap = heatmap_data.plot(ax=ax, cmap="Blues", add_colorbar=False)
+    cbar = plt.colorbar(heatmap, cax=cbar_ax)
+
+    def heatmap_func(t):
+        ax.cla()
+        ax.set_title(t)
+
+        heatmap_data = boxm_da.sel(time=t).transpose("latitude", "longitude")
+        heatmap = heatmap_data.plot(ax=ax, cmap="Blues", add_colorbar=False, vmin=boxm_da.min(), vmax=boxm_da.max())
+
+        # Update the plume vector data
+        fl_data = fl_df_job[fl_df_job["time"] == t]
+        pl_data = pl_df_job[pl_df_job["time"] == t]
+
+        # Plot the plume vector data
+        scat_fl = ax.scatter(
+            fl_data["longitude"],
+            fl_data["latitude"],
+            s=5,
+            c="red",
+            label="Flight path",
+        )
+
+        scat_pl = ax.scatter(
+            pl_data["longitude"],
+            pl_data["latitude"],
+            s=10e-2 * pl_data["width"],
+            c="blue",
+            label="Plume evolution",
+        )
+
+        ax.legend(loc="upper left")
+        ax.set_xlim([params["lon_bounds"][0], params["lon_bounds"][1]])
+        ax.set_ylim([params["lat_bounds"][0], params["lat_bounds"][1]])
+
+    anim = FuncAnimation(fig, heatmap_func, frames=times_resampled, blit=False)
+
+    filename = pathlib.Path(f"{var1}_{var2}_{job_id}.gif")
+
+    anim.save(filename, dpi=300, writer=PillowWriter(fps=10))
+
+    plt.show()
+
+
 # Validation
 def mc_test(job_id, jobs_df, fl_df, pl_df, chem_ds):
     """Check if mass is conserved in the box model."""
@@ -857,6 +1034,8 @@ def mc_test(job_id, jobs_df, fl_df, pl_df, chem_ds):
 
 
     # Initialize the dictionary
+    vecmass = {emi_species: [] for emi_species in chem_ds_job["emi_species"].values.tolist()}
+    gridmass = {emi_species: [] for emi_species in chem_ds_job["emi_species"].values.tolist()}
     mc = {emi_species: [] for emi_species in chem_ds_job["emi_species"].values.tolist()}
 
     # Constants
@@ -872,6 +1051,8 @@ def mc_test(job_id, jobs_df, fl_df, pl_df, chem_ds):
                 total_vector_mass = 0
                 total_grid_mass = 0
                 percent_mass_conserved = 0
+                vecmass[emi_species].append(total_vector_mass)
+                gridmass[emi_species].append(total_grid_mass)
                 mc[emi_species].append(percent_mass_conserved)
                 continue
             
@@ -882,19 +1063,9 @@ def mc_test(job_id, jobs_df, fl_df, pl_df, chem_ds):
 
             if time <= max_fl_time:
                 # Accumulate vector mass for all flights
-                
                 vector_mass = fl_snapshot[emi_species]
 
                 total_vector_mass += vector_mass.sum()
-
-            # Check if the plume age for a particular waypoint exceeds max_age
-            else:
-                
-                for waypoint in pl_snapshot["waypoint"].unique():
-
-                    if pl_snapshot[pl_snapshot["waypoint"] == waypoint]["age"].max() == params.loc["max_age"]:
-
-                        total_vector_mass -= pl_snapshot[pl_snapshot["waypoint"] == waypoint][emi_species].sum()
 
             # Grab plume mass from grid data
             grid_concs = chem_ds_job["emi"].sel(emi_species=emi_species, time=time).sel(level=178.6, method="nearest")
@@ -918,16 +1089,19 @@ def mc_test(job_id, jobs_df, fl_df, pl_df, chem_ds):
                 percent_mass_conserved = total_grid_mass / total_vector_mass * 100
                 
             # Append the percentage to the list in the dictionary
-            # mc[emi_species].append([time, total_vector_mass, total_grid_mass, percent_mass_conserved])
+            vecmass[emi_species].append(total_vector_mass)
+            gridmass[emi_species].append(total_grid_mass)
             mc[emi_species].append(percent_mass_conserved)
 
     # convert the dictionary to a DataFrame
+    vecmass = pd.DataFrame(vecmass, index=pl_df_job["time"].unique()[:-1], columns=chem_ds_job["emi_species"].values.tolist())
+    gridmass = pd.DataFrame(gridmass, index=pl_df_job["time"].unique()[:-1], columns=chem_ds_job["emi_species"].values.tolist())
     mc = pd.DataFrame(mc, index=pl_df_job["time"].unique()[:-1], columns=chem_ds_job["emi_species"].values.tolist())
 
     # Save the mass conservation data to a pickle file
     pd.to_pickle(mc, f"outputs/{job_id}/mc_{job_id}.pkl")
 
-    return mc
+    return vecmass, gridmass, mc
 
 def boxm_test(job_id, cell, chem_ds):
     """Run the box model for selected cells and job_id."""
@@ -949,11 +1123,11 @@ def boxm_test(job_id, cell, chem_ds):
     gen_emi_file(cell_chem_ds, job_id)
 
     # # calls fortran with input file and generates .OUT files
-    # subprocess.call(
-    #     ["boxm_orig"] + str(job_id)
-    # )
+    subprocess.call(
+        ["boxm_orig", str(job_id)]
+    )
 
-    # cell_chem_ds = update_chem_ds(cell_chem_ds, job_id, outputs_dir)
+    cell_chem_ds = update_chem_ds(cell_chem_ds, job_id)
 
     return cell_chem_ds
 
@@ -986,14 +1160,13 @@ def gen_boxm_orig_input(cell_chem_ds, job_id):
     H2O = cell_chem_ds["H2O"].values[0]
     temp = cell_chem_ds["air_temperature"].values[0]
 
-    boxm_input.write(repr(day) + "\n" + repr(month) + "\n" + repr(year) + "\n" + repr(level) + "\n" + repr(longbox) + "\n" + repr(latbox) + "\n" + repr(runtime) + "\n" + repr(M) + "\n" + repr(plevel) + "\n" + repr(H2O) + "\n" + repr(temp) + "\n")
-
+    boxm_input.write(f"{day}\n{month}\n{year}\n{level}\n{longbox}\n{latbox}\n{runtime}\n{M}\n{plevel}\n{H2O}\n{temp}\n")
     for s in ["NO2", "NO", "O3", "CO", "CH4", "HCHO", "CH3CHO", "CH3COCH3",
                         "C2H6", "C2H4", "C3H8", "C3H6", "C2H2", "NC4H10", "TBUT2ENE",
                         "BENZENE", "TOLUENE", "OXYL", "C5H8", "H2O2", "HNO3", "C2H5CHO",
                         "CH3OH", "MEK", "CH3OOH", "PAN", "MPAN"]:
         
-        boxm_input.write(repr(cell_chem_ds["bg_chem"].sel(species=s).item()) + "\n")
+        boxm_input.write(f"{cell_chem_ds["bg_chem"].sel(species=s).item()}\n")
         
     boxm_input.close()
 
@@ -1001,31 +1174,31 @@ def gen_zen_file(cell_chem_ds, job_id):
     """Generate the ZEN file for the original box model."""
 
     # delete any existing input files
-    if pathlib.Path(f"inputs/{job_id}/zen_{job_id}.txt").exists():
-            pathlib.Path(f"inputs/{job_id}/zen_{job_id}.txt").unlink()
+    zen_file_path = pathlib.Path(f"inputs/{job_id}/zen_{job_id}.csv")
+    if zen_file_path.exists():
+        zen_file_path.unlink()
 
-    # open file
-    zen_file = open(f"inputs/{job_id}/zen_{job_id}.txt", "w")
+    # Extract the sza data and convert it to a DataFrame
+    sza_data = cell_chem_ds["sza"].values
+    sza_df = pd.DataFrame(sza_data, columns=["sza"])
 
-    for t, time in enumerate(cell_chem_ds["time"].values):
-        zen_file.write(repr(cell_chem_ds["sza"].values[t]) + "\n")
-
-    zen_file.close()
+    # Write the DataFrame to a CSV file
+    sza_df.to_csv(zen_file_path, index=False, header=False)
 
 def gen_emi_file(cell_chem_ds, job_id):
     """Generate the EMI file for the original box model."""
 
     # delete any existing input files
-    if pathlib.Path(f"inputs/{job_id}/emi_{job_id}.txt").exists():
-        pathlib.Path(f"inputs/{job_id}/emi_{job_id}.txt").unlink()
+    emi_file_path = pathlib.Path(f"inputs/{job_id}/emi_{job_id}.csv")
+    if emi_file_path.exists():
+        emi_file_path.unlink()
 
-    # open file
-    emi_file = open(f"inputs/{job_id}/emi_{job_id}.txt", "w")
+    # Extract the emi data and convert it to a DataFrame
+    emi_data = cell_chem_ds["emi"].values
+    emi_df = pd.DataFrame(emi_data, columns=cell_chem_ds["emi_species"].values)
 
-    for t, time in enumerate(cell_chem_ds["time"].values):
-        emi_file.write(repr(cell_chem_ds["emi"].isel(time=t).values) + "\n")
-
-    emi_file.close()
+    # Write the DataFrame to a CSV file
+    emi_df.to_csv(emi_file_path, index=False, header=False)
 
 def latitude_to_latbox(latitude):
         # Map the latitude to the range 0-1
@@ -1101,83 +1274,4 @@ def update_chem_ds(cell_chem_ds, job_id):
      
     return cell_chem_ds
     
-# Data visualisation
-#def plot_heatmap(job_ids, sel_criteria)
-# fig1, ax1 = plt.subplots()
-# ax1.set_xticks(np.arange(chem["longitude"][0], chem["longitude"][-1], 0.05))
-# ax1.set_yticks(np.arange(chem["latitude"][0], chem["latitude"][-1], 0.05))
 
-# ts = 26
-
-# # Plot the heatmap
-# heatmap_data = (
-#     chem.Y.sel(species_out=0, time=pl.time[ts])
-#     .sel(level=178.6, method="nearest")
-#     .transpose("latitude", "longitude")
-# )
-# heatmap_data.plot(ax=ax1, cmap="summer")  # You can choose a colormap of your preference
-
-
-# # scat_fl = ax1.scatter(
-# #     fl["longitude"].loc[fl["time"] == pl["time"][ts]],
-# #     fl["latitude"].loc[fl["time"] == pl["time"][ts]],
-# #     s=5,
-# #     c="red",
-# #     label="Flight path",
-# # )
-
-# scat_pl = ax1.scatter(
-#     pl["longitude"].loc[pl["time"] == pl["time"][ts]],
-#     pl["latitude"].loc[pl["time"] == pl["time"][ts]],
-#     s=10e-2 * pl["width"].loc[pl["time"] == pl["time"][ts]],
-#     c="blue",
-#     label="Plume evolution",
-# )
-
-# ax1.legend(loc="upper left")
-# ax1.set_xlim([params["sim_params"]["lon_bounds"][0], params["sim_params"]["lon_bounds"][1]])
-# ax1.set_ylim([params["sim_params"]["lat_bounds"][0], params["sim_params"]["lat_bounds"][1]])
-# # plt.grid()
-# plt.show()
-
-# def anim_chem(self, var1, var2, level, resample_freq='2min'):
-#         """Animate the chemical concentrations."""
-#         fig, (ax, cbar_ax) = plt.subplots(
-#             1, 2, gridspec_kw={"width_ratios": (0.9, 0.05), "wspace": 0.2}, figsize=(12, 8)
-#         )
-
-#         if var1 == "Y":
-#             boxm_da = self.boxm_ds_unstacked[var1].sel(species=var2).sel(level=level, method="nearest")
-
-#         if var1 == "emi":
-#             boxm_da = self.boxm_ds_unstacked[var1].sel(emi_species=var2).sel(level=level, method="nearest")
-
-#         if var1 == "J":
-#             boxm_da = self.boxm_ds_unstacked[var1].sel(photol_params=var2).sel(level=level, method="nearest")
-
-#         if var1 == "DJ":
-#             boxm_da = self.boxm_ds_unstacked[var1].sel(photol_coeffs=var2).sel(level=level, method="nearest")
-
-#         if var1 == "RC":
-#             boxm_da = self.boxm_ds_unstacked[var1].sel(therm_coeffs=var2).sel(level=level, method="nearest")
-
-#         print(boxm_da)
-
-#         times = boxm_da["time"].values
-#         times_resampled = pd.to_datetime(times).to_series().resample(resample_freq).asfreq().dropna().index
-
-#         print(f"New number of frames: {len(times_resampled)}")
-
-#         def heatmap_func(t):
-#             ax.cla()
-#             ax.set_title(t)
-
-#             boxm_da.sel(time=t).transpose("latitude", "longitude").plot(
-#                 ax=ax, cbar_kwargs={"cax": cbar_ax}, add_colorbar=True, vmin=boxm_da.min(), vmax=boxm_da.max()
-#             )
-
-#         anim = FuncAnimation(fig, heatmap_func, frames=times_resampled, blit=False)
-
-#         filename = pathlib.Path(self.outputs + var1 + "_" + var2 + ".gif")
-
-#         anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
