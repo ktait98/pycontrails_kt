@@ -15,7 +15,7 @@ C-----------------------------------------------------------------------
       PARAMETER(NC=220,NR=606,NE=14)
       DOUBLE PRECISION PI, R
       DOUBLE PRECISION ENDTIME,TSTART,TSTORE
-      DOUBLE PRECISION Y(NC),YP(NC),EM(NC),D(NR),E(NE),FL(NR)
+      DOUBLE PRECISION Y(NC),YP(NC),EM(NC),D(NR),FL(NR)
       DOUBLE PRECISION EMI(9), EMIP(9)
       DOUBLE PRECISION RC(512),DJ(96),M,H2O,DTS,O2,FI,
      &                 A(17),B(17),DECL,XLHA,SEC,TIME,XZ,TV,PPB
@@ -25,8 +25,8 @@ C-----------------------------------------------------------------------
       DOUBLE PRECISION ENOX,EAVOC0,EAVOC,EBVOC0,EBVOC,EAFAC
       DOUBLE PRECISION ECO, ESO2, ENOX0,RINJECT(25),SECYEAR
       DOUBLE PRECISION THETA, SECX, COSX, POAM, OM, MOM
-      DOUBLE PRECISION PRESSURE,SOA,XYEAR,TIME1,Z(NC),ZP(NC),ZRO2
-      DOUBLE PRECISION L(70),MM(70),NN(70),J(70),K,JS1,KZ
+      DOUBLE PRECISION PRESSURE,SOA,XYEAR,TIME1,Z(NC),ZRO2
+      DOUBLE PRECISION L(70),MM(70),NN(70),J(70),K,JS1
       DOUBLE PRECISION RO2, BR01, RADIAN,LONGRAD,COSZEN, ZENNOW
       INTEGER MONTHDAY(12),IDAY, TOTALDAY,IMONTH
         CHARACTER*20  CNAMES(NC)
@@ -125,7 +125,7 @@ C
 C
       INTEGER:: inDAY, inMONTH, inYEAR, inLEVEL, inLONG,
      &inLAT, PP, S, TC, PC
-C
+
       REAL :: inRUNTIME, inM, inP, inH2O, inTEMP, inNO2, inNO, inO3, 
      &inCO, inCH4, inHCHO, inCH3CHO, inCH3COCH3, inC2H6, inC2H4,
      &inC3H8, inC3H6, inC2H2, inNC4H10, inTBUT2ENE, inBENZENE,
@@ -133,21 +133,19 @@ C
      &inCH3OH, inMEK, inCH3OOH, inPAN, inMPAN, 
      &inFF, inT0, inA0, inV0, inKZ, inDTS
 
-      CHARACTER(LEN=100) :: PATH, JOBID, EMI_LINE
+      CHARACTER(LEN=100) :: PATH, EMI_LINE
 C
       PATH='/home/ktait98/pycontrails_kt/pycontrails/models/gpat/'
 C
-      CALL GETARG(1,JOBID)
+      OPEN(8, FILE=TRIM(PATH)//'outputs/Y.OUT', STATUS = 'UNKNOWN') 
+      OPEN(9, FILE=TRIM(PATH)//'outputs/ZEN.OUT', STATUS = 'UNKNOWN')
+      OPEN(10, FILE=TRIM(PATH)//'outputs/J.OUT', STATUS = 'UNKNOWN')
+      OPEN(11, FILE=TRIM(PATH)//'outputs/DJ.OUT', STATUS = 'UNKNOWN')
+      OPEN(12, FILE=TRIM(PATH)//'outputs/RC.OUT', STATUS = 'UNKNOWN') 
+      OPEN(13, FILE=TRIM(PATH)//'inputs/boxm_input.txt', STATUS='OLD')
+      OPEN(14, FILE=TRIM(PATH)//'inputs/zen.csv', STATUS = 'UNKNOWN')
+      OPEN(15, FILE=TRIM(PATH)//'inputs/emi.csv', STATUS = 'UNKNOWN')
 C
-      OPEN(8, FILE=TRIM(PATH)//'outputs/'//TRIM(JOBID)//'/Y_'//TRIM(JOBID)//'.OUT', STATUS = 'UNKNOWN')
-      OPEN(9, FILE=TRIM(PATH)//'outputs/'//TRIM(JOBID)//'/ZEN_'//TRIM(JOBID)//'.OUT', STATUS = 'OLD')
-      OPEN(10, FILE=TRIM(PATH)//'outputs/'//TRIM(JOBID)//'/J_'//TRIM(JOBID)//'.OUT', STATUS = 'OLD')
-      OPEN(11, FILE=TRIM(PATH)//'outputs/'//TRIM(JOBID)//'/DJ_'//TRIM(JOBID)//'.OUT', STATUS = 'OLD')
-      OPEN(12, FILE=TRIM(PATH)//'outputs/'//TRIM(JOBID)//'/RC_'//TRIM(JOBID)//'.OUT', STATUS = 'OLD')
-      OPEN(13, FILE=TRIM(PATH)//'inputs/'//TRIM(JOBID)//'/boxm_orig_input_'//TRIM(JOBID)//'.txt', STATUS = 'OLD')
-      OPEN(14, FILE=TRIM(PATH)//'inputs/'//TRIM(JOBID)//'/zen_'//TRIM(JOBID)//'.csv', STATUS = 'OLD')
-      OPEN(15, FILE=TRIM(PATH)//'outputs/'//TRIM(JOBID)//'emi_'//TRIM(JOBID)//'.csv', STATUS = 'OLD')
-
       READ(13, *) inDAY, inMONTH, inYEAR, inLEVEL, inLONG,
      &inLAT, inRUNTIME, inM, inP, inH2O, inTEMP, inNO2, inNO, 
      &inO3, inCO, inCH4, inHCHO, inCH3CHO, inCH3COCH3, inC2H6, inC2H4, 
@@ -214,6 +212,16 @@ C
      &'RC47', 'RC48', 'RC49', 'RC50'
 C
 C
+C      WRITE(9,520)'TIME',' NO2',' NO',' O3',' CO',' CH4',' HCHO',
+C     &' HNO3',' PAN'
+C
+C      WRITE(*, *) inDAY, inMONTH, inYEAR, inLEVEL, inLONG,
+C     &inLAT, inRUNTIME,inM, inH2O, inTEMP, inNO2,inNO, inO3, inCO, 
+C     &inCH4, inHCHO, inCH3CHO, inCH3COCH3, inC2H6, inC2H4,inC3H8,
+C     &inC3H6, inC2H2, inNC4H10, inTBUT2ENE, inBENZENE,
+C     &inTOLUENE, inOXYL, inC5H8, inH2O2, inHNO3, inC2H5CHO,
+C     &inCH3OH, inMEK, inCH3OOH, inPAN, inMPAN    
+            
       inDTS = 20.0      
       EAFAC = 1.0
       TSTART = 3600*12.0
@@ -298,33 +306,38 @@ C
 C
       TIME = TSTART
 C
-      DO 113 I=1,NC
-        EM(I) = 0.0
+C     EMISSIONS 
 C
+      DO 113 I=1,NC
+        EM(I)=0.0
+  113 CONTINUE
+C                                       
 C      START INTEGRATION
 C
       NSTEP=0
   35  CONTINUE                                                     
 C
       TIME1 = TIME - TSTART
-C
+c 	CALL ZENITH(COSZEN,TIME,FYEAR,SECYEAR,ZENNOW,
+c      & LONGRAD,LATRAD,XYEAR) 
+
       READ(14, *) ZENNOW
 
       ZENNOW = ZENNOW * 180 / (4.00E+00*ATAN(1.00E+00))
 C                                                                     
 C Correct solar zenith angle if zenith angle is negative              
 C          
+C                                                                     
       IF(ZENNOW.LT.0) THEN                                              
       ZENNOW = 1.80E+02 + ZENNOW                                        
       END IF
+
+      WRITE(9,521) TIME1,ZENNOW ! TEMP,COSX,SECX                  
 C
-      WRITE(9,521) TIME1,ZENNOW ! TEMP,COSX,SECX                      
+      READ(15,'(A)') EMI_LINE
+      READ(EMI_LINE,*) EMI(1),EMI(2),EMI(3),EMI(4),EMI(5),EMI(6),
+     &EMI(7),EMI(8),EMI(9)
 C
-C     Read emissions
-      READ(15, '(A)') EMI_LINE
-C
-      READ(EMI_LINE, *) EMI(1), EMI(2), EMI(3), EMI(4), EMI(5), EMI(6), EMI(7), EMI(8), EMI(9)
-      
 C Mass of organic particulate material             
 C -------------------------------------------------------------------
 C     
@@ -394,7 +407,6 @@ C
 C      reset previous concentrations at current value
       DO 10  I = 1,NC
         YP(I)=Y(I)
-        ZP(I)=Z(I)
   10  CONTINUE
 C
       IF (TSTORE.LT.1.0.OR.(TIME-TSTORE).EQ.inDTS) THEN
@@ -412,7 +424,7 @@ C
 C	
       ENDIF	
 C
-      CALL DERIV(RC,FL,E,DJ,H2O,M,O2,YP,Y,DTS,TIME1,RO2,ZP,Z,KZ,EMI,EMIP)
+      CALL DERIV(RC,FL,DJ,H2O,M,O2,YP,Y,DTS,TIME1,RO2,EMI,EMIP)
 C
       EMIP(:) = EMI(:)
 C
@@ -457,7 +469,7 @@ C
   521 FORMAT(ES9.3, 1(",", ES15.6))
       END
 C
-      SUBROUTINE DERIV(RC,FL,E,DJ,H2O,M,O2,YP,Y,DTS,TIME1,RO2,ZP,Z,KZ,EMI,EMIP)
+      SUBROUTINE DERIV(RC,FL,DJ,H2O,M,O2,YP,Y,DTS,TIME1,RO2,EMI,EMIP)
 C-----------------------------------------------------------------------
 C     PURPOSE:    -  TO EVALUATE CONCENTRATIONS Y FROM RATE COEFFICIENTS
 C                    J VALUES AND EMISSION RATES.
@@ -483,15 +495,15 @@ C-----------------------------------------------------------------------
 C-----------------------------------------------------------------------
       INTEGER NC,NR,NE,NIT,I,J,IZ
       PARAMETER(NC=220,NR=606,NE=14,NIT=6)
-      DOUBLE PRECISION EM(NC),EMI(9),EMIP(9),RO2,ZP(NC),Z(NC),ZRO2
-      DOUBLE PRECISION RC(512),DJ(96),D(NR),E(NE),H2O,M,O2,DTS
-      DOUBLE PRECISION Y(NC),YP(NC),FL(NR)
-      DOUBLE PRECISION P,L,L1,L2,L3,R1,R2,TIME1,KZ
+      DOUBLE PRECISION EM(NC),RO2,ZRO2
+      DOUBLE PRECISION RC(512),DJ(96),D(NR),H2O,M,O2,DTS
+      DOUBLE PRECISION Y(NC),YP(NC),FL(NR),EMI(9),EMIP(9)
+      DOUBLE PRECISION P,L,L1,L2,L3,R1,R2,TIME1
       CHARACTER*6  CNAMES(NC)
 C
+      YP(:) = Y(:)
 C       iteration start
-       DO 1000 I=1,NIT
-C
+      DO 1000 I=1,NIT
 C
       IF (EMI(1) == 0) THEN
             EMIP(1) = 0
@@ -537,7 +549,6 @@ C
             EMIP(9) = 0
       ENDIF
       YP(61) = Y(61) - EMIP(9) + EMI(9)
-C
 C
 C          O1D              Y(  1)
       P = EM(  1)
@@ -4809,6 +4820,7 @@ C
 C     Reaction (510) P3442 = ANHY                                                       
          RC(510) = KOUT3442 
 C
+
 C
   999 RETURN
       END

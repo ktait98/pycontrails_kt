@@ -14,7 +14,7 @@ fl_params = {
     "fl0_heading": 45.0,  # deg
     "fl0_coords0": (0.1, 0.125, 12500),  # lat, lon, alt [deg, deg, m]
     "sep_dist": (5000, 2000, 0),  # dx, dy, dz [m]
-    "n_ac": 1,  # number of aircraft
+    "n_ac": 0,  # number of aircraft
 }
 
 # plume dispersion parameters
@@ -31,7 +31,7 @@ plume_params = {
 # chemistry sim parameters
 sim_params = {
     "t0_sim": pd.to_datetime("2022-01-20 12:00:00"),  # chemistry start time
-    "rt_sim": pd.Timedelta(hours=24),  # chemistry runtime
+    "rt_sim": pd.Timedelta(days=5),  # chemistry runtime
     "ts_sim": pd.Timedelta(seconds=20),  # chemistry time step
     "lat_bounds": (0.0, 1.0),  # lat bounds [deg]
     "lon_bounds": (0.0, 1.0),  # lon bounds [deg]

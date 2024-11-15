@@ -146,7 +146,7 @@ class GPAT(Model):
         sim_params["species_out_num"] = grab_species_num(sim_params["species_out"])
 
         # Make output dir unique to jobid
-        os.mkdir(self.path + "inputs/" + self.job_id)
+        #os.mkdir(self.path + "inputs/" + self.job_id)
         os.mkdir(self.path + "outputs/" + self.job_id)
         
         self.inputs = self.path + "inputs/"
@@ -338,19 +338,22 @@ class GPAT(Model):
 
     def gen_bg_chem(self) -> xr.Dataset:
         """Generate background chemistry data."""
-        sim_params = self.sim_params
-
         month = self.times[0].month
 
         bg_chem = xr.open_dataset(
             self.inputs + "species.nc", engine='netcdf4'
         ).sel(month=month - 1)
+        print(bg_chem["bg_chem"])
         # for s in [1, 2, 3, 5, 7, 9, 10, 13, 15, 16, 17, 18, 19, 20, 22, 24, 26, 27, 29, 31, 33, 35, 36, 37, 38, 40, 41, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 60, 62, 63, 65, 66, 68, 69, 70, 72, 74, 75, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 102, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 199, 200, 201, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219]:
-        #     bg_chem[:, :, :, s-1] = 0
+            
+        #     bg_chem.isel(species=s-1)[:,:,:] = 0
+        #     print(bg_chem.isel(species=s-1)[:,:,:])
+
+        for s in [1, 2, 3, 5, 7, 9, 10, 13, 15, 16, 17, 18, 19, 20, 22, 24, 26, 27, 29, 31, 33, 35, 36, 37, 38, 40, 41, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 60, 62, 63, 65, 66, 68, 69, 70, 72, 74, 75, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 102, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 199, 200, 201, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219]:
+            bg_chem.bg_chem[:,:,:,s-1] = 0
 
         bg_chem = bg_chem * 1e09  # convert mixing ratio to ppb
         
-
         # downselect and interpolate bg_chem to the simulation grid
         bg_chem = bg_chem.interp(
             longitude=self.lons, latitude=self.lats, level=self.levels
@@ -1116,31 +1119,31 @@ def boxm_test(job_id, cell, chem_ds):
     cell_chem_ds = chem_ds_stacked.sel(job_id=job_id, cell=cell)
 
     # create input file for original boxm
-    gen_boxm_orig_input(cell_chem_ds, job_id)
+    gen_boxm_orig_input(cell_chem_ds)
 
-    gen_zen_file(cell_chem_ds, job_id)
+    gen_zen_file(cell_chem_ds)
 
-    gen_emi_file(cell_chem_ds, job_id)
+    gen_emi_file(cell_chem_ds)
 
     # # calls fortran with input file and generates .OUT files
     subprocess.call(
-        ["boxm_orig", str(job_id)]
+        ["/home/ktait98/pycontrails_kt/pycontrails/models/gpat/boxm_orig2"]
     )
 
-    cell_chem_ds = update_chem_ds(cell_chem_ds, job_id)
+    cell_chem_ds = update_chem_ds(cell_chem_ds)
 
     return cell_chem_ds
 
-def gen_boxm_orig_input(cell_chem_ds, job_id):
+def gen_boxm_orig_input(cell_chem_ds):
     
     """Generate the input file for the original box model."""
 
     # delete any existing input files
-    if pathlib.Path(f"inputs/{job_id}/boxm_orig_input_{job_id}.txt").exists():
-            pathlib.Path(f"inputs/{job_id}/boxm_orig_input_{job_id}.txt").unlink()
+    if pathlib.Path(f"inputs/boxm_input.txt").exists():
+            pathlib.Path(f"inputs/boxm_input.txt").unlink()
 
     # open file
-    boxm_input = open(f"inputs/{job_id}/boxm_orig_input_{job_id}.txt", "w")
+    boxm_input = open(f"inputs/boxm_input.txt", "w")
 
     start_time = pd.to_datetime(cell_chem_ds["time"].values[0])
     end_time = pd.to_datetime(cell_chem_ds["time"].values[-1])
@@ -1170,11 +1173,11 @@ def gen_boxm_orig_input(cell_chem_ds, job_id):
         
     boxm_input.close()
 
-def gen_zen_file(cell_chem_ds, job_id):
+def gen_zen_file(cell_chem_ds):
     """Generate the ZEN file for the original box model."""
 
     # delete any existing input files
-    zen_file_path = pathlib.Path(f"inputs/{job_id}/zen_{job_id}.csv")
+    zen_file_path = pathlib.Path(f"inputs/zen.csv")
     if zen_file_path.exists():
         zen_file_path.unlink()
 
@@ -1185,11 +1188,11 @@ def gen_zen_file(cell_chem_ds, job_id):
     # Write the DataFrame to a CSV file
     sza_df.to_csv(zen_file_path, index=False, header=False)
 
-def gen_emi_file(cell_chem_ds, job_id):
+def gen_emi_file(cell_chem_ds):
     """Generate the EMI file for the original box model."""
 
     # delete any existing input files
-    emi_file_path = pathlib.Path(f"inputs/{job_id}/emi_{job_id}.csv")
+    emi_file_path = pathlib.Path(f"inputs/emi.csv")
     if emi_file_path.exists():
         emi_file_path.unlink()
 
@@ -1232,23 +1235,23 @@ def get_pressure_level(alt):
 
         return idx
 
-def update_chem_ds(cell_chem_ds, job_id):
-    sza_df = pd.read_csv(f"outputs/{job_id}/ZEN.OUT", header=0,
+def update_chem_ds(cell_chem_ds):
+    sza_df = pd.read_csv(f"outputs/ZEN.OUT", header=0,
                         names=['TIME', 'ZEN'], dtype=np.float64)
         
-    J_df = pd.read_csv(f"outputs/{job_id}/J.OUT", header=0,
+    J_df = pd.read_csv(f"outputs/J.OUT", header=0,
                         names=['TIME', 'J1', 'J2', 'J3', 'J4', 'J5', 'J6', 'J7', 'J8', 'J9', 'J10', 'J11', 'J12', 'J13','J14', 'J15', 'J16', 'J17', 'J18', 'J19', 'J20', 'J21', 'J22', 'J23', 'J24', 'J25', 'J26', 'J27', 'J28', 'J29', 'J30', 'J31', 'J32', 'J33', 'J34', 'J35', 'J36', 'J37', 'J38', 'J39', 'J40', 'J41', 'J42', 'J43', 'J44', 'J45', 'J46', 'J47', 'J48', 'J49', 'J50'], dtype=np.float64)
 
-    DJ_df = pd.read_csv(f"outputs/{job_id}/DJ.OUT", header=0,
+    DJ_df = pd.read_csv(f"outputs/DJ.OUT", header=0,
                             names=['TIME', 'DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6', 'DJ7', 'DJ8', 'DJ9', 'DJ10', 'DJ11', 'DJ12', 'DJ13','DJ14', 'DJ15', 'DJ16', 'DJ17', 'DJ18', 'DJ19', 'DJ20', 'DJ21', 'DJ22', 'DJ23', 'DJ24', 'DJ25', 'DJ26', 'DJ27', 'DJ28', 'DJ29', 'DJ30', 'DJ31', 'DJ32', 'DJ33', 'DJ34', 'DJ35', 'DJ36', 'DJ37', 'DJ38', 'DJ39', 'DJ40', 'DJ41', 'DJ42', 'DJ43', 'DJ44', 'DJ45', 'DJ46', 'DJ47', 'DJ48', 'DJ49', 'DJ50'], dtype=np.float64)
 
-    RC_df = pd.read_csv(f"outputs/{job_id}/RC.OUT", header=0,
+    RC_df = pd.read_csv(f"outputs/RC.OUT", header=0,
                         names=['TIME', 'RC1', 'RC2', 'RC3', 'RC4', 'RC5', 'RC6', 'RC7', 'RC8', 'RC9', 'RC10', 'RC11', 'RC12', 'RC13','RC14', 'RC15', 'RC16', 'RC17', 'RC18', 'RC19', 'RC20', 'RC21', 'RC22', 'RC23', 'RC24', 'RC25', 'RC26', 'RC27', 'RC28', 'RC29', 'RC30', 'RC31', 'RC32', 'RC33', 'RC34', 'RC35', 'RC36', 'RC37', 'RC38', 'RC39', 'RC40', 'RC41', 'RC42', 'RC43', 'RC44', 'RC45', 'RC46', 'RC47', 'RC48', 'RC49', 'RC50'], dtype=np.float64)
 
     # get species names
     header_names = ['TIME'] + list(cell_chem_ds["species"].values)
 
-    Y_df = pd.read_csv(f"outputs/{job_id}/Y.OUT", header=0,
+    Y_df = pd.read_csv(f"outputs/Y.OUT", header=0,
                             names=header_names, dtype=np.float64) 
     
     # # Update the chem_ds_stacked with the new data
