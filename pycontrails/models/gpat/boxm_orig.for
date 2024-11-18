@@ -16,17 +16,16 @@ C-----------------------------------------------------------------------
       DOUBLE PRECISION PI, R
       DOUBLE PRECISION ENDTIME,TSTART,TSTORE
       DOUBLE PRECISION Y(NC),YP(NC),EM(NC),D(NR),FL(NR)
-      DOUBLE PRECISION EMI(9), EMIP(9)
       DOUBLE PRECISION RC(512),DJ(96),M,H2O,DTS,O2,FI,
      &                 A(17),B(17),DECL,XLHA,SEC,TIME,XZ,TV,PPB
-      DOUBLE PRECISION EB,EA,HFRAC(22),MOLWTHC(22),DIL
+      DOUBLE PRECISION EB,EA,HFRAC(22),MOLWTHC(22),DIL,EMI(9),EMIP(9)
       DOUBLE PRECISION MICROGSA, MICROGNA, BGOAM, TEMP, NAV,N2
       DOUBLE PRECISION ECO0,ESO20,EPM0,EPM,EPOA,NAM,SAM
       DOUBLE PRECISION ENOX,EAVOC0,EAVOC,EBVOC0,EBVOC,EAFAC
       DOUBLE PRECISION ECO, ESO2, ENOX0,RINJECT(25),SECYEAR
       DOUBLE PRECISION THETA, SECX, COSX, POAM, OM, MOM
-      DOUBLE PRECISION PRESSURE,SOA,XYEAR,TIME1,Z(NC),ZRO2
-      DOUBLE PRECISION L(70),MM(70),NN(70),J(70),K,JS1
+      DOUBLE PRECISION PRESSURE,SOA,XYEAR,TIME1,Z(NC),ZP(NC),ZRO2
+      DOUBLE PRECISION L(70),MM(70),NN(70),J(70),K,JS1,KZ
       DOUBLE PRECISION RO2, BR01, RADIAN,LONGRAD,COSZEN, ZENNOW
       INTEGER MONTHDAY(12),IDAY, TOTALDAY,IMONTH
         CHARACTER*20  CNAMES(NC)
@@ -130,21 +129,24 @@ C
      &inCO, inCH4, inHCHO, inCH3CHO, inCH3COCH3, inC2H6, inC2H4,
      &inC3H8, inC3H6, inC2H2, inNC4H10, inTBUT2ENE, inBENZENE,
      &inTOLUENE, inOXYL, inC5H8, inH2O2, inHNO3, inC2H5CHO, 
-     &inCH3OH, inMEK, inCH3OOH, inPAN, inMPAN, 
-     &inFF, inT0, inA0, inV0, inKZ, inDTS
+     &inCH3OH, inMEK, inCH3OOH, inPAN, inMPAN, inEMI_NO2, inEMI_CO, 
+     &inEMI_HCHO, inEMI_CH3CHO, inEMI_CH3COCH3, inEMI_C2H6, inEMI_C2H4, 
+     &inEMI_C3H8, inEMI_C3H6, inEMI_C2H2, inEMI_BENZENE, inEMI_TOLUENE, 
+     &inEMI_C2H5CHO, inFF, inT0, inA0, inV0, inKZ, inDTS
 
-      CHARACTER(LEN=100) :: PATH, EMI_LINE
+      CHARACTER(LEN=200) :: PATH, EMI_LINE
 C
       PATH='/home/ktait98/pycontrails_kt/pycontrails/models/gpat/'
 C
-      OPEN(8, FILE=TRIM(PATH)//'outputs/Y.OUT', STATUS = 'UNKNOWN') 
-      OPEN(9, FILE=TRIM(PATH)//'outputs/ZEN.OUT', STATUS = 'UNKNOWN')
-      OPEN(10, FILE=TRIM(PATH)//'outputs/J.OUT', STATUS = 'UNKNOWN')
-      OPEN(11, FILE=TRIM(PATH)//'outputs/DJ.OUT', STATUS = 'UNKNOWN')
-      OPEN(12, FILE=TRIM(PATH)//'outputs/RC.OUT', STATUS = 'UNKNOWN') 
-      OPEN(13, FILE=TRIM(PATH)//'inputs/boxm_input.txt', STATUS='OLD')
-      OPEN(14, FILE=TRIM(PATH)//'inputs/zen.csv', STATUS = 'UNKNOWN')
-      OPEN(15, FILE=TRIM(PATH)//'inputs/emi.csv', STATUS = 'UNKNOWN')
+      OPEN(7, FILE=TRIM(PATH)//'outputs/BACKITNE.OUT',STATUS='UNKNOWN')
+      OPEN(8, FILE = TRIM(PATH)//'outputs/Y.OUT', STATUS = 'UNKNOWN') 
+      OPEN(9, FILE = TRIM(PATH)//'outputs/ZEN.OUT', STATUS = 'UNKNOWN')
+      OPEN(10, FILE = TRIM(PATH)//'outputs/J.OUT', STATUS = 'UNKNOWN')
+      OPEN(11, FILE = TRIM(PATH)//'outputs/DJ.OUT', STATUS = 'UNKNOWN')
+      OPEN(12, FILE = TRIM(PATH)//'outputs/RC.OUT', STATUS = 'UNKNOWN') 
+      OPEN(13, FILE=TRIM(PATH)//'inputs/boxm_input.txt',STATUS = 'OLD')
+      OPEN(14, FILE = TRIM(PATH)//'inputs/zen.csv', STATUS = 'OLD')
+      OPEN(15, FILE=TRIM(PATH)//'inputs/emi.csv', STATUS='OLD')
 C
       READ(13, *) inDAY, inMONTH, inYEAR, inLEVEL, inLONG,
      &inLAT, inRUNTIME, inM, inP, inH2O, inTEMP, inNO2, inNO, 
@@ -210,18 +212,7 @@ C
      &'RC31', 'RC32', 'RC33', 'RC34', 'RC35', 'RC36', 'RC37','RC38',
      &'RC39', 'RC40', 'RC41', 'RC42', 'RC43', 'RC44', 'RC45', 'RC46',
      &'RC47', 'RC48', 'RC49', 'RC50'
-C
-C
-C      WRITE(9,520)'TIME',' NO2',' NO',' O3',' CO',' CH4',' HCHO',
-C     &' HNO3',' PAN'
-C
-C      WRITE(*, *) inDAY, inMONTH, inYEAR, inLEVEL, inLONG,
-C     &inLAT, inRUNTIME,inM, inH2O, inTEMP, inNO2,inNO, inO3, inCO, 
-C     &inCH4, inHCHO, inCH3CHO, inCH3COCH3, inC2H6, inC2H4,inC3H8,
-C     &inC3H6, inC2H2, inNC4H10, inTBUT2ENE, inBENZENE,
-C     &inTOLUENE, inOXYL, inC5H8, inH2O2, inHNO3, inC2H5CHO,
-C     &inCH3OH, inMEK, inCH3OOH, inPAN, inMPAN    
-            
+C            
       inDTS = 20.0      
       EAFAC = 1.0
       TSTART = 3600*12.0
@@ -234,7 +225,7 @@ C     INITIALISATION
         RC(I)=0.0
 	  FL(I)=0.0
   203 CONTINUE
-      DO 202 I=1,9
+      DO 202 I=1,NC
         EMI(I)=0.0
         EMIP(I)=0.0
   202 CONTINUE
@@ -265,6 +256,7 @@ C
       YEAR        = inYEAR                                                                   
       TOTALDAY = 0
 C
+C
       DO 69 I = 1,IMONTH-1                                                    
         TOTALDAY = TOTALDAY + MONTHDAY(I)                                                    
    69 CONTINUE 
@@ -273,7 +265,6 @@ C
 C
       DO 205 I=1,NC
         Y(I)=0.0
-        Z(I)=0.0
   205 CONTINUE 
 C
       Y(4)  = inNO2*PPB      ! NO2
@@ -332,11 +323,7 @@ C
       ZENNOW = 1.80E+02 + ZENNOW                                        
       END IF
 
-      WRITE(9,521) TIME1,ZENNOW ! TEMP,COSX,SECX                  
-C
-      READ(15,'(A)') EMI_LINE
-      READ(EMI_LINE,*) EMI(1),EMI(2),EMI(3),EMI(4),EMI(5),EMI(6),
-     &EMI(7),EMI(8),EMI(9)
+      WRITE(9,521) TIME1,ZENNOW ! TEMP,COSX,SECX                      
 C
 C Mass of organic particulate material             
 C -------------------------------------------------------------------
@@ -402,15 +389,23 @@ C
         J(I)=1.0E-30 
 	END DO
       END IF
-C                
+      DO 200 I = 1,9
+        EMIP(I)=EMI(I)
+  200 CONTINUE   
+C        
+      READ(15, '(A)') EMI_LINE
+      READ(EMI_LINE, *) EMI(1), EMI(2), EMI(3), EMI(4), EMI(5), EMI(6),
+     &EMI(7), EMI(8), EMI(9)
+      PRINT *, EMI(1)
 C
-C      reset previous concentrations at current value
+C     reset previous concentrations at current value
       DO 10  I = 1,NC
         YP(I)=Y(I)
   10  CONTINUE
 C
+C
       IF (TSTORE.LT.1.0.OR.(TIME-TSTORE).EQ.inDTS) THEN
-C      WRITE(6,*)TIME1
+C
 C
       WRITE(10,517) TIME1,(J(PP), PP=1,50)
 C
@@ -418,15 +413,12 @@ C
 C	
 	TSTORE=TIME
 	CALL PHOTOL(J,DJ,BR01)
-      
 C
 	WRITE(11,517) TIME1,(DJ(PC),PC=1,50)
 C	
       ENDIF	
 C
       CALL DERIV(RC,FL,DJ,H2O,M,O2,YP,Y,DTS,TIME1,RO2,EMI,EMIP)
-C
-      EMIP(:) = EMI(:)
 C
   30  CONTINUE
 C      end of iteration
@@ -495,60 +487,39 @@ C-----------------------------------------------------------------------
 C-----------------------------------------------------------------------
       INTEGER NC,NR,NE,NIT,I,J,IZ
       PARAMETER(NC=220,NR=606,NE=14,NIT=6)
-      DOUBLE PRECISION EM(NC),RO2,ZRO2
+      DOUBLE PRECISION EM(NC),RO2,ZP(NC),Z(NC),ZRO2
       DOUBLE PRECISION RC(512),DJ(96),D(NR),H2O,M,O2,DTS
-      DOUBLE PRECISION Y(NC),YP(NC),FL(NR),EMI(9),EMIP(9)
-      DOUBLE PRECISION P,L,L1,L2,L3,R1,R2,TIME1
+      DOUBLE PRECISION Y(NC),YP(NC),FL(NR)
+      DOUBLE PRECISION P,L,L1,L2,L3,R1,R2,TIME1,KZ
+      DOUBLE PRECISION EMI(9),EMIP(9)
       CHARACTER*6  CNAMES(NC)
 C
-      YP(:) = Y(:)
 C       iteration start
-      DO 1000 I=1,NIT
+       DO 1000 I=1,NIT
 C
-      IF (EMI(1) == 0) THEN
-            EMIP(1) = 0
-      ENDIF
-      YP(8) = Y(8) - EMIP(1) + EMI(1)
 C
-      IF (EMI(2) == 0) THEN
-            EMIP(2) = 0
-      ENDIF
-      YP(4) = Y(4) - EMIP(2) + EMI(2)
+c       YP(8) = Y(8) - EMIP(1) + EMI(1)
+c C
+c       YP(4) = Y(4) - EMIP(2) + EMI(2)
+c C
+c       YP(11) = Y(11) - EMIP(3) + EMI(3)
+c C
+c       YP(39) = Y(39) - EMIP(4) + EMI(4)
+c C
+c       YP(42) = Y(42) - EMIP(5) + EMI(5)
+c C
+c       YP(30) = Y(30) - EMIP(6) + EMI(6)
+c C
+c       YP(32) = Y(32) - EMIP(7) + EMI(7)
+c C
+c       YP(59) = Y(59) - EMIP(8) + EMI(8)
+c C
+c       YP(61) = Y(61) - EMIP(9) + EMI(9)
 C
-      IF (EMI(3) == 0) THEN
-            EMIP(3) = 0
-      ENDIF
-      YP(11) = Y(11) - EMIP(3) + EMI(3)
 C
-      IF (EMI(4) == 0) THEN
-            EMIP(4) = 0
-      ENDIF
-      YP(39) = Y(39) - EMIP(4) + EMI(4)
-C
-      IF (EMI(5) == 0) THEN
-            EMIP(5) = 0
-      ENDIF
-      YP(42) = Y(42) - EMIP(5) + EMI(5)
-C
-      IF (EMI(6) == 0) THEN
-            EMIP(6) = 0
-      ENDIF
-      YP(30) = Y(30) - EMIP(6) + EMI(6)
-C
-      IF (EMI(7) == 0) THEN
-            EMIP(7) = 0
-      ENDIF
-      YP(32) = Y(32) - EMIP(7) + EMI(7)
-C
-      IF (EMI(8) == 0) THEN
-            EMIP(8) = 0
-      ENDIF
-      YP(59) = Y(59) - EMIP(8) + EMI(8)
-C
-      IF (EMI(9) == 0) THEN
-            EMIP(9) = 0
-      ENDIF
-      YP(61) = Y(61) - EMIP(9) + EMI(9)
+C      This section written automatically by MECH5GEN
+C from the file reducedchem2
+C      with 606 equations and219 species.
 C
 C          O1D              Y(  1)
       P = EM(  1)

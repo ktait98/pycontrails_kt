@@ -12,9 +12,12 @@ import xarray as xr
 import dask.array as da
 import yaml
 import pickle
+import time
+import shutil
 from pyproj import Geod
 import scipy.stats as stats
 import matplotlib.pyplot as plt
+from dask.distributed import Client
 from matplotlib.animation import FuncAnimation, PillowWriter
 import subprocess
 from pycontrails.core import Flight, GeoVectorDataset, MetDataArray, MetDataset, models
@@ -52,6 +55,7 @@ class PlumeParams(ModelParams):
     shear: float = 0.01 # wind shear [1/s]
     hres_pl: float = 0.01 # horizontal resolution of the plume, [deg]
     vres_pl: float = 500 # vertical resolution of the plume [m]
+    n_slices: int = 10 # number of slices
 
 class SimParams(ModelParams):
     """Default simulation parameters"""
@@ -73,6 +77,7 @@ class SimParams(ModelParams):
                                     "H2O2", "H2O", "CO",
                                     "CH4", "C2H6", "C3H8",
                                     "C2H4", "C3H6"])
+    job_id: str = None
 
 class GPAT(Model):
     """Gridded Plume Analysis Tool (GPAT).
@@ -135,22 +140,45 @@ class GPAT(Model):
 
         self.path = os.environ['PYCONTRAILSDIR'] + "models/gpat/"
 
-        try:
-            self.job_id = os.environ['SLURM_JOB_ID']
-        except KeyError:
-            # If SLURM_JOB_ID is not found, generate a random number as job ID
-            self.job_id = str(random.randint(100000, 999999))
+        if sim_params["job_id"] is None:
+            try:
+                self.job_id = os.environ['SLURM_JOB_ID']
+            except KeyError:
+                # If SLURM_JOB_ID is not found, generate a random number as job ID
+                self.job_id = str(random.randint(100000, 999999))
 
-        sim_params["job_id"] = self.job_id
+        else:
+            self.job_id = sim_params["job_id"]
+
         sim_params["date_created"] = pd.Timestamp.now()
         sim_params["species_out_num"] = grab_species_num(sim_params["species_out"])
 
         # Make output dir unique to jobid
         #os.mkdir(self.path + "inputs/" + self.job_id)
-        os.mkdir(self.path + "outputs/" + self.job_id)
+        # Define the directory path
+        output_dir = self.path + "outputs/" + self.job_id
+
+        # Remove the directory and its contents if it exists
+        if os.path.exists(output_dir):
+            shutil.rmtree(output_dir)
+
+        # Create the directory
+        os.makedirs(output_dir)
         
         self.inputs = self.path + "inputs/"
         self.outputs = self.path + "outputs/" + self.job_id + "/"
+
+        self.runtimes = {
+            "traj_gen": None,
+            "gen_met": None,
+            "bg_chem": None,
+            "ac_perf": None,
+            "emissions": None,
+            "sim_plumes": None,
+            "plume_to_grid": None,
+            "run_cc": None,
+            "run_boxm": None,
+        }
 
         all_params = {
             "fl_params": fl_params,
@@ -168,32 +196,50 @@ class GPAT(Model):
         """Run the GPAT model."""
 
         # Generate formation flight trajectory points
+        start_time = time.process_time()
         self.fl = self.traj_gen()
+        self.runtimes["traj_gen"] = time.process_time() - start_time
 
         # Generate meteorological data
+        start_time = time.process_time()
         self.met = self.gen_met()
+        self.runtimes["gen_met"] = time.process_time() - start_time
 
-        # # Generate background chemistry data
+        # Generate background chemistry data
+        start_time = time.process_time()
         self.bg_chem = self.gen_bg_chem()
+        self.runtimes["bg_chem"] = time.process_time() - start_time
 
         # Calculate aircraft performance using PS Model
+        start_time = time.process_time()
         self.fl = self.ac_perf()
+        self.runtimes["ac_perf"] = time.process_time() - start_time
 
         # Estimate emissions using Pycontrails Emissions Model
+        start_time = time.process_time()
         self.fl = self.emissions()
+        self.runtimes["emissions"] = time.process_time() - start_time
 
         # Simulate plume dispersion/advection using Pycontrails Dry Advection Model
+        start_time = time.process_time()
         self.fl, self.pl = self.sim_plumes()
+        self.runtimes["sim_plumes"] = time.process_time() - start_time
 
         # Aggregate plumes to an Eulerian grid for photochemical and microphysical processing
+        start_time = time.process_time()
         self.emi = self.plume_to_grid()
+        self.runtimes["plume_to_grid"] = time.process_time() - start_time
 
-        # # Run Contrail Model
-        # # self.contrail = self.run_cc()
+        # Run COCIP
+        start_time = time.process_time()
+        # self.contrail = self.run_cc()
+        self.runtimes["run_cc"] = time.process_time() - start_time
 
         # Run BOXM
+        start_time = time.process_time()
         self.chem = self.run_boxm()
-        
+        self.runtimes["run_boxm"] = time.process_time() - start_time
+
         self.gen_outputs()
 
     # Model methods
@@ -435,7 +481,7 @@ class GPAT(Model):
         fl = self.fl
 
         # Create a new dictionary excluding hres_pl and vres_pl to input to dry advection model
-        filtered_plume_params = {key: value for key, value in plume_params.items() if key not in {"hres_pl", "vres_pl"}}
+        filtered_plume_params = {key: value for key, value in plume_params.items() if key not in {"hres_pl", "vres_pl", "n_slices"}}
 
         dry_adv = DryAdvection(met, **filtered_plume_params)
 
@@ -473,6 +519,7 @@ class GPAT(Model):
                     "flight_id",
                     "waypoint",
                     "fuel_flow",
+                    "fuel_burn",
                     "true_airspeed",
                     "CO2",
                     "H2O",
@@ -570,6 +617,7 @@ class GPAT(Model):
                             var_name=property,
                             spatial_bbox=bbox,
                             spatial_grid_res=plume_params["hres_pl"],
+                            n_slices=plume_params["n_slices"],
                         )
 
                         # add background emissions mass
@@ -631,6 +679,10 @@ class GPAT(Model):
 
     def gen_outputs(self):
 
+        print("Generating outputs...")
+        # Add job runtime for all methods
+        self.all_params["runtime"] = self.runtimes
+        
         # Save to pickle file
         with open(self.outputs + "params_" + self.job_id + ".pkl", 'wb') as pkl_file:
             pickle.dump(self.all_params, pkl_file)
@@ -642,8 +694,9 @@ class GPAT(Model):
         self.pl.to_pickle(self.outputs + "pl_" + self.job_id + ".pkl")
 
         # Save the box model dataset to netCDF file
+        print("Saving chem dataset to netCDF file...")
         self.chem.to_netcdf(self.outputs + "chem_" + self.job_id + ".nc")
-
+        print("Done!")
 
 # Methods for running the box model
 
@@ -668,13 +721,13 @@ class GPAT(Model):
             species_out_num = self.sim_params["species_out_num"]
             )
 
-        self.boxm_ds["J"] = (["time", "level", "longitude", "latitude", "photol_params"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 5)))
+        self.boxm_ds["J"] = (["time", "level", "longitude", "latitude", "photol_params"], da.zeros((self.boxm_ds.sizes["time"], self.boxm_ds.sizes["level"], self.boxm_ds.sizes["longitude"], self.boxm_ds.sizes["latitude"], 5)))
 
-        self.boxm_ds["DJ"] = (["time", "level", "longitude", "latitude", "photol_coeffs"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 5)))
+        self.boxm_ds["DJ"] = (["time", "level", "longitude", "latitude", "photol_coeffs"], da.zeros((self.boxm_ds.sizes["time"], self.boxm_ds.sizes["level"], self.boxm_ds.sizes["longitude"], self.boxm_ds.sizes["latitude"], 5)))
 
-        self.boxm_ds["RC"] = (["time", "level", "longitude", "latitude", "therm_coeffs"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], 5)))
+        self.boxm_ds["RC"] = (["time", "level", "longitude", "latitude", "therm_coeffs"], da.zeros((self.boxm_ds.sizes["time"], self.boxm_ds.sizes["level"], self.boxm_ds.sizes["longitude"], self.boxm_ds.sizes["latitude"], 5)))
 
-        self.boxm_ds["Y"] = (["time", "level", "longitude", "latitude", "species_out"], da.zeros((self.boxm_ds.dims["time"], self.boxm_ds.dims["level"], self.boxm_ds.dims["longitude"], self.boxm_ds.dims["latitude"], len(self.sim_params["species_out"]))))
+        self.boxm_ds["Y"] = (["time", "level", "longitude", "latitude", "species_out"], da.zeros((self.boxm_ds.sizes["time"], self.boxm_ds.sizes["level"], self.boxm_ds.sizes["longitude"], self.boxm_ds.sizes["latitude"], len(self.sim_params["species_out"]))))
 
     def stack(self):
         """Stack boxm_ds to flatten and get cell numbers out."""
@@ -700,6 +753,7 @@ class GPAT(Model):
     def do_boxm(self):
         """Run the box model in fortran using subprocess."""
 
+        # Run the box model
         subprocess.call(
             [self.path + "boxm"]
         )
@@ -709,21 +763,25 @@ class GPAT(Model):
 
     def unstack(self):
         """Unstack the box model dataset."""
-
+        print("Chunking the dataset")
         # Convert the dataset to a Dask dataset
         self.boxm_ds = self.boxm_ds.chunk({'cell': 100})  # Adjust chunk size based on your memory
 
+        print("Set coords")
         # Convert 'level', 'lat', and 'lon' to coordinates
         self.boxm_ds_unstacked = self.boxm_ds.set_coords(['level', 'longitude', 'latitude'])
 
+        print("Set index")
         # Create a multi-index for the 'cell' dimension
         self.boxm_ds_unstacked = self.boxm_ds_unstacked.set_index(cell=['level', 'longitude', 'latitude'])
 
+        print("Unstack the dataset")
         # Unstack the dataset
         self.boxm_ds_unstacked = self.boxm_ds_unstacked.unstack("cell")
 
+        print("Compute the result")
         # # Compute the result to trigger the lazy evaluation
-        self.boxm_ds_unstacked = self.boxm_ds_unstacked.compute()
+        #self.boxm_ds_unstacked = self.boxm_ds_unstacked.compute()
 
 
 # Functions used in GPAT Model
@@ -840,6 +898,9 @@ def filter_jobs_df(jobs_df, criteria):
         if isinstance(value, tuple) and len(value) == 2:
             # Range filter
             filtered_df = filtered_df[(filtered_df[key] >= value[0]) & (filtered_df[key] <= value[1])]
+        elif key == "job_id":
+            # Filter by index
+            filtered_df = filtered_df[filtered_df.index == value]
         else:
             # Exact match filter
             filtered_df = filtered_df[filtered_df[key] == value]
@@ -1061,8 +1122,6 @@ def mc_test(job_id, jobs_df, fl_df, pl_df, chem_ds):
             
             previous_time = pl_df_job["time"].unique()[ts-1]
             fl_snapshot = fl_df_job[fl_df_job["time"] == previous_time]
-            pl_snapshot = pl_df_job[pl_df_job["time"] == previous_time]
-
 
             if time <= max_fl_time:
                 # Accumulate vector mass for all flights
@@ -1127,7 +1186,7 @@ def boxm_test(job_id, cell, chem_ds):
 
     # # calls fortran with input file and generates .OUT files
     subprocess.call(
-        ["/home/ktait98/pycontrails_kt/pycontrails/models/gpat/boxm_orig2"]
+        ["/home/ktait98/pycontrails_kt/pycontrails/models/gpat/boxm_orig"]
     )
 
     cell_chem_ds = update_chem_ds(cell_chem_ds)
@@ -1256,22 +1315,22 @@ def update_chem_ds(cell_chem_ds):
     
     # # Update the chem_ds_stacked with the new data
     # Update zen data
-    cell_chem_ds["sza_orig"] = (["time"], da.zeros((cell_chem_ds.dims["time"])))
+    cell_chem_ds["sza_orig"] = (["time"], da.zeros((cell_chem_ds.sizes["time"])))
     cell_chem_ds["sza_orig"].loc[:] = sza_df["ZEN"].values * np.pi / 180
 
-    cell_chem_ds["J_orig"] = (["time", "photol_params"], da.zeros((cell_chem_ds.dims["time"], 5)))
+    cell_chem_ds["J_orig"] = (["time", "photol_params"], da.zeros((cell_chem_ds.sizes["time"], 5)))
     for pp, photol_params in enumerate(J_df.columns[1:6]):
         cell_chem_ds["J_orig"].loc[:, pp] = J_df[photol_params].values
 
-    cell_chem_ds["DJ_orig"] = (["time", "photol_coeffs"], da.zeros((cell_chem_ds.dims["time"], 5)))
+    cell_chem_ds["DJ_orig"] = (["time", "photol_coeffs"], da.zeros((cell_chem_ds.sizes["time"], 5)))
     for pc, photol_coeffs in enumerate(DJ_df.columns[1:6]):
         cell_chem_ds["DJ_orig"].loc[:, pc] = DJ_df[photol_coeffs].values
 
-    cell_chem_ds["RC_orig"] = (["time", "therm_coeffs"], da.zeros((cell_chem_ds.dims["time"], 5)))
+    cell_chem_ds["RC_orig"] = (["time", "therm_coeffs"], da.zeros((cell_chem_ds.sizes["time"], 5)))
     for tc, therm_coeffs in enumerate(RC_df.columns[1:6]):
         cell_chem_ds["RC_orig"].loc[:, tc] = RC_df[therm_coeffs].values
         
-    cell_chem_ds["Y_orig"] = (["time", "species_out"], da.zeros((cell_chem_ds.dims["time"], cell_chem_ds.dims["species_out"])))
+    cell_chem_ds["Y_orig"] = (["time", "species_out"], da.zeros((cell_chem_ds.sizes["time"], cell_chem_ds.sizes["species_out"])))
     for s, species_out in enumerate(cell_chem_ds["species_out"].values):
         cell_chem_ds["Y_orig"].loc[:, species_out] = Y_df[species_out].values
      

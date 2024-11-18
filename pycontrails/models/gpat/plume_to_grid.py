@@ -22,6 +22,7 @@ def plume_to_grid(
     var_name: str,
     spatial_bbox: tuple[float, float, float, float] = (-180.0, -90.0, 180.0, 90.0),
     spatial_grid_res: float = 0.05,
+    n_slices: int = 5
 ) -> xr.DataArray:
     r"""
     Aggregate plume segments to a high-resolution longitude-latitude grid.
@@ -104,7 +105,7 @@ def plume_to_grid(
             plume_segment, 
             var_name=var_name, 
             spatial_grid_res=spatial_grid_res,
-            n_slices=5
+            n_slices=n_slices
         )
 
         main_grid = _add_segment_to_main_grid(main_grid, segment_grid)
