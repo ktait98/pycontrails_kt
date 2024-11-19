@@ -2,7 +2,7 @@
 
 import numpy as np
 import pandas as pd
-from pycontrails.models.gpat.gpat import GPAT
+from pycontrails.models.gpat.gpat import GPAT, parse_args, update_fl_params_from_args, update_plume_params_from_args, update_sim_params_from_args
 from dataclasses import asdict
 
 # flight trajectory parameters
@@ -77,4 +77,3 @@ if sim_params["run_gpat"]:
 else:
     print("GPAT simulation is not run.")
     print(f"Job ID is : {sim_params["job_id"]}")
-    
