@@ -56,15 +56,16 @@ sim_params = {
                 f"{fl_params['sep_dist'][1]}_"
                 f"{plume_params['n_slices']}_"
                 f"{plume_params['max_age'].components.hours}_"
-                f"{plume_params['dt_integration'].components.hours}")
+                f"{plume_params['dt_integration'].components.hours}_"
+                f"{plume_params["hres_pl"]}")
 }
 ```
 ## Params to vary
 - fl_params["n_ac"]: [1, 2, 3, 5, 10]
 
-- fl_params["sep_dist"][0]: [100, 1000, 2000, 5000, 10000] # long. sep. min. dist. [m]
+- fl_params["sep_dist"][0]: [100, 1000, 2000, 5000, 10000] # dx [m]
 
-- fl_params["sep_dist"][1]: [0, 100, 1000] # lat. sep. min. dist. [m]
+- fl_params["sep_dist"][1]: [0, 100, 1000] # dy [m]
 
 - plume_params["n_slices"]: [5, 10, 20, 50, 100] # no. of gaussian slices
 

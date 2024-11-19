@@ -17,7 +17,7 @@ import shutil
 from pyproj import Geod
 import scipy.stats as stats
 import matplotlib.pyplot as plt
-from dask.distributed import Client
+import argparse
 from matplotlib.animation import FuncAnimation, PillowWriter
 import subprocess
 from pycontrails.core import Flight, GeoVectorDataset, MetDataArray, MetDataset, models
@@ -28,7 +28,7 @@ from pycontrails.models.dry_advection import DryAdvection
 from pycontrails.models.gpat.plume_to_grid import plume_to_grid
 from pycontrails.models.cocip import contrails_to_hi_res_grid
 from pycontrails.physics import geo, thermo, units, constants
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Tuple
 import pathlib
 
@@ -106,7 +106,17 @@ class GPAT(Model):
             ):
         super().__init__()
 
+        args = parse_args()
 
+        update_fl_params_from_args(fl_params, args)
+        print("FlParams:", asdict(fl_params))
+
+        update_plume_params_from_args(plume_params, args)
+        print("PlumeParams:", asdict(plume_params))
+        
+        sim_params = SimParams()
+        update_sim_params_from_args(sim_params, args)
+        print("SimParams:", asdict(sim_params))        
 
         # Generate the grid
         self.lats_pl = np.arange(
@@ -403,7 +413,7 @@ class GPAT(Model):
         # downselect and interpolate bg_chem to the simulation grid
         bg_chem = bg_chem.interp(
             longitude=self.lons, latitude=self.lats, level=self.levels
-    )
+        )
 
         return bg_chem
 
@@ -748,7 +758,7 @@ class GPAT(Model):
             pathlib.Path(f"{self.inputs}/boxm_ds.nc").unlink()
 
         # Convert DataFrames to Datasets and write to netCDF
-        self.boxm_ds_stacked.to_netcdf(f"{self.inputs}/boxm_ds.nc", mode="w")
+        self.boxm_ds_stacked.to_netcdf(f"{self.outputs}/boxm_ds.nc", mode="w")
 
     def do_boxm(self):
         """Run the box model in fortran using subprocess."""
@@ -1337,3 +1347,112 @@ def update_chem_ds(cell_chem_ds):
     return cell_chem_ds
     
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Overwrite parameters from command line")
+    
+    # FlParams arguments
+    parser.add_argument("--t0_fl", type=str, help="Flight start time")
+    parser.add_argument("--rt_fl", type=int, help="Flight run time in minutes")
+    parser.add_argument("--ts_fl", type=int, help="Flight time step in minutes")
+    parser.add_argument("--ac_type", type=str, help="Aircraft type")
+    parser.add_argument("--fl0_speed", type=float, help="Flight speed in m/s")
+    parser.add_argument("--fl0_heading", type=float, help="Flight heading in degrees")
+    parser.add_argument("--fl0_coords0", type=str, help="Flight coordinates (lat, lon, alt)")
+    parser.add_argument("--sep_dist", type=str, help="Separation distance (dx, dy, dz)")
+    parser.add_argument("--n_ac", type=int, help="Number of aircraft")
+    
+    # PlumeParams arguments
+    parser.add_argument("--dt_integration", type=int, help="Integration time step in minutes")
+    parser.add_argument("--max_age", type=int, help="Maximum age of the plume in hours")
+    parser.add_argument("--depth", type=float, help="Initial plume depth in meters")
+    parser.add_argument("--width", type=float, help="Initial plume width in meters")
+    parser.add_argument("--shear", type=float, help="Wind shear in 1/s")
+    parser.add_argument("--hres_pl", type=float, help="Horizontal resolution of the plume in degrees")
+    parser.add_argument("--vres_pl", type=float, help="Vertical resolution of the plume in meters")
+    parser.add_argument("--n_slices", type=int, help="Number of slices")
+    
+    # SimParams arguments
+    parser.add_argument("--t0_sim", type=str, help="Simulation start time")
+    parser.add_argument("--rt_sim", type=int, help="Simulation runtime in hours")
+    parser.add_argument("--ts_sim", type=int, help="Simulation time step in seconds")
+    parser.add_argument("--lat_bounds", type=str, help="Latitude bounds (min, max)")
+    parser.add_argument("--lon_bounds", type=str, help="Longitude bounds (min, max)")
+    parser.add_argument("--alt_bounds", type=str, help="Altitude bounds (min, max)")
+    parser.add_argument("--hres_sim", type=float, help="Horizontal resolution in degrees")
+    parser.add_argument("--vres_sim", type=float, help="Vertical resolution in meters")
+    parser.add_argument("--eastward_wind", type=float, help="Eastward wind in m/s")
+    parser.add_argument("--northward_wind", type=float, help="Northward wind in m/s")
+    parser.add_argument("--lagrangian_tendency_of_air_pressure", type=float, help="Lagrangian tendency of air pressure in m/s")
+    parser.add_argument("--species_in", type=str, help="Input species (comma-separated)")
+    parser.add_argument("--species_out", type=str, help="Output species (comma-separated)")
+    parser.add_argument("--job_id", type=str, help="Job ID")
+    
+    return parser.parse_args()
+
+def update_fl_params_from_args(params, args):
+    if args.t0_fl:
+        params.t0_fl = pd.to_datetime(args.t0_fl)
+    if args.rt_fl:
+        params.rt_fl = pd.Timedelta(minutes=args.rt_fl)
+    if args.ts_fl:
+        params.ts_fl = pd.Timedelta(minutes=args.ts_fl)
+    if args.ac_type:
+        params.ac_type = args.ac_type
+    if args.fl0_speed:
+        params.fl0_speed = args.fl0_speed
+    if args.fl0_heading:
+        params.fl0_heading = args.fl0_heading
+    if args.fl0_coords0:
+        params.fl0_coords0 = tuple(map(float, args.fl0_coords0.split(',')))
+    if args.sep_dist:
+        params.sep_dist = tuple(map(float, args.sep_dist.split(',')))
+    if args.n_ac:
+        params.n_ac = args.n_ac
+
+def update_plume_params_from_args(params, args):
+    if args.dt_integration:
+        params.dt_integration = pd.Timedelta(minutes=args.dt_integration)
+    if args.max_age:
+        params.max_age = pd.Timedelta(hours=args.max_age)
+    if args.depth:
+        params.depth = args.depth
+    if args.width:
+        params.width = args.width
+    if args.shear:
+        params.shear = args.shear
+    if args.hres_pl:
+        params.hres_pl = args.hres_pl
+    if args.vres_pl:
+        params.vres_pl = args.vres_pl
+    if args.n_slices:
+        params.n_slices = args.n_slices
+
+def update_sim_params_from_args(params, args):
+    if args.t0_sim:
+        params.t0_sim = pd.to_datetime(args.t0_sim)
+    if args.rt_sim:
+        params.rt_sim = pd.Timedelta(hours=args.rt_sim)
+    if args.ts_sim:
+        params.ts_sim = pd.Timedelta(seconds=args.ts_sim)
+    if args.lat_bounds:
+        params.lat_bounds = tuple(map(float, args.lat_bounds.split(',')))
+    if args.lon_bounds:
+        params.lon_bounds = tuple(map(float, args.lon_bounds.split(',')))
+    if args.alt_bounds:
+        params.alt_bounds = tuple(map(float, args.alt_bounds.split(',')))
+    if args.hres_sim:
+        params.hres_sim = args.hres_sim
+    if args.vres_sim:
+        params.vres_sim = args.vres_sim
+    if args.eastward_wind:
+        params.eastward_wind = args.eastward_wind
+    if args.northward_wind:
+        params.northward_wind = args.northward_wind
+    if args.lagrangian_tendency_of_air_pressure:
+        params.lagrangian_tendency_of_air_pressure = args.lagrangian_tendency_of_air_pressure
+    if args.species_in:
+        params.species_in = np.array(args.species_in.split(','))
+    if args.species_out:
+        params.species_out = np.array(args.species_out.split(','))
+    if args.job_id:
+        params.job_id = args.job_id
