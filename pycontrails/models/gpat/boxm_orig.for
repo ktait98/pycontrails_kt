@@ -134,19 +134,30 @@ C
      &inEMI_C3H8, inEMI_C3H6, inEMI_C2H2, inEMI_BENZENE, inEMI_TOLUENE, 
      &inEMI_C2H5CHO, inFF, inT0, inA0, inV0, inKZ, inDTS
 
-      CHARACTER(LEN=200) :: PATH, EMI_LINE
+      CHARACTER(LEN=200) :: EMI_LINE
+      CHARACTER(LEN=*) :: PATH, JOB_ID
+
+      CALL GETARG(1, PATH)
+      CALL GETARG (2, JOB_ID)
 C
-      PATH='/home/ktait98/pycontrails_kt/pycontrails/models/gpat/'
-C
-      OPEN(7, FILE=TRIM(PATH)//'outputs/BACKITNE.OUT',STATUS='UNKNOWN')
-      OPEN(8, FILE = TRIM(PATH)//'outputs/Y.OUT', STATUS = 'UNKNOWN') 
-      OPEN(9, FILE = TRIM(PATH)//'outputs/ZEN.OUT', STATUS = 'UNKNOWN')
-      OPEN(10, FILE = TRIM(PATH)//'outputs/J.OUT', STATUS = 'UNKNOWN')
-      OPEN(11, FILE = TRIM(PATH)//'outputs/DJ.OUT', STATUS = 'UNKNOWN')
-      OPEN(12, FILE = TRIM(PATH)//'outputs/RC.OUT', STATUS = 'UNKNOWN') 
-      OPEN(13, FILE=TRIM(PATH)//'inputs/boxm_input.txt',STATUS = 'OLD')
-      OPEN(14, FILE = TRIM(PATH)//'inputs/zen.csv', STATUS = 'OLD')
-      OPEN(15, FILE=TRIM(PATH)//'inputs/emi.csv', STATUS='OLD')
+      OPEN(7, FILE=TRIM(PATH)//'outputs/'//TRIM(JOB_ID)//
+     &'/BACKITNE.OUT', STATUS='UNKNOWN')
+      OPEN(8, FILE=TRIM(PATH)//'outputs/'//TRIM(JOB_ID)//
+     &'/Y.OUT', STATUS='UNKNOWN')
+      OPEN(9, FILE=TRIM(PATH)//'outputs/'//TRIM(JOB_ID)//
+     &'/ZEN.OUT', STATUS='UNKNOWN')
+      OPEN(10, FILE=TRIM(PATH)//'outputs/'//TRIM(JOB_ID)//
+     &'/J.OUT', STATUS='UNKNOWN')
+      OPEN(11, FILE=TRIM(PATH)//'outputs/'//TRIM(JOB_ID)//
+     &'/DJ.OUT', STATUS='UNKNOWN')
+      OPEN(12, FILE=TRIM(PATH)//'outputs/'//TRIM(JOB_ID)//
+     &'/RC.OUT', STATUS='UNKNOWN')
+      OPEN(13, FILE=TRIM(PATH)//'inputs/'//TRIM(JOB_ID)//
+     &'/boxm_input.txt', STATUS='OLD')
+     OPEN(14, FILE=TRIM(PATH)//'inputs/'//TRIM(JOB_ID)//
+     &'/zen.csv', STATUS='OLD')
+     OPEN(15, FILE=TRIM(PATH)//'inputs/'//TRIM(JOB_ID)//
+     &'/emi.csv', STATUS='OLD')
 C
       READ(13, *) inDAY, inMONTH, inYEAR, inLEVEL, inLONG,
      &inLAT, inRUNTIME, inM, inP, inH2O, inTEMP, inNO2, inNO, 

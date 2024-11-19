@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 from pycontrails.models.gpat.gpat import GPAT
+from dataclasses import asdict
 
 # flight trajectory parameters
 fl_params = {
@@ -54,9 +55,26 @@ sim_params = {
                 f"{fl_params['sep_dist'][1]}_"
                 f"{plume_params['n_slices']}_"
                 f"{plume_params['max_age'].components.hours}_"
-                f"{plume_params['dt_integration'].components.hours}")
+                f"{plume_params['dt_integration'].components.hours}"),
+    "run_gpat": True,
 }
 
 gpat = GPAT(fl_params, plume_params, sim_params)
 
-gpat.eval()
+updated_args = gpat.parse_args()
+
+gpat.update_fl_params_from_args(fl_params, updated_args)
+print("FlParams:", asdict(fl_params))
+
+gpat.update_plume_params_from_args(plume_params, updated_args)
+print("PlumeParams:", asdict(plume_params))
+
+gpat.update_sim_params_from_args(sim_params, updated_args)
+print("SimParams:", asdict(sim_params)) 
+
+if sim_params["run_gpat"]:
+    gpat.eval()
+else:
+    print("GPAT simulation is not run.")
+    print(f"Job ID is : {sim_params["job_id"]}")
+    

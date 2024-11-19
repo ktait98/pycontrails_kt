@@ -106,18 +106,6 @@ class GPAT(Model):
             ):
         super().__init__()
 
-        args = parse_args()
-
-        update_fl_params_from_args(fl_params, args)
-        print("FlParams:", asdict(fl_params))
-
-        update_plume_params_from_args(plume_params, args)
-        print("PlumeParams:", asdict(plume_params))
-        
-        sim_params = SimParams()
-        update_sim_params_from_args(sim_params, args)
-        print("SimParams:", asdict(sim_params))        
-
         # Generate the grid
         self.lats_pl = np.arange(
             sim_params["lat_bounds"][0], sim_params["lat_bounds"][1] + plume_params["hres_pl"], plume_params["hres_pl"]
@@ -166,17 +154,24 @@ class GPAT(Model):
         # Make output dir unique to jobid
         #os.mkdir(self.path + "inputs/" + self.job_id)
         # Define the directory path
-        output_dir = self.path + "outputs/" + self.job_id
+        input_job_dir = self.path + "inputs/" + self.job_id
+        input_glob_dir = self.path + "inputs/glob/"
+        output_job_dir = self.path + "outputs/" + self.job_id
 
         # Remove the directory and its contents if it exists
-        if os.path.exists(output_dir):
-            shutil.rmtree(output_dir)
+        if os.path.exists(input_job_dir):
+            shutil.rmtree(input_job_dir)
+
+        if os.path.exists(output_job_dir):
+            shutil.rmtree(output_job_dir)
 
         # Create the directory
-        os.makedirs(output_dir)
+        os.makedirs(input_job_dir)
+        os.makedirs(output_job_dir)
         
-        self.inputs = self.path + "inputs/"
-        self.outputs = self.path + "outputs/" + self.job_id + "/"
+        self.inputs_job = self.path + "inputs/" + self.job_id + "/"
+        self.inputs_glob = self.path + "inputs/glob/"
+        self.outputs_job = self.path + "outputs/" + self.job_id + "/"
 
         self.runtimes = {
             "traj_gen": None,
@@ -347,13 +342,13 @@ class GPAT(Model):
         month = self.times[0].month
 
         air_temperature = xr.open_dataarray(
-            self.inputs + "air_temperature.nc", engine='netcdf4'
+            self.inputs_glob + "air_temperature.nc", engine='netcdf4'
         ).sel(month=month - 1).interp(
             longitude=self.lons, latitude=self.lats, level=self.levels,
             method="linear").broadcast_like(met.data)
 
         h2o_concs = xr.open_dataarray(
-            self.inputs + "h2o_concs.nc", engine='netcdf4'
+            self.inputs_glob + "h2o_concs.nc", engine='netcdf4'
         ).sel(month=month - 1).interp(
             longitude=self.lons, latitude=self.lats, level=self.levels,
             method="linear").broadcast_like(met.data)
@@ -397,7 +392,7 @@ class GPAT(Model):
         month = self.times[0].month
 
         bg_chem = xr.open_dataset(
-            self.inputs + "species.nc", engine='netcdf4'
+            self.inputs_glob + "species.nc", engine='netcdf4'
         ).sel(month=month - 1)
         print(bg_chem["bg_chem"])
         # for s in [1, 2, 3, 5, 7, 9, 10, 13, 15, 16, 17, 18, 19, 20, 22, 24, 26, 27, 29, 31, 33, 35, 36, 37, 38, 40, 41, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 60, 62, 63, 65, 66, 68, 69, 70, 72, 74, 75, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 102, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 199, 200, 201, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219]:
@@ -694,18 +689,18 @@ class GPAT(Model):
         self.all_params["runtime"] = self.runtimes
         
         # Save to pickle file
-        with open(self.outputs + "params_" + self.job_id + ".pkl", 'wb') as pkl_file:
+        with open(f"{self.outputs_job}params_{self.job_id}.pkl", 'wb') as pkl_file:
             pickle.dump(self.all_params, pkl_file)
 
-        # Save fl dataset to netCDF file
-        self.fl.to_pickle(self.outputs + "fl_" + self.job_id + ".pkl")
+        # Save fl dataset to pickle file
+        self.fl.to_pickle(f"{self.outputs_job}fl_{self.job_id}.pkl")
 
-        # Save pl dataset to netCDF file
-        self.pl.to_pickle(self.outputs + "pl_" + self.job_id + ".pkl")
+        # Save pl dataset to pickle file
+        self.pl.to_pickle(f"{self.outputs_job}pl_{self.job_id}.pkl")
 
         # Save the box model dataset to netCDF file
         print("Saving chem dataset to netCDF file...")
-        self.chem.to_netcdf(self.outputs + "chem_" + self.job_id + ".nc")
+        self.chem.to_netcdf(f"{self.outputs_job}chem_{self.job_id}.nc")
         print("Done!")
 
 # Methods for running the box model
@@ -753,23 +748,23 @@ class GPAT(Model):
         """Convert the met, bg_chem, and emi datasets to boxm_ds.nc for use in the box model."""
 
         # Delete any existing netCDF files
-        if pathlib.Path(f"{self.inputs}/boxm_ds.nc").exists():
+        if pathlib.Path(f"{self.inputs_job}/boxm_ds.nc").exists():
             print("deleting boxm_ds.nc")
-            pathlib.Path(f"{self.inputs}/boxm_ds.nc").unlink()
+            pathlib.Path(f"{self.inputs_job}/boxm_ds.nc").unlink()
 
         # Convert DataFrames to Datasets and write to netCDF
-        self.boxm_ds_stacked.to_netcdf(f"{self.outputs}/boxm_ds.nc", mode="w")
+        self.boxm_ds_stacked.to_netcdf(f"{self.inputs_job}/boxm_ds.nc", mode="w")
 
     def do_boxm(self):
         """Run the box model in fortran using subprocess."""
 
         # Run the box model
         subprocess.call(
-            [self.path + "boxm"]
+            [self.path + "boxm", self.job_id], 
         )
 
         # open nc file
-        self.boxm_ds = xr.open_dataset(f"{self.inputs}/boxm_ds.nc")
+        self.boxm_ds = xr.open_dataset(f"{self.inputs_job}/boxm_ds.nc")
 
     def unstack(self):
         """Unstack the box model dataset."""
@@ -1013,7 +1008,7 @@ def plot_heatmap(job_id, jobs_df, fl_df, pl_df, chem_ds, **plot_params):
 
     # anim = FuncAnimation(fig, heatmap_func, frames=times_resampled, blit=False)
 
-    # filename = pathlib.Path(self.outputs + var1 + "_" + var2 + ".gif")
+    # filename = pathlib.Path(self.outputs_plots + var1 + "_" + var2 + ".gif")
 
     # anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
 
@@ -1175,7 +1170,7 @@ def mc_test(job_id, jobs_df, fl_df, pl_df, chem_ds):
 
     return vecmass, gridmass, mc
 
-def boxm_test(job_id, cell, chem_ds):
+def boxm_test(path, job_id, cell, chem_ds):
     """Run the box model for selected cells and job_id."""
 
     chem_ds_stacked = chem_ds.stack(
@@ -1188,31 +1183,31 @@ def boxm_test(job_id, cell, chem_ds):
     cell_chem_ds = chem_ds_stacked.sel(job_id=job_id, cell=cell)
 
     # create input file for original boxm
-    gen_boxm_orig_input(cell_chem_ds)
+    gen_boxm_orig_input(cell_chem_ds, job_id)
 
-    gen_zen_file(cell_chem_ds)
+    gen_zen_file(cell_chem_ds, job_id)
 
-    gen_emi_file(cell_chem_ds)
+    gen_emi_file(cell_chem_ds, job_id)
 
     # # calls fortran with input file and generates .OUT files
     subprocess.call(
-        ["/home/ktait98/pycontrails_kt/pycontrails/models/gpat/boxm_orig"]
+        ["boxm_orig", path, job_id],
     )
 
     cell_chem_ds = update_chem_ds(cell_chem_ds)
 
     return cell_chem_ds
 
-def gen_boxm_orig_input(cell_chem_ds):
+def gen_boxm_orig_input(cell_chem_ds, job_id):
     
     """Generate the input file for the original box model."""
 
     # delete any existing input files
-    if pathlib.Path(f"inputs/boxm_input.txt").exists():
-            pathlib.Path(f"inputs/boxm_input.txt").unlink()
+    if pathlib.Path(f"inputs/{job_id}/boxm_input.txt").exists():
+            pathlib.Path(f"inputs/{job_id}/boxm_input.txt").unlink()
 
     # open file
-    boxm_input = open(f"inputs/boxm_input.txt", "w")
+    boxm_input = open(f"inputs/{job_id}/boxm_input.txt", "w")
 
     start_time = pd.to_datetime(cell_chem_ds["time"].values[0])
     end_time = pd.to_datetime(cell_chem_ds["time"].values[-1])
@@ -1242,11 +1237,11 @@ def gen_boxm_orig_input(cell_chem_ds):
         
     boxm_input.close()
 
-def gen_zen_file(cell_chem_ds):
+def gen_zen_file(cell_chem_ds, job_id):
     """Generate the ZEN file for the original box model."""
 
     # delete any existing input files
-    zen_file_path = pathlib.Path(f"inputs/zen.csv")
+    zen_file_path = pathlib.Path(f"inputs/{job_id}/zen.csv")
     if zen_file_path.exists():
         zen_file_path.unlink()
 
@@ -1257,11 +1252,11 @@ def gen_zen_file(cell_chem_ds):
     # Write the DataFrame to a CSV file
     sza_df.to_csv(zen_file_path, index=False, header=False)
 
-def gen_emi_file(cell_chem_ds):
+def gen_emi_file(cell_chem_ds, job_id):
     """Generate the EMI file for the original box model."""
 
     # delete any existing input files
-    emi_file_path = pathlib.Path(f"inputs/emi.csv")
+    emi_file_path = pathlib.Path(f"inputs/{job_id}/emi.csv")
     if emi_file_path.exists():
         emi_file_path.unlink()
 
@@ -1304,23 +1299,23 @@ def get_pressure_level(alt):
 
         return idx
 
-def update_chem_ds(cell_chem_ds):
-    sza_df = pd.read_csv(f"outputs/ZEN.OUT", header=0,
+def update_chem_ds(cell_chem_ds, job_id):
+    sza_df = pd.read_csv(f"outputs/{job_id}/ZEN.OUT", header=0,
                         names=['TIME', 'ZEN'], dtype=np.float64)
         
-    J_df = pd.read_csv(f"outputs/J.OUT", header=0,
+    J_df = pd.read_csv(f"outputs/{job_id}/J.OUT", header=0,
                         names=['TIME', 'J1', 'J2', 'J3', 'J4', 'J5', 'J6', 'J7', 'J8', 'J9', 'J10', 'J11', 'J12', 'J13','J14', 'J15', 'J16', 'J17', 'J18', 'J19', 'J20', 'J21', 'J22', 'J23', 'J24', 'J25', 'J26', 'J27', 'J28', 'J29', 'J30', 'J31', 'J32', 'J33', 'J34', 'J35', 'J36', 'J37', 'J38', 'J39', 'J40', 'J41', 'J42', 'J43', 'J44', 'J45', 'J46', 'J47', 'J48', 'J49', 'J50'], dtype=np.float64)
 
-    DJ_df = pd.read_csv(f"outputs/DJ.OUT", header=0,
+    DJ_df = pd.read_csv(f"outputs/{job_id}/DJ.OUT", header=0,
                             names=['TIME', 'DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6', 'DJ7', 'DJ8', 'DJ9', 'DJ10', 'DJ11', 'DJ12', 'DJ13','DJ14', 'DJ15', 'DJ16', 'DJ17', 'DJ18', 'DJ19', 'DJ20', 'DJ21', 'DJ22', 'DJ23', 'DJ24', 'DJ25', 'DJ26', 'DJ27', 'DJ28', 'DJ29', 'DJ30', 'DJ31', 'DJ32', 'DJ33', 'DJ34', 'DJ35', 'DJ36', 'DJ37', 'DJ38', 'DJ39', 'DJ40', 'DJ41', 'DJ42', 'DJ43', 'DJ44', 'DJ45', 'DJ46', 'DJ47', 'DJ48', 'DJ49', 'DJ50'], dtype=np.float64)
 
-    RC_df = pd.read_csv(f"outputs/RC.OUT", header=0,
+    RC_df = pd.read_csv(f"outputs/{job_id}/RC.OUT", header=0,
                         names=['TIME', 'RC1', 'RC2', 'RC3', 'RC4', 'RC5', 'RC6', 'RC7', 'RC8', 'RC9', 'RC10', 'RC11', 'RC12', 'RC13','RC14', 'RC15', 'RC16', 'RC17', 'RC18', 'RC19', 'RC20', 'RC21', 'RC22', 'RC23', 'RC24', 'RC25', 'RC26', 'RC27', 'RC28', 'RC29', 'RC30', 'RC31', 'RC32', 'RC33', 'RC34', 'RC35', 'RC36', 'RC37', 'RC38', 'RC39', 'RC40', 'RC41', 'RC42', 'RC43', 'RC44', 'RC45', 'RC46', 'RC47', 'RC48', 'RC49', 'RC50'], dtype=np.float64)
 
     # get species names
     header_names = ['TIME'] + list(cell_chem_ds["species"].values)
 
-    Y_df = pd.read_csv(f"outputs/Y.OUT", header=0,
+    Y_df = pd.read_csv(f"outputs/{job_id}/Y.OUT", header=0,
                             names=header_names, dtype=np.float64) 
     
     # # Update the chem_ds_stacked with the new data
@@ -1349,7 +1344,7 @@ def update_chem_ds(cell_chem_ds):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Overwrite parameters from command line")
-    
+ 
     # FlParams arguments
     parser.add_argument("--t0_fl", type=str, help="Flight start time")
     parser.add_argument("--rt_fl", type=int, help="Flight run time in minutes")
@@ -1386,6 +1381,9 @@ def parse_args():
     parser.add_argument("--species_in", type=str, help="Input species (comma-separated)")
     parser.add_argument("--species_out", type=str, help="Output species (comma-separated)")
     parser.add_argument("--job_id", type=str, help="Job ID")
+       
+    # No run argument
+    parser.add_argument("-n", "--no-run", action="store_true", help="Don't run the box model, just output the directory name")
     
     return parser.parse_args()
 

@@ -24,7 +24,7 @@ RUNDIR=/user/work/${USER}/pycontrails_kt/pycontrails/
 PHONY:
 
 # Directories to be created
-DIRS = inputs outputs
+DIRS = inputs outputs inputs/glob
 
 # Target to create directories
 .PHONY: create_dirs
@@ -35,13 +35,13 @@ create_dirs:
 # Target to download files from Google Drive
 .PHONY: download_files
 download_files: create_dirs
-	@if [ ! -f inputs/species.nc ]; then \
+	@if [ ! -f inputs/glob/species.nc ]; then \
 		./download_script.sh 'https://drive.google.com/uc?export=download&id=1-uoRiCyNl_e4o9bbF8ZZuiwYqQcXLfv9' 'inputs/species.nc'; \
 	fi
-	@if [ ! -f inputs/h2o_concs.nc ]; then \
+	@if [ ! -f inputs/glob/h2o_concs.nc ]; then \
 		wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1gEJQ_XH4RJ6SLJCUs3LLDv8Bn1oiROtk' -O inputs/h2o_concs.nc; \
 	fi
-	@if [ ! -f inputs/air_temperature.nc ]; then \
+	@if [ ! -f inputs/glob/air_temperature.nc ]; then \
 		wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=12Qu-8pVXLVb-WH1MphzwJSx9y6xfEtuG' -O inputs/air_temperature.nc; \
 	fi
 
