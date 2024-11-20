@@ -6,7 +6,6 @@ from pycontrails.models.gpat.gpat import GPAT, FlParams, PlumeParams, SimParams,
 from dataclasses import asdict
 import os
 
-# flight trajectory parameters
 fl_params = {
     "t0_fl": pd.to_datetime("2022-01-20 13:00:00"),  # flight start time
     "rt_fl": pd.Timedelta(minutes=60),  # flight run time
@@ -15,8 +14,8 @@ fl_params = {
     "fl0_speed": 100.0,  # m/s
     "fl0_heading": 45.0,  # deg
     "fl0_coords0": (47.1, -32.9, 12500),  # lat, lon, alt [deg, deg, m]
-    "sep_dist": (1000, 0, 0),  # dx, dy, dz [m]
-    "n_ac": 2,  # number of aircraft
+    "sep_dist": (0, 0, 0),  # dx, dy, dz [m]
+    "n_ac": 0,  # number of aircraft
 }
 
 # plume dispersion parameters
@@ -31,10 +30,9 @@ plume_params = {
     "n_slices": 10,  # number of plume slices
 }
 
-# chemistry sim parameters
 sim_params = {
     "t0_sim": pd.to_datetime("2022-01-20 12:00:00"),  # chemistry start time
-    "rt_sim": plume_params["max_age"] + pd.Timedelta(hours=2),  # chemistry runtime
+    "rt_sim": pd.Timedelta(days=5),  # chemistry runtime
     "ts_sim": pd.Timedelta(seconds=20),  # chemistry time step
     "lat_bounds": (47.0, 48.0),  # lat bounds [deg]
     "lon_bounds": (-33.0, -32.0),  # lon bounds [deg]
@@ -44,37 +42,32 @@ sim_params = {
     "eastward_wind": 0.0,  # m/s
     "northward_wind": 0.0,  # m/s
     "lagrangian_tendency_of_air_pressure": 0.0,  # m/s
-    "species_in": ("NO", "NO2", "CO", "HCHO", "CH3CHO", "C2H4", "C3H6", "C2H2", "BENZENE"),
-    "species_out": ("O3", "NO2", "NO", "NO3", "HNO3", "PAN", "HONO", "HO2", "OH","H2O2", 
-                    "CO", "HCHO", "CH4"),
-    "gpat_path": os.getcwd() +"/",
-    "job_id":   (f"mc_v_{fl_params['n_ac']}_"
-                f"{fl_params['sep_dist'][0]}_"
-                f"{fl_params['sep_dist'][1]}_"
-                f"{plume_params['n_slices']}_"
-                f"{plume_params['max_age'].components.hours}_"
-                f"{plume_params['dt_integration'].components.hours}"),
-    "run_gpat": False,
+    "species_in": np.array(["NO", "NO2", "CO", "HCHO", "CH3CHO", "C2H4", "C3H6", "C2H2", "BENZENE"]),
+    "species_out": np.array(["O3", "NO2", "NO",
+                            "NO3", "HNO3", "PAN",
+                            "HONO", "HO2", "OH",
+                            "H2O2", "CO", "HCHO",
+                            "CH4"
+                            ]),
+    "job_id": None
 }
 
 fl_params = dict_to_dataclass(FlParams, fl_params)
 plume_params = dict_to_dataclass(PlumeParams, plume_params)
 sim_params = dict_to_dataclass(SimParams, sim_params)
 
-
+gpat = GPAT(fl_params, plume_params, sim_params)
 
 updated_args = parse_args()
 
-update_fl_params_from_args(fl_params, updated_args)
-print("FlParams:", asdict(fl_params))
+update_fl_params_from_args(gpat.fl_params, updated_args)
+print("FlParams:", asdict(gpat.fl_params))
 
-update_plume_params_from_args(plume_params, updated_args)
-print("PlumeParams:", asdict(plume_params))
+update_plume_params_from_args(gpat.plume_params, updated_args)
+print("PlumeParams:", asdict(gpat.plume_params))
 
-update_sim_params_from_args(sim_params, updated_args)
-print("SimParams:", asdict(sim_params)) 
-
-gpat = GPAT(fl_params, plume_params, sim_params)
+update_sim_params_from_args(gpat.sim_params, updated_args)
+print("SimParams:", asdict(gpat.sim_params)) 
 
 if gpat.sim_params.run_gpat:
     gpat.eval()
