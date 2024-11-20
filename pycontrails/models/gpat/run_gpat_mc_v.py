@@ -56,7 +56,7 @@ sim_params = {
                 f"{plume_params['n_slices']}_"
                 f"{plume_params['max_age'].components.hours}_"
                 f"{plume_params['dt_integration'].components.hours}"),
-    "run_gpat": True,
+    "run_gpat": False,
 }
 
 gpat = GPAT(fl_params, plume_params, sim_params)
@@ -76,4 +76,4 @@ if sim_params["run_gpat"]:
     gpat.eval()
 else:
     print("GPAT simulation is not run.")
-    print(f"Job ID is : {sim_params["job_id"]}")
+    print(f'Job ID is : {sim_params["job_id"]}')
