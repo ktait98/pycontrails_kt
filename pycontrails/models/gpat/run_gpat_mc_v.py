@@ -65,12 +65,12 @@ update_plume_params_from_args(plume_params, updated_args)
 print("PlumeParams:", asdict(plume_params))
 
 update_sim_params_from_args(sim_params, updated_args)
-sim_params.job_id = (f"mc_v_{fl_params['n_ac']}_"
-                f"{fl_params['sep_dist'][0]}_"
-                f"{fl_params['sep_dist'][1]}_"
-                f"{plume_params['n_slices']}_"
-                f"{plume_params['max_age'].components.hours}_"
-                f"{plume_params['dt_integration'].components.hours}")
+sim_params.job_id = (f"mc_v_{fl_params.n_ac}_"
+                f"{fl_params.sep_dist[0]}_"
+                f"{fl_params.sep_dist[1]}_"
+                f"{plume_params.n_slices}_"
+                f"{plume_params.max_age.components.hours}_"
+                f"{plume_params.dt_integration.components.hours}")
 
 print("SimParams:", asdict(sim_params)) 
 
