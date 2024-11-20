@@ -4,7 +4,7 @@
 #SBATCH --partition=veryshort
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --time=2:0:0
+#SBATCH --time=6:0:0
 #SBATCH --mem=64G
 #SBATCH --account=aero004481
 
@@ -29,4 +29,18 @@ NFLIBS=`nf-config --prefix`/lib
 
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${NCLIBS}:${NFLIBS}
 export PYCONTRAILSDIR=/user/work/${USER}/pycontrails_kt/pycontrails/
-./run_gpat_mc_v.py
+
+#./run_gpat_mc_v.py --n_ac 1 --run_gpat true
+./run_gpat_mc_v.py --n_ac 5 --run_gpat true
+./run_gpat_mc_v.py --sep_dist 100,0,0 --run_gpat true
+./run_gpat_mc_v.py --sep_dist 2000,0,0 --run_gpat true
+./run_gpat_mc_v.py --sep_dist 1000,1000,0 --run_gpat true
+./run_gpat_mc_v.py --n_slices 5 --run_gpat true
+./run_gpat_mc_v.py --n_slices 25 --run_gpat true
+./run_gpat_mc_v.py --n_slices 50 --run_gpat true
+./run_gpat_mc_v.py --max_age 12 --run_gpat true
+./run_gpat_mc_v.py --dt_integration 20  --run_gpat true
+./run_gpat_mc_v.py --dt_integration 600 --run_gpat true
+./run_gpat_mc_v.py --hres_pl 0.01 --hres_sim 0.01  --run_gpat true
+./run_gpat_mc_v.py --hres_pl 0.5  --hres_pl 0.5    --run_gpat true
+
