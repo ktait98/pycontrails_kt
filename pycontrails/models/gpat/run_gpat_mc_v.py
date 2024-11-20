@@ -48,20 +48,13 @@ sim_params = {
     "species_out": ("O3", "NO2", "NO", "NO3", "HNO3", "PAN", "HONO", "HO2", "OH","H2O2", 
                     "CO", "HCHO", "CH4"),
     "gpat_path": os.getcwd() +"/",
-    "job_id":   (f"mc_v_{fl_params['n_ac']}_"
-                f"{fl_params['sep_dist'][0]}_"
-                f"{fl_params['sep_dist'][1]}_"
-                f"{plume_params['n_slices']}_"
-                f"{plume_params['max_age'].components.hours}_"
-                f"{plume_params['dt_integration'].components.hours}"),
+    "job_id": None,
     "run_gpat": False,
 }
 
 fl_params = dict_to_dataclass(FlParams, fl_params)
 plume_params = dict_to_dataclass(PlumeParams, plume_params)
 sim_params = dict_to_dataclass(SimParams, sim_params)
-
-
 
 updated_args = parse_args()
 
@@ -72,6 +65,13 @@ update_plume_params_from_args(plume_params, updated_args)
 print("PlumeParams:", asdict(plume_params))
 
 update_sim_params_from_args(sim_params, updated_args)
+sim_params.job_id = (f"mc_v_{fl_params['n_ac']}_"
+                f"{fl_params['sep_dist'][0]}_"
+                f"{fl_params['sep_dist'][1]}_"
+                f"{plume_params['n_slices']}_"
+                f"{plume_params['max_age'].components.hours}_"
+                f"{plume_params['dt_integration'].components.hours}")
+
 print("SimParams:", asdict(sim_params)) 
 
 gpat = GPAT(fl_params, plume_params, sim_params)
