@@ -19,7 +19,7 @@ MODULE BOXM
     INTEGER :: VARID_Y, VARID_J, VARID_DJ, VARID_RC, VARID_FL
     INTEGER, PRIVATE :: IERR
 
-    CHARACTER(LEN=*), INTENT(IN) :: JOB_ID
+    CHARACTER(LEN=256) :: JOB_ID
 
     ! DEFINE MET INPUTS
     DOUBLE PRECISION, ALLOCATABLE :: TIME(:), LEVEL(:), LON(:), LAT(:), TEMP(:), PRESSURE(:), ALT(:)
@@ -70,10 +70,10 @@ CONTAINS
         END IF
     END SUBROUTINE CHECK
 
-    SUBROUTINE OPEN_NC
+    SUBROUTINE OPEN_NC(JOB_ID)
         IMPLICIT NONE
+        CHARACTER(LEN=256) :: JOB_ID
 
-        CALL GETARG(1, JOB_ID)
         ! OPEN BOXM INPUT NC
         IERR = NF90_OPEN('inputs/'//TRIM(JOB_ID)//'/boxm_ds.nc', NF90_WRITE, NCID)
         IF (IERR /= NF90_NOERR) THEN
@@ -5364,10 +5364,15 @@ END MODULE BOXM
 PROGRAM BOXM_RUN
     USE BOXM
     IMPLICIT NONE
-    
+
+    ! Retrieve the job_id from the command line
+    CALL getarg(1, JOB_ID)
+
+    ! Call the subroutine to open the file with the job_id
+    CALL OPEN_NC(TRIM(JOB_ID))        
 
     ! PRE-INTEGRATION
-    CALL OPEN_NC()
+    CALL OPEN_NC(JOB_ID)
     CALL GET_DIMS()
     CALL INIT_VARS()
     CALL GET_PRE_INT_VARIDS()

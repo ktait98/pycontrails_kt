@@ -46,6 +46,7 @@ class FlParams(ModelParams):
     sep_dist: Tuple[float, float, float] = (5000, 2000, 0) # dx, dy, dz [m]
     n_ac: int = 1 # number of aircraft
 
+@dataclass
 class PlumeParams(ModelParams):
     """Default plume dispersion parameters."""
     dt_integration: pd.Timedelta = pd.Timedelta(minutes=2) # integration time step
@@ -57,6 +58,7 @@ class PlumeParams(ModelParams):
     vres_pl: float = 500 # vertical resolution of the plume [m]
     n_slices: int = 10 # number of slices
 
+@dataclass
 class SimParams(ModelParams):
     """Default simulation parameters"""
     t0_sim: pd.Timestamp = pd.to_datetime("2022-01-20 12:00:00") # simulation start time
@@ -70,14 +72,18 @@ class SimParams(ModelParams):
     eastward_wind: float = 0.0 # m/s
     northward_wind: float = 0.0 # m/s
     lagrangian_tendency_of_air_pressure: float = 0.0 # m/s
-    species_in: np.array = np.array(["NO"]) #, "NO2", "CO"])
-    species_out: np.array = np.array(["O3", "NO2", "NO",
-                                    "NO3", "N2O5", "HNO3",
-                                    "HONO", "HO2", "OH",
-                                    "H2O2", "H2O", "CO",
-                                    "CH4", "C2H6", "C3H8",
-                                    "C2H4", "C3H6"])
+    species_in: Tuple = ("NO")
+    species_out: Tuple = ("O3", "NO2", "NO",
+                        "NO3", "N2O5", "HNO3",
+                        "HONO", "HO2", "OH",
+                        "H2O2", "H2O", "CO",
+                        "CH4", "C2H6", "C3H8",
+                        "C2H4", "C3H6")
+    gpat_path: str = None   
     job_id: str = None
+    run_gpat: bool = False
+    date_created: pd.Timestamp = None
+    species_out_num: Tuple = None
 
 class GPAT(Model):
     """Gridded Plume Analysis Tool (GPAT).
@@ -108,26 +114,26 @@ class GPAT(Model):
 
         # Generate the grid
         self.lats_pl = np.arange(
-            sim_params["lat_bounds"][0], sim_params["lat_bounds"][1] + plume_params["hres_pl"], plume_params["hres_pl"]
+            sim_params.lat_bounds[0], sim_params.lat_bounds[1] + plume_params.hres_pl, plume_params.hres_pl
         )
         self.lons_pl = np.arange(
-            sim_params["lon_bounds"][0], sim_params["lon_bounds"][1] + plume_params["hres_pl"], plume_params["hres_pl"]
+            sim_params.lon_bounds[0], sim_params.lon_bounds[1] + plume_params.hres_pl, plume_params.hres_pl
         )
         self.lats = np.arange(
-            sim_params["lat_bounds"][0], sim_params["lat_bounds"][1] + sim_params["hres_sim"], sim_params["hres_sim"]
+            sim_params.lat_bounds[0], sim_params.lat_bounds[1] + sim_params.hres_sim, sim_params.hres_sim
         )
         self.lons = np.arange(
-            sim_params["lon_bounds"][0], sim_params["lon_bounds"][1] + sim_params["hres_sim"], sim_params["hres_sim"]
+            sim_params.lon_bounds[0], sim_params.lon_bounds[1] + sim_params.hres_sim, sim_params.hres_sim
         )
         self.alts = np.arange(
-            sim_params["alt_bounds"][0], sim_params["alt_bounds"][1] + sim_params["vres_sim"], sim_params["vres_sim"]
+            sim_params.alt_bounds[0], sim_params.alt_bounds[1] + sim_params.vres_sim, sim_params.vres_sim
         )
         self.levels = units.m_to_pl(self.alts)
 
         self.times = pd.date_range(
-            start=sim_params["t0_sim"],
-            end=sim_params["t0_sim"] + sim_params["rt_sim"],
-            freq=sim_params["ts_sim"],
+            start=sim_params.t0_sim,
+            end=sim_params.t0_sim + sim_params.rt_sim,
+            freq=sim_params.ts_sim,
         )
 
         self.total_volume = (
@@ -136,9 +142,13 @@ class GPAT(Model):
             * (self.alts[-1] - self.alts[0])
         )
 
-        self.path = os.environ['PYCONTRAILSDIR'] + "models/gpat/"
+        if sim_params.gpat_path is None:
+            self.path = os.environ['PYCONTRAILSDIR'] + "models/gpat/"
 
-        if sim_params["job_id"] is None:
+        else:
+            self.path = sim_params.gpat_path
+
+        if sim_params.job_id is None:
             try:
                 self.job_id = os.environ['SLURM_JOB_ID']
             except KeyError:
@@ -146,32 +156,24 @@ class GPAT(Model):
                 self.job_id = str(random.randint(100000, 999999))
 
         else:
-            self.job_id = sim_params["job_id"]
+            self.job_id = sim_params.job_id
 
-        sim_params["date_created"] = pd.Timestamp.now()
-        sim_params["species_out_num"] = grab_species_num(sim_params["species_out"])
+        sim_params.date_created = pd.Timestamp.now()
+        sim_params.species_out_num = grab_species_num(sim_params.species_out)
 
-        # Make output dir unique to jobid
-        #os.mkdir(self.path + "inputs/" + self.job_id)
-        # Define the directory path
-        input_job_dir = self.path + "inputs/" + self.job_id
-        input_glob_dir = self.path + "inputs/glob/"
-        output_job_dir = self.path + "outputs/" + self.job_id
-
-        # Remove the directory and its contents if it exists
-        if os.path.exists(input_job_dir):
-            shutil.rmtree(input_job_dir)
-
-        if os.path.exists(output_job_dir):
-            shutil.rmtree(output_job_dir)
-
-        # Create the directory
-        os.makedirs(input_job_dir)
-        os.makedirs(output_job_dir)
-        
+        # Define input and output paths     
         self.inputs_job = self.path + "inputs/" + self.job_id + "/"
         self.inputs_glob = self.path + "inputs/glob/"
         self.outputs_job = self.path + "outputs/" + self.job_id + "/"
+
+        if os.path.exists(self.inputs_job):
+            shutil.rmtree(self.inputs_job)
+
+        if os.path.exists(self.outputs_job):
+            shutil.rmtree(self.outputs_job)
+
+        os.makedirs(self.inputs_job)
+        os.makedirs(self.outputs_job)
 
         self.runtimes = {
             "traj_gen": None,
@@ -253,9 +255,9 @@ class GPAT(Model):
         fl_params = self.fl_params
         fl = []
 
-        lat0, lon0, alt0 = fl_params["fl0_coords0"]
-        heading = fl_params["fl0_heading"]
-        dist = fl_params["fl0_speed"] * fl_params["rt_fl"].total_seconds()
+        lat0, lon0, alt0 = fl_params.fl0_coords0
+        heading = fl_params.fl0_heading
+        dist = fl_params.fl0_speed * fl_params.rt_fl.total_seconds()
 
         # calculate the final coordinates
         geod = Geod(ellps="WGS84")
@@ -266,16 +268,16 @@ class GPAT(Model):
         df["longitude"] = [lon0, lon1]
         df["latitude"] = [lat0, lat1]
         df["altitude"] = [alt0, alt0]
-        df["time"] = [fl_params["t0_fl"], (fl_params["t0_fl"] + fl_params["rt_fl"])]
+        df["time"] = [fl_params.t0_fl, (fl_params.t0_fl + fl_params.rt_fl)]
 
-        ts_fl_min = int(fl_params["ts_fl"].total_seconds() / 60)
+        ts_fl_min = int(fl_params.ts_fl.total_seconds() / 60)
 
         fl0 = Flight(df).resample_and_fill(freq=f"{ts_fl_min}min")
-        fl0.attrs = {"flight_id": 0, "aircraft_type": fl_params["ac_type"]}
+        fl0.attrs = {"flight_id": 0, "aircraft_type": fl_params.ac_type}
         mask = (
-                    (fl0["latitude"] > self.sim_params["lat_bounds"][0] + 0.05) & (fl0["latitude"] < self.sim_params["lat_bounds"][1] - 0.05) &
-                    (fl0["longitude"] > self.sim_params["lon_bounds"][0] + 0.05) & (fl0["longitude"] < self.sim_params["lon_bounds"][1] - 0.05) &
-                    (fl0["altitude"] > self.sim_params["alt_bounds"][0]) & (fl0["altitude"] < self.sim_params["alt_bounds"][1])
+                    (fl0["latitude"] > self.sim_params.lat_bounds[0] + 0.05) & (fl0["latitude"] < self.sim_params.lat_bounds[1] - 0.05) &
+                    (fl0["longitude"] > self.sim_params.lon_bounds[0] + 0.05) & (fl0["longitude"] < self.sim_params.lon_bounds[1] - 0.05) &
+                    (fl0["altitude"] > self.sim_params.alt_bounds[0]) & (fl0["altitude"] < self.sim_params.alt_bounds[1])
 
                 )
 
@@ -284,17 +286,17 @@ class GPAT(Model):
 
         fli = fl0
 
-        if fl_params["n_ac"] > 1:
+        if fl_params.n_ac > 1:
             # create follower flight trajectories
-            for i in range(1, fl_params["n_ac"]):
+            for i in range(1, fl_params.n_ac):
                 fli = fli.copy()
 
                 # calculate new coords for follower flight
-                lon_dx, lat_dx, _ = geod.fwd(lon0, lat0, heading, fl_params["sep_dist"][0])
+                lon_dx, lat_dx, _ = geod.fwd(lon0, lat0, heading, fl_params.sep_dist[0])
                 lon_dx_dy, lat_dx_dy, _ = geod.fwd(
-                    lon_dx, lat_dx, heading + 90, fl_params["sep_dist"][1]
+                    lon_dx, lat_dx, heading + 90, fl_params.sep_dist[1]
                 )
-                alt_dx_dy = alt0 + fl_params["sep_dist"][2]
+                alt_dx_dy = alt0 + fl_params.sep_dist[2]
 
                 # Calculate the differences in lat, lon, alt
                 dlat = lat_dx_dy - lat0
@@ -305,12 +307,12 @@ class GPAT(Model):
                 fli["latitude"] += dlat
                 fli["longitude"] += dlon
                 fli["altitude"] += dalt
-                fli.attrs = {"flight_id": int(i), "aircraft_type": fl_params["ac_type"]}
+                fli.attrs = {"flight_id": int(i), "aircraft_type": fl_params.ac_type}
 
                 mask = (
-                    (fli["latitude"] > self.sim_params["lat_bounds"][0] + 0.05) & (fli["latitude"] < self.sim_params["lat_bounds"][1] - 0.05) &
-                    (fli["longitude"] > self.sim_params["lon_bounds"][0] + 0.05) & (fli["longitude"] < self.sim_params["lon_bounds"][1] - 0.05) &
-                    (fli["altitude"] > self.sim_params["alt_bounds"][0]) & (fli["altitude"] < self.sim_params["alt_bounds"][1])
+                    (fli["latitude"] > self.sim_params.lat_bounds[0] + 0.05) & (fli["latitude"] < self.sim_params.lat_bounds[1] - 0.05) &
+                    (fli["longitude"] > self.sim_params.lon_bounds[0] + 0.05) & (fli["longitude"] < self.sim_params.lon_bounds[1] - 0.05) &
+                    (fli["altitude"] > self.sim_params.alt_bounds[0]) & (fli["altitude"] < self.sim_params.alt_bounds[1])
                 )
                 fli = fli.filter(mask)
                 fl.append(fli)
@@ -326,9 +328,9 @@ class GPAT(Model):
 
         met = xr.Dataset(
             data_vars={
-                "eastward_wind": (("latitude", "longitude", "level", "time"), da.full((len(self.lats), len(self.lons), len(self.alts), len(self.times)), sim_params["eastward_wind"])),
-                "northward_wind": (("latitude", "longitude", "level", "time"), da.full((len(self.lats), len(self.lons), len(self.alts), len(self.times)), sim_params["northward_wind"])),
-                "lagrangian_tendency_of_air_pressure": (("latitude", "longitude", "level", "time"), da.full((len(self.lats), len(self.lons), len(self.alts), len(self.times)), sim_params["lagrangian_tendency_of_air_pressure"])),
+                "eastward_wind": (("latitude", "longitude", "level", "time"), da.full((len(self.lats), len(self.lons), len(self.alts), len(self.times)), sim_params.eastward_wind)),
+                "northward_wind": (("latitude", "longitude", "level", "time"), da.full((len(self.lats), len(self.lons), len(self.alts), len(self.times)), sim_params.northward_wind)),
+                "lagrangian_tendency_of_air_pressure": (("latitude", "longitude", "level", "time"), da.full((len(self.lats), len(self.lons), len(self.alts), len(self.times)), sim_params.lagrangian_tendency_of_air_pressure)),
                 "air_temperature": (("latitude", "longitude", "level", "time"), da.zeros((len(self.lats), len(self.lons), len(self.alts), len(self.times)))),
             },
 
@@ -474,7 +476,7 @@ class GPAT(Model):
             # calculate emission mass total at each waypoint
             for species, ei in eis.items():
                 fl[i][species] = (
-                    ei * fl[i]["fuel_flow"] * plume_params["dt_integration"].seconds
+                    ei * fl[i]["fuel_flow"] * plume_params.dt_integration.seconds
                 )
 
         return fl
@@ -485,10 +487,13 @@ class GPAT(Model):
         met = self.met
         fl = self.fl
 
-        # Create a new dictionary excluding hres_pl and vres_pl to input to dry advection model
-        filtered_plume_params = {key: value for key, value in plume_params.items() if key not in {"hres_pl", "vres_pl", "n_slices"}}
+        # converting from dataclass to dict to pass to DryAdvection model
+        plume_params_dict = asdict(plume_params)
 
-        dry_adv = DryAdvection(met, **filtered_plume_params)
+        # Create a new dictionary excluding hres_pl and vres_pl to input to dry advection model
+        filtered_plume_params_dict = {key: value for key, value in plume_params_dict.items() if key not in {"hres_pl", "vres_pl", "n_slices"}}
+
+        dry_adv = DryAdvection(met, **filtered_plume_params_dict)
 
         pl = []
 
@@ -562,7 +567,7 @@ class GPAT(Model):
         pl["sin_a"] = np.sin(np.radians(pl["heading"]))
         pl["cos_a"] = np.cos(np.radians(pl["heading"]))
         pl["altitude"] = units.pl_to_m(pl["level"])
-        pl["time"] = pl["time"] - self.plume_params["dt_integration"]
+        pl["time"] = pl["time"] - self.plume_params.dt_integration
 
         return fl, pl
 
@@ -585,7 +590,7 @@ class GPAT(Model):
             }
         )
 
-        if self.fl_params["n_ac"] >= 1:
+        if self.fl_params.n_ac >= 1:
             
             # define molar masses of species g/mol
             mm = [30.01, 46.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
@@ -599,7 +604,7 @@ class GPAT(Model):
                 self.alts[-1],
             )
 
-            max_age = self.plume_params["max_age"]  # Define the maximum age for plume waypoints
+            max_age = self.plume_params.max_age  # Define the maximum age for plume waypoints
             bg_property_data = {property: 0 for property in emi["emi_species"].values}  # Placeholder for background emissions
 
             
@@ -613,7 +618,7 @@ class GPAT(Model):
                 max_age_segments = plume_time_data.dataframe.loc[plume_time_data.dataframe["age"] == max_age]
 
                 for p, property in enumerate(emi["emi_species"].values):
-                    if property in self.sim_params["species_in"]:
+                    if property in self.sim_params.species_in:
 
                         # call contrails_to_hi_res_grid
                         plume_property_data = plume_to_grid(
@@ -621,8 +626,8 @@ class GPAT(Model):
                             plumes_t=plume_time_data,
                             var_name=property,
                             spatial_bbox=bbox,
-                            spatial_grid_res=plume_params["hres_pl"],
-                            n_slices=plume_params["n_slices"],
+                            spatial_grid_res=plume_params.hres_pl,
+                            n_slices=plume_params.n_slices,
                         )
 
                         # add background emissions mass
@@ -632,16 +637,16 @@ class GPAT(Model):
                         bg_property_data[property] += max_age_segments[property].sum() / (len(self.lons) * len(self.lats))
 
                         # convert mass to density [kg/m^3]
-                        density = plume_property_data / (plume_params["vres_pl"] \
-                        * units.latitude_distance_to_m(plume_params["hres_pl"]) \
-                        * units.longitude_distance_to_m(plume_params["hres_pl"], (self.lats[0] + self.lats[-1]) / 2))
+                        density = plume_property_data / (plume_params.vres_pl \
+                        * units.latitude_distance_to_m(plume_params.hres_pl) \
+                        * units.longitude_distance_to_m(plume_params.hres_pl, (self.lats[0] + self.lats[-1]) / 2))
 
                         plume = (density / 1E+03) * NA / mm[p] # [kg/m^3] to [molecules/cm^3]
                         # kg -> g (* 1E+03)
                         # m^3 -> cm^3 (/ 1E+06)
 
                         # find altitude index for flight level
-                        alt = units.m_to_pl(self.fl_params["fl0_coords0"][2])
+                        alt = units.m_to_pl(self.fl_params.fl0_coords0[2])
 
                         # find time index for time slice covering dt_integration
                         if time < pl["time"].unique()[-1]:
@@ -721,9 +726,9 @@ class GPAT(Model):
         )
 
         self.boxm_ds = self.boxm_ds.assign_attrs(
-            dts=self.sim_params["ts_sim"].total_seconds(),
-            species_out=self.sim_params["species_out"],
-            species_out_num = self.sim_params["species_out_num"]
+            dts=self.sim_params.ts_sim.total_seconds(),
+            species_out=self.sim_params.species_out,
+            species_out_num = self.sim_params.species_out_num
             )
 
         self.boxm_ds["J"] = (["time", "level", "longitude", "latitude", "photol_params"], da.zeros((self.boxm_ds.sizes["time"], self.boxm_ds.sizes["level"], self.boxm_ds.sizes["longitude"], self.boxm_ds.sizes["latitude"], 5)))
@@ -732,7 +737,7 @@ class GPAT(Model):
 
         self.boxm_ds["RC"] = (["time", "level", "longitude", "latitude", "therm_coeffs"], da.zeros((self.boxm_ds.sizes["time"], self.boxm_ds.sizes["level"], self.boxm_ds.sizes["longitude"], self.boxm_ds.sizes["latitude"], 5)))
 
-        self.boxm_ds["Y"] = (["time", "level", "longitude", "latitude", "species_out"], da.zeros((self.boxm_ds.sizes["time"], self.boxm_ds.sizes["level"], self.boxm_ds.sizes["longitude"], self.boxm_ds.sizes["latitude"], len(self.sim_params["species_out"]))))
+        self.boxm_ds["Y"] = (["time", "level", "longitude", "latitude", "species_out"], da.zeros((self.boxm_ds.sizes["time"], self.boxm_ds.sizes["level"], self.boxm_ds.sizes["longitude"], self.boxm_ds.sizes["latitude"], len(self.sim_params.species_out))))
 
     def stack(self):
         """Stack boxm_ds to flatten and get cell numbers out."""
@@ -1380,11 +1385,10 @@ def parse_args():
     parser.add_argument("--lagrangian_tendency_of_air_pressure", type=float, help="Lagrangian tendency of air pressure in m/s")
     parser.add_argument("--species_in", type=str, help="Input species (comma-separated)")
     parser.add_argument("--species_out", type=str, help="Output species (comma-separated)")
+    parser.add_argument("--gpat_path", type=str, help="GPAT directory")
     parser.add_argument("--job_id", type=str, help="Job ID")
+    parser.add_argument("--run_gpat", type=bool, help="Run the GPAT model")
        
-    # No run argument
-    parser.add_argument("-n", "--no-run", action="store_true", help="Don't run the box model, just output the directory name")
-    
     return parser.parse_args()
 
 def update_fl_params_from_args(params, args):
@@ -1449,8 +1453,16 @@ def update_sim_params_from_args(params, args):
     if args.lagrangian_tendency_of_air_pressure:
         params.lagrangian_tendency_of_air_pressure = args.lagrangian_tendency_of_air_pressure
     if args.species_in:
-        params.species_in = np.array(args.species_in.split(','))
+        params.species_in = tuple(args.species_in.split(','))
     if args.species_out:
-        params.species_out = np.array(args.species_out.split(','))
+        params.species_out = tuple(args.species_out.split(','))
+    if args.gpat_path:
+        params.gpat_path = args.gpat_path
     if args.job_id:
         params.job_id = args.job_id
+    if args.run_gpat:
+        params.run_gpat = args.run_gpat
+
+# Function to convert dictionary to dataclass instance
+def dict_to_dataclass(cls, dict_obj):
+    return cls(**dict_obj)

@@ -2,8 +2,9 @@
 
 import numpy as np
 import pandas as pd
-from pycontrails.models.gpat.gpat import GPAT, parse_args, update_fl_params_from_args, update_plume_params_from_args, update_sim_params_from_args
+from pycontrails.models.gpat.gpat import GPAT, FlParams, PlumeParams, SimParams, parse_args, update_fl_params_from_args, update_plume_params_from_args, update_sim_params_from_args, dict_to_dataclass
 from dataclasses import asdict
+import os
 
 # flight trajectory parameters
 fl_params = {
@@ -43,13 +44,10 @@ sim_params = {
     "eastward_wind": 0.0,  # m/s
     "northward_wind": 0.0,  # m/s
     "lagrangian_tendency_of_air_pressure": 0.0,  # m/s
-    "species_in": np.array(["NO", "NO2", "CO", "HCHO", "CH3CHO", "C2H4", "C3H6", "C2H2", "BENZENE"]),
-    "species_out": np.array(["O3", "NO2", "NO",
-                            "NO3", "HNO3", "PAN",
-                            "HONO", "HO2", "OH",
-                            "H2O2", "CO", "HCHO",
-                            "CH4"
-                            ]),
+    "species_in": ("NO", "NO2", "CO", "HCHO", "CH3CHO", "C2H4", "C3H6", "C2H2", "BENZENE"),
+    "species_out": ("O3", "NO2", "NO", "NO3", "HNO3", "PAN", "HONO", "HO2", "OH","H2O2", 
+                    "CO", "HCHO", "CH4"),
+    "gpat_path": os.getcwd() +"/",
     "job_id":   (f"mc_v_{fl_params['n_ac']}_"
                 f"{fl_params['sep_dist'][0]}_"
                 f"{fl_params['sep_dist'][1]}_"
@@ -59,21 +57,28 @@ sim_params = {
     "run_gpat": False,
 }
 
+fl_params = dict_to_dataclass(FlParams, fl_params)
+plume_params = dict_to_dataclass(PlumeParams, plume_params)
+sim_params = dict_to_dataclass(SimParams, sim_params)
+
 gpat = GPAT(fl_params, plume_params, sim_params)
 
-updated_args = gpat.parse_args()
 
-gpat.update_fl_params_from_args(fl_params, updated_args)
-print("FlParams:", asdict(fl_params))
 
-gpat.update_plume_params_from_args(plume_params, updated_args)
-print("PlumeParams:", asdict(plume_params))
+updated_args = parse_args()
 
-gpat.update_sim_params_from_args(sim_params, updated_args)
-print("SimParams:", asdict(sim_params)) 
+update_fl_params_from_args(gpat.fl_params, updated_args)
+print("FlParams:", asdict(gpat.fl_params))
 
-if sim_params["run_gpat"]:
+update_plume_params_from_args(gpat.plume_params, updated_args)
+print("PlumeParams:", asdict(gpat.plume_params))
+
+update_sim_params_from_args(gpat.sim_params, updated_args)
+print("SimParams:", asdict(gpat.sim_params)) 
+
+if gpat.sim_params.run_gpat:
     gpat.eval()
 else:
     print("GPAT simulation is not run.")
-    print(f'Job ID is : {sim_params["job_id"]}')
+    print(f'Job ID is : {gpat.sim_params.job_id}')
+    print(f'Path is : {gpat.sim_params.gpat_path}')
