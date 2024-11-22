@@ -74,6 +74,8 @@ CONTAINS
         IMPLICIT NONE
         CHARACTER(LEN=256) :: JOB_ID
 
+        PRINT *, JOB_ID
+
         ! OPEN BOXM INPUT NC
         IERR = NF90_OPEN('inputs/'//TRIM(JOB_ID)//'/boxm_ds.nc', NF90_WRITE, NCID)
         IF (IERR /= NF90_NOERR) THEN
@@ -5369,10 +5371,10 @@ PROGRAM BOXM_RUN
     CALL getarg(1, JOB_ID)
 
     ! Call the subroutine to open the file with the job_id
-    CALL OPEN_NC(TRIM(JOB_ID))        
+    CALL OPEN_NC(JOB_ID)      
 
     ! PRE-INTEGRATION
-    CALL OPEN_NC(JOB_ID)
+    !CALL OPEN_NC(JOB_ID)
     CALL GET_DIMS()
     CALL INIT_VARS()
     CALL GET_PRE_INT_VARIDS()

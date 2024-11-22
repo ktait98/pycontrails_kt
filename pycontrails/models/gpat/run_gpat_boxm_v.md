@@ -1,10 +1,6 @@
 ## Run GPAT for mass conservation validation test
 So the base case scenario is the one to test all params against. So for each of the params to vary below, vary one at a time, while keeping everything else at base case.
 
-Note that for hres_pl and hres_sim, these need to be automated at the same time, as I don't trust my interpolation scheme, and would rather keep them the same (but cba to recode it all).
-
-also, i am running mine from sc_local.sh on my local box. Please see this and reconvert back to bc4 where necessary.
-
 ## Base case scenario
 ```python
 # flight trajectory parameters
@@ -44,14 +40,12 @@ sim_params = {
     "eastward_wind": 0.0,  # m/s
     "northward_wind": 0.0,  # m/s
     "lagrangian_tendency_of_air_pressure": 0.0,  # m/s
-    "species_in": np.array(["NO", "NO2", "CO", "HCHO", "CH3CHO", "C2H4", "C3H6", "C2H2", "BENZENE"]),
-    "species_out": np.array(["O3", "NO2", "NO",
-                            "NO3", "HNO3", "PAN",
-                            "HONO", "HO2", "OH",
-                            "H2O2", "CO", "HCHO",
-                            "CH4"
-                            ]),
-    "job_id": None
+    "species_in": ("NO", "NO2", "CO", "HCHO", "CH3CHO", "C2H4", "C3H6", "C2H2", "BENZENE"),
+    "species_out": ("O3", "NO2", "NO", "NO3", "HNO3", "PAN", "HONO", "HO2", "OH","H2O2", 
+                    "CO", "HCHO", "CH4"),
+    "gpat_path": os.getcwd() +"/",
+    "job_id": None,
+    "run_gpat": True
 }
 ```
 ## Scenarios to test against base case
@@ -87,7 +81,7 @@ datetime: 12:00:00 15-08-2022
 
 
 # Params to vary against base case
-- ts_sim: [20, 60, 120] [seconds]
+- ts_sim: [10, 20, 60, 120] [seconds]
 - rt_sim: [1, 5, 10, 30] [days]
 
 Call job_id: "boxm_v_<scenario>_<ts_sim>_<rt_sim>"

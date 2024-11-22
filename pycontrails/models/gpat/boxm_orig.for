@@ -135,7 +135,7 @@ C
      &inEMI_C2H5CHO, inFF, inT0, inA0, inV0, inKZ, inDTS
 
       CHARACTER(LEN=200) :: EMI_LINE
-      CHARACTER(LEN=*) :: PATH, JOB_ID
+      CHARACTER(LEN=256) :: PATH, JOB_ID
 
       CALL GETARG(1, PATH)
       CALL GETARG (2, JOB_ID)
@@ -154,9 +154,9 @@ C
      &'/RC.OUT', STATUS='UNKNOWN')
       OPEN(13, FILE=TRIM(PATH)//'inputs/'//TRIM(JOB_ID)//
      &'/boxm_input.txt', STATUS='OLD')
-     OPEN(14, FILE=TRIM(PATH)//'inputs/'//TRIM(JOB_ID)//
+      OPEN(14, FILE=TRIM(PATH)//'inputs/'//TRIM(JOB_ID)//
      &'/zen.csv', STATUS='OLD')
-     OPEN(15, FILE=TRIM(PATH)//'inputs/'//TRIM(JOB_ID)//
+      OPEN(15, FILE=TRIM(PATH)//'inputs/'//TRIM(JOB_ID)//
      &'/emi.csv', STATUS='OLD')
 C
       READ(13, *) inDAY, inMONTH, inYEAR, inLEVEL, inLONG,

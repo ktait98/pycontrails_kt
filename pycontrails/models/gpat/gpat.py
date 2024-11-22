@@ -28,13 +28,14 @@ from pycontrails.models.dry_advection import DryAdvection
 from pycontrails.models.gpat.plume_to_grid import plume_to_grid
 from pycontrails.models.cocip import contrails_to_hi_res_grid
 from pycontrails.physics import geo, thermo, units, constants
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, fields, is_dataclass
+from distutils.util import strtobool
 from typing import Tuple
 import pathlib
 
 ### GPAT Model Parameters ###
 @dataclass
-class FlParams(ModelParams):
+class FlParams():
     """Default flight/fleet parameters."""
     t0_fl: pd.Timestamp = pd.to_datetime("2022-01-20 13:00:00") # flight start time
     rt_fl: pd.Timedelta = pd.Timedelta(minutes=60) # flight run time
@@ -47,10 +48,10 @@ class FlParams(ModelParams):
     n_ac: int = 1 # number of aircraft
 
 @dataclass
-class PlumeParams(ModelParams):
+class PlumeParams():
     """Default plume dispersion parameters."""
     dt_integration: pd.Timedelta = pd.Timedelta(minutes=2) # integration time step
-    max_age: pd.Timedelta = pd.Timedelta(hours=2) # maximum age of the plume
+    max_age: str | pd.Timedelta = pd.Timedelta(hours=2) # maximum age of the plume
     depth: float = 50.0 # initial plume depth, [m]
     width: float = 50.0 # initial plume width, [m]
     shear: float = 0.01 # wind shear [1/s]
@@ -59,7 +60,7 @@ class PlumeParams(ModelParams):
     n_slices: int = 10 # number of slices
 
 @dataclass
-class SimParams(ModelParams):
+class SimParams():
     """Default simulation parameters"""
     t0_sim: pd.Timestamp = pd.to_datetime("2022-01-20 12:00:00") # simulation start time
     rt_sim: pd.Timedelta = pd.Timedelta(hours=120) # simulation runtime
@@ -142,6 +143,9 @@ class GPAT(Model):
             * (self.alts[-1] - self.alts[0])
         )
 
+        if plume_params.max_age == "ID":
+                plume_params.max_age = plume_params.dt_integration
+
         if sim_params.gpat_path is None:
             self.path = os.environ['PYCONTRAILSDIR'] + "models/gpat/"
 
@@ -175,16 +179,30 @@ class GPAT(Model):
         os.makedirs(self.inputs_job)
         os.makedirs(self.outputs_job)
 
-        self.runtimes = {
-            "traj_gen": None,
-            "gen_met": None,
-            "bg_chem": None,
-            "ac_perf": None,
-            "emissions": None,
-            "sim_plumes": None,
-            "plume_to_grid": None,
-            "run_cc": None,
-            "run_boxm": None,
+        self.walltimes = {
+            "traj_gen_wall": 0,
+            "gen_met_wall": 0,
+            "bg_chem_wall": 0,
+            "ac_perf_wall": 0,
+            "emissions_wall": 0,
+            "sim_plumes_wall": 0,
+            "plume_to_grid_wall": 0,
+            "run_cc_wall": 0,
+            "run_boxm_wall": 0,
+            "gen_outputs_wall": 0,
+        }
+
+        self.proctimes = {
+            "traj_gen_proc": 0,
+            "gen_met_proc": 0,
+            "bg_chem_proc": 0,
+            "ac_perf_proc": 0,
+            "emissions_proc": 0,
+            "sim_plumes_proc": 0,
+            "plume_to_grid_proc": 0,
+            "run_cc_proc": 0,
+            "run_boxm_proc": 0,
+            "gen_outputs_proc": 0,
         }
 
         all_params = {
@@ -203,51 +221,78 @@ class GPAT(Model):
         """Run the GPAT model."""
 
         # Generate formation flight trajectory points
-        start_time = time.process_time()
-        self.fl = self.traj_gen()
-        self.runtimes["traj_gen"] = time.process_time() - start_time
+        start_wall_time = time.time()
+        start_process_time = time.process_time()
+        if self.fl_params.n_ac > 0:
+            self.fl = self.traj_gen()
+        self.walltimes["traj_gen_wall"] = time.time() - start_wall_time
+        self.proctimes["traj_gen_proc"] = time.process_time() - start_process_time
 
         # Generate meteorological data
-        start_time = time.process_time()
+        start_wall_time = time.time()
+        start_process_time = time.process_time()
         self.met = self.gen_met()
-        self.runtimes["gen_met"] = time.process_time() - start_time
+        self.walltimes["gen_met_wall"] = time.time() - start_wall_time
+        self.proctimes["gen_met_proc"] = time.process_time() - start_process_time
 
         # Generate background chemistry data
-        start_time = time.process_time()
+        start_wall_time = time.time()
+        start_process_time = time.process_time()
         self.bg_chem = self.gen_bg_chem()
-        self.runtimes["bg_chem"] = time.process_time() - start_time
+        self.walltimes["bg_chem_wall"] = time.time() - start_wall_time
+        self.proctimes["bg_chem_proc"] = time.process_time() - start_process_time
 
         # Calculate aircraft performance using PS Model
-        start_time = time.process_time()
-        self.fl = self.ac_perf()
-        self.runtimes["ac_perf"] = time.process_time() - start_time
+        start_wall_time = time.time()
+        start_process_time = time.process_time()
+        if self.fl_params.n_ac > 0:
+            self.fl = self.ac_perf()
+        self.walltimes["ac_perf_wall"] = time.time() - start_wall_time
+        self.proctimes["ac_perf_proc"] = time.process_time() - start_process_time
 
         # Estimate emissions using Pycontrails Emissions Model
-        start_time = time.process_time()
-        self.fl = self.emissions()
-        self.runtimes["emissions"] = time.process_time() - start_time
+        start_wall_time = time.time()
+        start_process_time = time.process_time()
+        if self.fl_params.n_ac > 0:
+            self.fl = self.emissions()
+        self.walltimes["emissions_wall"] = time.time() - start_wall_time
+        self.proctimes["emissions_proc"] = time.process_time() - start_process_time
 
         # Simulate plume dispersion/advection using Pycontrails Dry Advection Model
-        start_time = time.process_time()
-        self.fl, self.pl = self.sim_plumes()
-        self.runtimes["sim_plumes"] = time.process_time() - start_time
+        start_wall_time = time.time()
+        start_process_time = time.process_time()
+        if self.fl_params.n_ac > 0:
+            self.fl, self.pl = self.sim_plumes()
+        self.walltimes["sim_plumes_wall"] = time.time() - start_wall_time
+        self.proctimes["sim_plumes_proc"] = time.process_time() - start_process_time
 
         # Aggregate plumes to an Eulerian grid for photochemical and microphysical processing
-        start_time = time.process_time()
+        start_wall_time = time.time()
+        start_process_time = time.process_time()
         self.emi = self.plume_to_grid()
-        self.runtimes["plume_to_grid"] = time.process_time() - start_time
+        self.walltimes["plume_to_grid_wall"] = time.time() - start_wall_time
+        self.proctimes["plume_to_grid_proc"] = time.process_time() - start_process_time
 
         # Run COCIP
-        start_time = time.process_time()
+        start_wall_time = time.time()
+        start_process_time = time.process_time()
         # self.contrail = self.run_cc()
-        self.runtimes["run_cc"] = time.process_time() - start_time
+        self.walltimes["run_cc_wall"] = time.time() - start_wall_time
+        self.proctimes["run_cc_proc"] = time.process_time() - start_process_time
 
         # Run BOXM
-        start_time = time.process_time()
+        start_wall_time = time.time()
+        start_process_time = time.process_time()
         self.chem = self.run_boxm()
-        self.runtimes["run_boxm"] = time.process_time() - start_time
+        self.walltimes["run_boxm_wall"] = time.time() - start_wall_time
+        self.proctimes["run_boxm_proc"] = time.process_time() - start_process_time
 
+        # Generate outputs
+        start_wall_time = time.time()
+        start_process_time = time.process_time()
         self.gen_outputs()
+        self.walltimes["gen_outputs_wall"] = time.time() - start_wall_time
+        self.proctimes["gen_outputs_proc"] = time.process_time() - start_process_time
 
     # Model methods
     def traj_gen(self) -> list[Flight]:
@@ -573,10 +618,7 @@ class GPAT(Model):
 
     def plume_to_grid(self) -> MetDataset:
         """Aggregate plumes to an Eulerian grid for photochemical and microphysical processing."""
-        plume_params = self.plume_params
-        fl = self.fl
-        pl = self.pl
-
+        
         # loop over time and plume property
         emi = xr.DataArray(
             np.zeros((len(self.lons_pl), len(self.lats_pl), len(self.alts), len(self.times), 9)),
@@ -591,6 +633,10 @@ class GPAT(Model):
         )
 
         if self.fl_params.n_ac >= 1:
+
+            plume_params = self.plume_params
+            fl = self.fl
+            pl = self.pl
             
             # define molar masses of species g/mol
             mm = [30.01, 46.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
@@ -605,6 +651,7 @@ class GPAT(Model):
             )
 
             max_age = self.plume_params.max_age  # Define the maximum age for plume waypoints
+
             bg_property_data = {property: 0 for property in emi["emi_species"].values}  # Placeholder for background emissions
 
             
@@ -691,17 +738,20 @@ class GPAT(Model):
 
         print("Generating outputs...")
         # Add job runtime for all methods
-        self.all_params["runtime"] = self.runtimes
+        self.all_params["walltimes"] = self.walltimes
+        self.all_params["proctimes"] = self.proctimes
         
         # Save to pickle file
         with open(f"{self.outputs_job}params_{self.job_id}.pkl", 'wb') as pkl_file:
             pickle.dump(self.all_params, pkl_file)
 
         # Save fl dataset to pickle file
-        self.fl.to_pickle(f"{self.outputs_job}fl_{self.job_id}.pkl")
+        if self.fl_params.n_ac > 0:
+            self.fl.to_pickle(f"{self.outputs_job}fl_{self.job_id}.pkl")
 
         # Save pl dataset to pickle file
-        self.pl.to_pickle(f"{self.outputs_job}pl_{self.job_id}.pkl")
+        if self.fl_params.n_ac > 0:
+            self.pl.to_pickle(f"{self.outputs_job}pl_{self.job_id}.pkl")
 
         # Save the box model dataset to netCDF file
         print("Saving chem dataset to netCDF file...")
@@ -878,26 +928,40 @@ def create_jobs_df(outputs_dir):
     for job_id in os.listdir(outputs_dir):
         job_dir = os.path.join(outputs_dir, job_id)
         if os.path.isdir(job_dir):
-            # Check if the expected files exist in the subdirectory
-            expected_files = [
-                f"params_{job_id}.pkl",
-                f"fl_{job_id}.pkl",
-                f"pl_{job_id}.pkl",
-                f"chem_{job_id}.nc"
-            ]
-            if all(os.path.isfile(os.path.join(job_dir, file)) for file in expected_files):
+            # Check if the params file exists in the subdirectory
+            params_file = os.path.join(job_dir, f"params_{job_id}.pkl")
+            if os.path.isfile(params_file):
+                params = pd.read_pickle(params_file)
                 
-                params = pd.read_pickle(outputs_dir + job_id + "/params_" + job_id + ".pkl")
-
                 # Flatten the dictionary
-                data_dict = {f"{inner_key}": inner_value 
-                                for outer_key, inner_dict in params.items() 
-                                for inner_key, inner_value in inner_dict.items()}
+                data_dict = {}
+                for outer_key, inner_dc in params.items():
+                    if is_dataclass(inner_dc):
+                        inner_dict = asdict(inner_dc)
+                    else:
+                        inner_dict = inner_dc
+                    for inner_key, inner_value in inner_dict.items():
+                        data_dict[f"{inner_key}"] = inner_value
 
-                jobs.append(data_dict)
+                # Check if n_ac > 0 and verify the existence of fl and pl files
+                if data_dict.get("n_ac", 0) > 0:
+                    expected_files = [
+                        f"params_{job_id}.pkl",
+                        f"fl_{job_id}.pkl",
+                        f"pl_{job_id}.pkl",
+                        f"chem_{job_id}.nc"
+                    ]
+                else:
+                    expected_files = [
+                        f"params_{job_id}.pkl",
+                        f"chem_{job_id}.nc"
+                    ]
 
-                jobs_df = pd.DataFrame(jobs)
-                jobs_df = jobs_df.set_index("job_id")
+                if all(os.path.isfile(os.path.join(job_dir, file)) for file in expected_files):
+                    jobs.append(data_dict)
+
+    jobs_df = pd.DataFrame(jobs)
+    jobs_df = jobs_df.set_index("job_id")
 
     return jobs_df
 
@@ -910,7 +974,7 @@ def filter_jobs_df(jobs_df, criteria):
             filtered_df = filtered_df[(filtered_df[key] >= value[0]) & (filtered_df[key] <= value[1])]
         elif key == "job_id":
             # Filter by index
-            filtered_df = filtered_df[filtered_df.index == value]
+            filtered_df = filtered_df[filtered_df.index.str.contains(value)]
         else:
             # Exact match filter
             filtered_df = filtered_df[filtered_df[key] == value]
@@ -1196,15 +1260,14 @@ def boxm_test(path, job_id, cell, chem_ds):
 
     # # calls fortran with input file and generates .OUT files
     subprocess.call(
-        ["boxm_orig", path, job_id],
+        [path + "boxm_orig", path, job_id],
     )
 
-    cell_chem_ds = update_chem_ds(cell_chem_ds)
+    cell_chem_ds = update_chem_ds(cell_chem_ds, job_id)
 
     return cell_chem_ds
 
 def gen_boxm_orig_input(cell_chem_ds, job_id):
-    
     """Generate the input file for the original box model."""
 
     # delete any existing input files
@@ -1363,7 +1426,7 @@ def parse_args():
     
     # PlumeParams arguments
     parser.add_argument("--dt_integration", type=int, help="Integration time step in minutes")
-    parser.add_argument("--max_age", type=int, help="Maximum age of the plume in hours")
+    parser.add_argument("--max_age", type=str, help="Maximum age of the plume in hours")
     parser.add_argument("--depth", type=float, help="Initial plume depth in meters")
     parser.add_argument("--width", type=float, help="Initial plume width in meters")
     parser.add_argument("--shear", type=float, help="Wind shear in 1/s")
@@ -1387,7 +1450,7 @@ def parse_args():
     parser.add_argument("--species_out", type=str, help="Output species (comma-separated)")
     parser.add_argument("--gpat_path", type=str, help="GPAT directory")
     parser.add_argument("--job_id", type=str, help="Job ID")
-    parser.add_argument("--run_gpat", type=bool, help="Run the GPAT model")
+    parser.add_argument("--run_gpat", action='store_true', help="Run the GPAT model")
        
     return parser.parse_args()
 
@@ -1414,8 +1477,10 @@ def update_fl_params_from_args(params, args):
 def update_plume_params_from_args(params, args):
     if args.dt_integration:
         params.dt_integration = pd.Timedelta(minutes=args.dt_integration)
-    if args.max_age:
-        params.max_age = pd.Timedelta(hours=args.max_age)
+    if args.max_age == "ID":
+        params.max_age = args.max_age
+    else:
+        params.max_age = pd.Timedelta(hours=int(args.max_age))
     if args.depth:
         params.depth = args.depth
     if args.width:
@@ -1466,3 +1531,11 @@ def update_sim_params_from_args(params, args):
 # Function to convert dictionary to dataclass instance
 def dict_to_dataclass(cls, dict_obj):
     return cls(**dict_obj)
+
+# Function to filter out inherited params from ModelParams
+def filter_inherited_params(instance, base_class):
+    """Filter out inherited parameters from a dataclass instance."""
+    base_fields = {f.name for f in fields(base_class)}
+    instance_dict = asdict(instance)
+    filtered_dict = {k: v for k, v in instance_dict.items() if k not in base_fields}
+    return filtered_dict

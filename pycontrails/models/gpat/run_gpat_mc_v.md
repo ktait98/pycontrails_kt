@@ -44,20 +44,18 @@ sim_params = {
     "eastward_wind": 0.0,  # m/s
     "northward_wind": 0.0,  # m/s
     "lagrangian_tendency_of_air_pressure": 0.0,  # m/s
-    "species_in": np.array(["NO", "NO2", "CO", "HCHO", "CH3CHO", "C2H4", "C3H6", "C2H2", "BENZENE"]),
-    "species_out": np.array(["O3", "NO2", "NO",
-                            "NO3", "HNO3", "PAN",
-                            "HONO", "HO2", "OH",
-                            "H2O2", "CO", "HCHO",
-                            "CH4"
-                            ]),
+    "species_in": ("NO", "NO2", "CO", "HCHO", "CH3CHO", "C2H4", "C3H6", "C2H2", "BENZENE"),
+    "species_out": ("O3", "NO2", "NO", "NO3", "HNO3", "PAN", "HONO", "HO2", "OH","H2O2", 
+                    "CO", "HCHO", "CH4"),
+    "gpat_path": os.getcwd() +"/",
     "job_id":   (f"mc_v_{fl_params['n_ac']}_"
                 f"{fl_params['sep_dist'][0]}_"
                 f"{fl_params['sep_dist'][1]}_"
                 f"{plume_params['n_slices']}_"
                 f"{plume_params['max_age'].components.hours}_"
-                f"{plume_params['dt_integration'].components.hours}_"
-                f"{plume_params["hres_pl"]}")
+                f"{plume_params['dt_integration'].components.minutes}_"
+                f"{plume_params["hres_pl"]}"),
+    "run_gpat": True
 }
 ```
 ## Params to vary
@@ -71,7 +69,7 @@ sim_params = {
 
 - plume_params["max_age"]: [1, 2, 5, 10, 12] # max age of plume waypoints [hours]
 
-- plume_params["dt_integration"]: [20, 60, 120, 300, 600] # plume simulation int time ["seconds"]
+- plume_params["dt_integration"]: [1, 2, 5, 10] # plume simulation int time ["minutes"]
 
 - plume_params["hres_pl"]: [0.01, 0.02, 0.05, 0.1, 0.5] # plume hres [degrees]
   plume_params["hres_sim"]: [0.01, 0.02, 0.05, 0.1, 0.5] # chem sim hres [degrees]
