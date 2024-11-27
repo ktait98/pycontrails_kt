@@ -973,8 +973,12 @@ def filter_jobs_df(jobs_df, criteria):
             # Range filter
             filtered_df = filtered_df[(filtered_df[key] >= value[0]) & (filtered_df[key] <= value[1])]
         elif key == "job_id":
-            # Filter by index
-            filtered_df = filtered_df[filtered_df.index.str.contains(value)]
+            if isinstance(value, list):
+                # Combine the list of strings into a single regex pattern
+                pattern = '|'.join(value)
+                filtered_df = filtered_df[filtered_df.index.str.contains(pattern)]
+            else:
+                filtered_df = filtered_df[filtered_df.index.str.contains(value)]
         else:
             # Exact match filter
             filtered_df = filtered_df[filtered_df[key] == value]
@@ -1011,7 +1015,16 @@ def load_chem_ds(job_ids, outputs_dir):
         ds = xr.open_dataset(outputs_dir + job_id + "/chem_" + job_id + ".nc")
         ds = ds.expand_dims(job_id=[job_id])
         chemistry_data.append(ds)
-    return xr.concat(chemistry_data, dim="job_id")
+    #return xr.concat(chemistry_data, dim="job_id")
+    return chemistry_data
+
+def load_chem_da(job_ids, outputs_dir, property):
+    chemistry_data = []
+    for job_id in job_ids:
+        ds = xr.open_dataset(outputs_dir + job_id + "/chem_" + job_id + ".nc")
+        ds = ds.expand_dims(job_id=[job_id])
+        chemistry_data.append(ds[property])
+    return chemistry_data
 
 
 # Data visualisation
@@ -1090,7 +1103,7 @@ def anim_chem(job_id, jobs_df, fl_df, pl_df, chem_ds, var1, var2, level, resampl
     params = jobs_df.loc[job_id]
     fl_df_job = fl_df.loc[job_id]
     pl_df_job = pl_df.loc[job_id]
-    chem_ds_job = chem_ds.sel(job_id=job_id)
+    chem_ds_job = chem_ds.sel(job_id=job_id, time=chem_ds.time[0:1000])
 
     if var1 == "Y":
         boxm_da = chem_ds_job[var1].sel(species_out=var2).sel(level=level, method="nearest")
@@ -1117,7 +1130,7 @@ def anim_chem(job_id, jobs_df, fl_df, pl_df, chem_ds, var1, var2, level, resampl
     # Initialize the first frame to set up the colorbar
     initial_frame = times_resampled[0]
     heatmap_data = boxm_da.sel(time=initial_frame).transpose("latitude", "longitude")
-    heatmap = heatmap_data.plot(ax=ax, cmap="Blues", add_colorbar=False)
+    heatmap = heatmap_data.plot(ax=ax, cmap="Blues", add_colorbar=False, vmin=boxm_da.min(), vmax=boxm_da.max())
     cbar = plt.colorbar(heatmap, cax=cbar_ax)
 
     def heatmap_func(t):
@@ -1125,7 +1138,7 @@ def anim_chem(job_id, jobs_df, fl_df, pl_df, chem_ds, var1, var2, level, resampl
         ax.set_title(t)
 
         heatmap_data = boxm_da.sel(time=t).transpose("latitude", "longitude")
-        heatmap = heatmap_data.plot(ax=ax, cmap="Blues", add_colorbar=False, vmin=boxm_da.min(), vmax=boxm_da.max())
+        heatmap = heatmap_data.plot(ax=ax, cmap="Blues", add_colorbar=False, vmin=boxm_da.min(), vmax=boxm_da.max())#, #)
 
         # Update the plume vector data
         fl_data = fl_df_job[fl_df_job["time"] == t]
@@ -1140,13 +1153,13 @@ def anim_chem(job_id, jobs_df, fl_df, pl_df, chem_ds, var1, var2, level, resampl
             label="Flight path",
         )
 
-        scat_pl = ax.scatter(
-            pl_data["longitude"],
-            pl_data["latitude"],
-            s=10e-2 * pl_data["width"],
-            c="blue",
-            label="Plume evolution",
-        )
+        # scat_pl = ax.scatter(
+        #     pl_data["longitude"],
+        #     pl_data["latitude"],
+        #     s=10e-2 * pl_data["width"],
+        #     c="blue",
+        #     label="Plume evolution",
+        # )
 
         ax.legend(loc="upper left")
         ax.set_xlim([params["lon_bounds"][0], params["lon_bounds"][1]])

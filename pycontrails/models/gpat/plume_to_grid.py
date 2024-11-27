@@ -402,14 +402,21 @@ def _add_segment_to_main_grid(
         ix = np.searchsorted(lon_main, lon_segment_grid[-1]) + 1
         iy_ = np.searchsorted(lat_main, lat_segment_grid[0])
         iy = np.searchsorted(lat_main, lat_segment_grid[-1]) + 1
-    except IndexError:
+
+        # Create a mask to ensure the subgrid fits within the main grid
+        mask = np.zeros_like(main_grid_arr[ix_:ix, iy_:iy])
+        mask[:subgrid_arr.shape[0], :subgrid_arr.shape[1]] = subgrid_arr
+
+        # Add the masked subgrid to the main grid
+        main_grid_arr[ix_:ix, iy_:iy] += mask
+
+    except (IndexError, ValueError) as e:
         warnings.warn(
-            "Contrail segment ignored as it is outside spatial bounding box of the main grid. "
+            f"Contrail segment resized due to {e}. "
         )
-    else:
-        main_grid_arr[ix_:ix, iy_:iy] = main_grid_arr[ix_:ix, iy_:iy] + subgrid_arr
 
     return xr.DataArray(main_grid_arr, coords=main_grid.coords)
+
 
 def spatial_bounding_box(
     longitude: npt.NDArray[np.float64], 
