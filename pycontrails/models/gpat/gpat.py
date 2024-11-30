@@ -1073,27 +1073,6 @@ def plot_heatmap(job_id, jobs_df, fl_df, pl_df, chem_ds, **plot_params):
     plt.grid()
     plt.show()
 
-    # print(boxm_da)
-
-    # times = boxm_da["time"].values
-    # times_resampled = pd.to_datetime(times).to_series().resample(resample_freq).asfreq().dropna().index
-
-    # print(f"New number of frames: {len(times_resampled)}")
-
-    # def heatmap_func(t):
-    #     ax.cla()
-    #     ax.set_title(t)
-
-    #     boxm_da.sel(time=t).transpose("latitude", "longitude").plot(
-    #         ax=ax, cbar_kwargs={"cax": cbar_ax}, add_colorbar=True, vmin=boxm_da.min(), vmax=boxm_da.max()
-    #     )
-
-    # anim = FuncAnimation(fig, heatmap_func, frames=times_resampled, blit=False)
-
-    # filename = pathlib.Path(self.outputs_plots + var1 + "_" + var2 + ".gif")
-
-    # anim.save(filename, dpi=300, writer=PillowWriter(fps=8))
-
 def anim_chem(job_id, jobs_df, fl_df, pl_df, chem_ds, var1, var2, level, resample_freq='4min'):
     """Animate the chemical concentrations with plume vector data."""
     fig, (ax, cbar_ax) = plt.subplots(
@@ -1492,7 +1471,7 @@ def update_plume_params_from_args(params, args):
         params.dt_integration = pd.Timedelta(minutes=args.dt_integration)
     if args.max_age == "ID":
         params.max_age = args.max_age
-    else:
+    elif args.max_age:
         params.max_age = pd.Timedelta(hours=int(args.max_age))
     if args.depth:
         params.depth = args.depth
