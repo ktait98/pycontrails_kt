@@ -1,9 +1,11 @@
-## Run GPAT for mass conservation validation test
-So the base case scenario is the one to test all params against. So for each of the params to vary below, vary one at a time, while keeping everything else at base case.
+#!/usr/bin/env python
 
-## Base case scenario
-```python
-# flight trajectory parameters
+import numpy as np
+import pandas as pd
+from pycontrails.models.gpat.gpat import GPAT, FlParams, PlumeParams, SimParams, parse_args, update_fl_params_from_args, update_plume_params_from_args, update_sim_params_from_args, dict_to_dataclass
+from dataclasses import asdict
+import os
+
 fl_params = {
     "t0_fl": pd.to_datetime("2022-01-20 13:00:00"),  # flight start time
     "rt_fl": pd.Timedelta(minutes=60),  # flight run time
@@ -45,44 +47,30 @@ sim_params = {
                     "CO", "HCHO", "CH4"),
     "gpat_path": os.getcwd() +"/",
     "job_id": None,
-    "run_gpat": True
+    "run_gpat": None
 }
-```
-## Scenarios to test against base case
-NA
-lat: 47.5
-lon: -32.5
-alt: 12500
-dateime: 12:00:00 20-01-2022
 
-US
-lat: 37.5
-lon: -97.5
-alt: 11500
-datetime: 12:00:00 10-11-2022
+fl_params = dict_to_dataclass(FlParams, fl_params)
+plume_params = dict_to_dataclass(PlumeParams, plume_params)
+sim_params = dict_to_dataclass(SimParams, sim_params)
 
-EU
-lat: 42.5
-lon: 7.5
-alt: 9500
-datetime: 12:00:00 20-05-2023
+updated_args = parse_args()
 
-SEA
-lat: 22.5
-lon: 102.5
-alt: 10500
-datetime: 12:00:00 05-03-2022
+update_fl_params_from_args(fl_params, updated_args)
+print("FlParams:", asdict(fl_params))
 
-SA
-lat: -27.5
-lon: -67.5
-alt: 13500
-datetime: 12:00:00 15-08-2022
+update_plume_params_from_args(plume_params, updated_args)
+print("PlumeParams:", asdict(plume_params))
 
+update_sim_params_from_args(sim_params, updated_args)
 
-# Params to vary against base case
-- ts_sim: [10, 20, 60, 120] [seconds]
-- rt_sim: [1, 5, 10, 30] [days]
+print("SimParams:", asdict(sim_params)) 
 
-Call job_id: "boxm_v_<scenario>_<ts_sim>_<rt_sim>"
-E.g. "boxm_v_NA_20_10"
+gpat = GPAT(fl_params, plume_params, sim_params)
+
+if gpat.sim_params.run_gpat:
+    gpat.eval()
+else:
+    print("GPAT simulation is not run.")
+    print(f'Job ID is : {gpat.sim_params.job_id}')
+    print(f'Path is : {gpat.sim_params.gpat_path}')

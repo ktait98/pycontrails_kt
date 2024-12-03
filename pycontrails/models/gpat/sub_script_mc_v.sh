@@ -46,7 +46,9 @@ export PYCONTRAILSDIR=/user/work/${USER}/pycontrails_kt/pycontrails/
 
 # Delete mc_v_2_1000_0_10_2_0_0.05 and mc_v_2_1000_0_10_2_10_0.05
 
-./run_gpat_mc_v.py --run_gpat true
-./run_gpat_mc_v.py --dt_integration 1  --run_gpat true
-./run_gpat_mc_v.py --dt_integration 10 --run_gpat true
+# ./run_gpat_mc_v.py --run_gpat true
+# ./run_gpat_mc_v.py --dt_integration 1  --run_gpat true
+# ./run_gpat_mc_v.py --dt_integration 10 --run_gpat true
+
+./run_gpat_clean.py
 
