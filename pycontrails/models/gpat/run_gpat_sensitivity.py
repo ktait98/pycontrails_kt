@@ -12,16 +12,16 @@ fl_params = {
     "ts_fl": pd.Timedelta(minutes=2),  # flight time step
     "ac_type": "A320",  # aircraft type
     "fl0_speed": 100.0,  # m/s
-    "fl0_heading": 45.0,  # deg
-    "fl0_coords0": (47.1, -32.9, 12500),  # lat, lon, alt [deg, deg, m]
+    "fl0_heading": 90.0,  # deg
+    "fl0_coords0": (47.5, -32.9, 12500),  # lat, lon, alt [deg, deg, m]
     "sep_dist": (1000, 0, 0),  # dx, dy, dz [m]
-    "n_ac": 2,  # number of aircraft
+    "n_ac": 1,  # number of aircraft
 }
 
 # plume dispersion parameters
 plume_params = {
     "dt_integration": pd.Timedelta(minutes=2),  # integration time step
-    "max_age": pd.Timedelta(hours=2),  # maximum age of the plume
+    "max_age": pd.Timedelta(hours=6),  # maximum age of the plume
     "depth": 50.0,  # initial plume depth, [m]
     "width": 50.0,  # initial plume width, [m]
     "shear": 0.01,  # wind shear [1/s]
@@ -45,7 +45,8 @@ sim_params = {
     "species_in": ("NO", "NO2", "CO", "HCHO", "CH3CHO", "C2H4", "C3H6", "C2H2", "BENZENE"),
     "species_out": ("O3", "NO2", "NO", "NO3", "HNO3", "PAN", "HONO", "HO2", "OH","H2O2", 
                     "CO", "HCHO", "CH4"),
-    "gpat_path": os.getcwd() +"/",
+    "run_path": os.getcwd() +"/",
+    "data_path": os.getcwd() +"/", # "/projects/Impact_of_aviation_on_climate/Kieran2024/",
     "job_id": None,
     "run_gpat": None
 }

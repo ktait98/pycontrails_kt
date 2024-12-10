@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import xarray as xr
 import os
 import re
@@ -109,17 +110,39 @@ class GPATPostProcessor:
 
         return pl_df
 
-    def load_chem_ds(self, job_id, i_lat, i_lon, i_alt):
+    def load_chem_ds(self, job_id, chunk_size=None):
+        outputs_dir = self.outputs_dir
+
+        # Define chunks if chunk_size is provided
+        chunks = {'time': chunk_size} if chunk_size else None
+
+        chem_ds = xr.open_dataset(outputs_dir + job_id + "/chem_" + job_id + ".nc", chunks=chunks)
+        chem_ds = chem_ds.expand_dims(job_id=[job_id])
+        chem_ds = chem_ds.assign_coords(species_out=chem_ds.attrs["species_out"])  
+        chem_ds = chem_ds.isel(level=1)       
+        print(f"Loaded chem ds for {job_id}")
+        
+        return chem_ds
+
+    def load_chem_ds_cell(self, job_id, i_lat, i_lon):
         outputs_dir = self.outputs_dir
 
         chem_ds = xr.open_dataset(outputs_dir + job_id + "/chem_" + job_id + ".nc")
         chem_ds = chem_ds.expand_dims(job_id=[job_id])
-        chem_ds = chem_ds.assign_coords(species_out=chem_ds.attrs["species_out"])        
+        chem_ds = chem_ds.assign_coords(species_out=chem_ds.attrs["species_out"]) 
+        chem_ds = chem_ds.isel(latitude=i_lat, longitude=i_lon)
         print(f"Loaded chem ds for {job_id}")
-
-        chem_ds = chem_ds.isel(job_id=0, latitude=i_lat, longitude=i_lon, level=i_alt)
         
         return chem_ds
+
+    def load_chem_ds_avg(self, job_id):
+        outputs_dir = self.outputs_dir
+
+        chem_ds = xr.open_dataset(outputs_dir + job_id + "/chem_" + job_id + ".nc")
+        chem_ds = chem_ds.expand_dims(job_id=[job_id])
+        chem_ds = chem_ds.assign_coords(species_out=chem_ds.attrs["species_out"])
+        chem_ds = chem_ds.isel(altitude=1)
+        chem_ds = chem_ds.mean(dim=["latitude", "longitude"])
 
     def load_chem_da(self, job_id, property):
         outputs_dir = self.outputs_dir
@@ -135,6 +158,34 @@ class GPATPostProcessor:
 
 
     ### Functions for calculating metrics
+    # Function to calculate net ozone production rate
+    def calc_NOPR(self, chem_ds):
+        T = chem_ds["air_temperature"].isel(time=0)
+        J1 = chem_ds["J"].isel(photol_params=0)
+        H2O = chem_ds["H2O"]
+        N2 = chem_ds["N2"]
+        O2 = chem_ds["O2"]
+        NO = chem_ds["Y"].sel(species_out="NO")
+        OH = chem_ds["Y"].sel(species_out="OH")
+        HO2 = chem_ds["Y"].sel(species_out="HO2")
+        O3 = chem_ds["Y"].sel(species_out="O3")
+        CH3O2 = chem_ds["Y"].sel(species_out="CH3O2")
+
+        kO1D_H2O = 2.14E-10
+        kO1D_N2 = 2.15E-11 * np.exp(110/T)
+        kO1D_O2 = 3.2E-11 * np.exp(67/T)
+        alpha_O1D = (kO1D_H2O * H2O) / (kO1D_N2 * N2 + kO1D_O2 * O2 + kO1D_H2O * H2O)
+
+        kNO_HO2 = 8.1E-12
+        kNO_CH3O2 = 2.3E-12 * np.exp(360/T)
+        kO3_OH = 1.7E-12 * np.exp(940/T)
+        kO3_HO2 =  2.03E-16 * ((T/400)**4.57) * np.exp(693/T)
+
+        NOPR = NO * (kNO_HO2 * HO2 + kNO_CH3O2 * CH3O2) \
+                - O3 * (kO3_HO2 * HO2 + kO3_OH * OH + alpha_O1D * J1)
+        
+        return NOPR
+
     # Function to calculate NOy
     def calc_NOy(self, chem_ds):
             NOy = chem_ds["Y"].sel(species_out="NO") + chem_ds["Y"].sel(species_out="NO2") + \
@@ -202,9 +253,9 @@ class GPATPostProcessor:
         HO2 = chem_ds["Y"].sel(species_out="HO2")
         T = chem_ds["air_temperature"].isel(time=0)
 
-        kCH3O2_NO = 3.00E-12 * np.exp(280/T)**0.999
-        kCH3O2_OH = 1.3E-10
-        kCH3O2_HO2 = 4.10E-13 * np.exp(790/T)
+        kCH3O2_NO = 2.30E-12 * np.exp(360/T)
+        kCH3O2_OH = 3.7E-11 * np.exp(350/T) # 1.3E-10 # Assaf et al. 2016
+        kCH3O2_HO2 = 3.8E-13 * np.exp(780/T)
 
         # should be αCH3O2 = (kCH3O2+NO × [NO] + kCH3O2+OH × [OH]) / 
         # ( kCH3O2+NO × [NO] + kCH3O2+OH × [OH] + kCH3O2+HO2 × [HO2])
@@ -214,8 +265,34 @@ class GPATPostProcessor:
 
         return alpha_CH3O2
 
+    ### Functions to postprocess data
+    # Function to calculate the mean and standard deviation of a variable
+    def calc_cell(self, chem_ds, ilat, ilon):
+        return chem_ds.isel(latitude=ilat, longitude=ilon)
+    
+    def calc_spatial_mean(self, da):
+        return da.mean(dim=["latitude", "longitude"])
+    
+    def calc_temporal_mean(self, da):
+        return da.mean(dim="time")
+
+    def calc_daytime_mean(self, da, chem_ds):
+        return da.where(chem_ds["sza"] < (np.pi/2)).mean(dim="time")
+    
+    def calc_nighttime_mean(self, da, chem_ds):
+        return da.where(chem_ds["sza"] > (np.pi/2)).mean(dim="time")
+    
+    # Function to consider only plume affected cells
+    def filter_plume_cells(self, chem_ds):
+        # Check for non-zero emissions data
+        plume_mask = chem_ds['emi'].sum(dim='emi_species') > 0
+
+        return chem_ds.where(plume_mask)
+        
+
     ### Functions for plotting
     # Function to create a bar chart
+    @staticmethod
     def plot_bar_chart(ax, data, x, y, title, xlabel, ylabel, xticks=None, yticks=None, grid=True):
         ax.bar(data[x], data[y])
         ax.set_title(title)
@@ -229,12 +306,9 @@ class GPATPostProcessor:
             ax.grid(True)
 
     # Function to create a scatter plot with multiple datasets
-    def plot_scatter_plot(ax, data_list, x, y, labels, title, xlabel, ylabel, xticks=None, yticks=None, grid=True):
-        for data, label in zip(data_list, labels):
-            if isinstance(data, xr.DataArray):
-                ax.scatter(data[x].values, data[y].values, label=label, color=lighter_green)
-            else:
-                ax.scatter(data[x], data[y], label=label, color=lighter_green)
+    @staticmethod
+    def plot_scatter_plot(ax, x, y, title, xlabel, ylabel, xticks=None, yticks=None, grid=True):
+        ax.scatter(x, y)
         ax.set_title(title)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
@@ -243,24 +317,30 @@ class GPATPostProcessor:
         if yticks:
             ax.set_yticks(yticks)
         if grid:
-            ax.grid(True)
+            ax.grid(True, which='both', linestyle='--', linewidth=0.5)
         ax.legend()
 
     # Function to create a line plot with multiple datasets
-    def plot_line_plot(ax, x, y, title, xlabel, ylabel, xticks=None, yticks=None, grid=True):
-        ax.plot(x, y)
+    @staticmethod
+    def plot_line_plot(ax, x, y, title, xlabel, ylabel, label=None, xticks=None, yticks=None, color='blue', grid=True, show_legend=True):
+        ax.plot(x, y, color=color, label=label)
         ax.set_title(title)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
+        if xlabel == "Time / days":
+            # Format the x-ticks to show just the day number
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%d'))
         if xticks:
             ax.set_xticks(xticks)
         if yticks:
             ax.set_yticks(yticks)
         if grid:
-            ax.grid(True)
-        ax.legend()
+            ax.grid(True, which='both', linestyle='--', linewidth=0.5)
+        if label and show_legend:
+            ax.legend(loc='upper left')
 
     # Function to create a spatial heatmap
+    @staticmethod
     def plot_spatial_heatmap(ax, data, lon, lat, value, title, xlabel, ylabel, xticks=None, yticks=None, grid=True):
         ax = plt.axes(projection=ccrs.PlateCarree())
         ax.add_feature(cfeature.LAND)
@@ -285,6 +365,7 @@ class GPATPostProcessor:
             ax.gridlines(draw_labels=True)
 
     # Data visualisation
+    @staticmethod
     def plot_heatmap(job_id, jobs_df, fl_df, pl_df, chem_ds, **plot_params):
         fig1, ax1 = plt.subplots()
         ax1.set_xticks(np.arange(chem_ds["longitude"][0], chem_ds["longitude"][-1], 0.05))
@@ -330,6 +411,7 @@ class GPATPostProcessor:
         plt.grid()
         plt.show()
 
+    @staticmethod
     def anim_chem(job_id, jobs_df, fl_df, pl_df, chem_ds, var1, var2, level, resample_freq='4min'):
         """Animate the chemical concentrations with plume vector data."""
         fig, (ax, cbar_ax) = plt.subplots(

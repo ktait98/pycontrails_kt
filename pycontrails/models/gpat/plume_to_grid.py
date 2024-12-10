@@ -235,7 +235,6 @@ def segment_property_to_hi_res_grid(
 
     return segment_grid
 
-
 def plume_edges(
     lon: npt.NDArray[np.float64],
     lat: npt.NDArray[np.float64],
@@ -279,6 +278,12 @@ def plume_edges(
     """  # noqa: E501
     dlon = units.m_to_longitude_distance(width * sin_a * 0.5, lat)
     dlat = units.m_to_latitude_distance(width * cos_a * 0.5)
+
+    # # Handle right angles
+    # if np.isclose(sin_a, 0):
+    #     dlon = np.zeros_like(dlon)
+    # if np.isclose(cos_a, 0):
+    #     dlat = np.zeros_like(dlat)
 
     lon_edge_l = lon - dlon
     lat_edge_l = lat + dlat
@@ -343,8 +348,17 @@ def plume_slices(
 def add_slice_grid(segment_grid, plume_slice):
     slice_grid = xr.DataArray(np.zeros_like(segment_grid), coords=segment_grid.coords, dims=segment_grid.dims)
 
+    # # Debugging statements to check the size and contents of the arrays
+    # print("segment_grid.longitude:", segment_grid.longitude)
+    # print("segment_grid.longitude shape:", segment_grid.longitude.shape)
+
+    # Check if segment_grid.longitude has more than one element
+    if segment_grid.longitude.size > 1:
+        cell_size = segment_grid.longitude[1] - segment_grid.longitude[0]  # Grid cell size in degrees
+    else:
+        raise IndexError("segment_grid.longitude has less than 2 elements, cannot calculate cell size.")
+
     # Iterate over each cell in the grid
-    cell_size = segment_grid.longitude[1] - segment_grid.longitude[0] # Grid cell size in degrees
     for i, lon in enumerate(segment_grid.longitude[:-1]):
         for j, lat in enumerate(segment_grid.latitude[:-1]):
 

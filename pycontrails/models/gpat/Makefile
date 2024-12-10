@@ -19,30 +19,35 @@ FLPATH=$(shell nf-config --prefix)
 LPATH=${CLPATH}:${FLPATH}/lib
 
 RUNDIR=/user/work/${USER}/pycontrails_kt/pycontrails/
+DATADIR=/projects/Impact_of_aviation_on_climate/Kieran2024/
 
 #Anything relying on PHONY will ALWAYS be rebuilt when make us run
 PHONY:
 
 # Directories to be created
-DIRS = inputs outputs inputs/glob
+DIRS = $(DATADIR)inputs $(DATADIR)outputs $(DATADIR)inputs/glob
+
+# Target to change permissions of the directory
+.PHONY: chmod_dirs
+chmod_dirs: create_dirs
+	chmod 755 $(DATADIR)
 
 # Target to create directories
 .PHONY: create_dirs
 create_dirs:
 	mkdir -p $(DIRS)
 
-
 # Target to download files from Google Drive
 .PHONY: download_files
 download_files: create_dirs
-	@if [ ! -f inputs/glob/species.nc ]; then \
-		./download_script.sh 'https://drive.google.com/uc?export=download&id=1s0RtRh427dzxe4K0Y4_tsG-1r-nlDV57' 'inputs/glob/species.nc'; \
+	@if [ ! -f $(DATADIR)inputs/glob/species.nc ]; then \
+		./download_script.sh 'https://drive.google.com/uc?export=download&id=1s0RtRh427dzxe4K0Y4_tsG-1r-nlDV57' $(DATADIR)inputs/glob/species.nc; \
 	fi
-	@if [ ! -f inputs/glob/h2o_concs.nc ]; then \
-		wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1FPCxXA9dHgSkHnK8kP6RD0R94OpfrKJW' -O inputs/glob/h2o_concs.nc; \
+	@if [ ! -f $(DATADIR)inputs/glob/h2o_concs.nc ]; then \
+		wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1FPCxXA9dHgSkHnK8kP6RD0R94OpfrKJW' -O $(DATADIR)inputs/glob/h2o_concs.nc; \
 	fi
-	@if [ ! -f inputs/glob/air_temperature.nc ]; then \
-		wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1KXazdpDcbzmsoxd5JUjMc40czf2Wd992' -O inputs/glob/air_temperature.nc; \
+	@if [ ! -f $(DATADIR)inputs/glob/air_temperature.nc ]; then \
+		wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1KXazdpDcbzmsoxd5JUjMc40czf2Wd992' -O $(DATADIR)inputs/glob/air_temperature.nc; \
 	fi
 
 # Main target to build the boxm executable

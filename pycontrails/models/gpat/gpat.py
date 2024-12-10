@@ -26,10 +26,8 @@ from pycontrails.models.emissions import Emissions
 from pycontrails.models.ps_model import PSFlight
 from pycontrails.models.dry_advection import DryAdvection
 from pycontrails.models.gpat.plume_to_grid import plume_to_grid
-from pycontrails.models.cocip import contrails_to_hi_res_grid
 from pycontrails.physics import geo, thermo, units, constants
 from dataclasses import dataclass, asdict, fields, is_dataclass
-from distutils.util import strtobool
 from typing import Tuple
 import pathlib
 
@@ -78,9 +76,9 @@ class SimParams():
                         "NO3", "N2O5", "HNO3",
                         "HONO", "HO2", "OH",
                         "H2O2", "H2O", "CO",
-                        "CH4", "C2H6", "C3H8",
-                        "C2H4", "C3H6")
-    gpat_path: str = None   
+                        "CH4", "CH3O2")
+    run_path: str = None   
+    data_path: str = None
     job_id: str = None
     run_gpat: bool = False
     date_created: pd.Timestamp = None
@@ -146,11 +144,17 @@ class GPAT(Model):
         if plume_params.max_age == "ID":
                 plume_params.max_age = plume_params.dt_integration
 
-        if sim_params.gpat_path is None:
-            self.path = os.environ['PYCONTRAILSDIR'] + "models/gpat/"
+        if sim_params.run_path is None:
+            self.run_path = os.environ['PYCONTRAILSDIR'] + "models/gpat/"
 
         else:
-            self.path = sim_params.gpat_path
+            self.run_path = sim_params.run_path
+
+        if sim_params.data_path is None:
+            self.data_path = "/projects/Impact_of_aviation_on_climate/Kieran2024/"
+
+        else:
+            self.data_path = sim_params.data_path
 
         if sim_params.job_id is None:
             try:
@@ -166,9 +170,9 @@ class GPAT(Model):
         sim_params.species_out_num = grab_species_num(sim_params.species_out)
 
         # Define input and output paths     
-        self.inputs_job = self.path + "inputs/" + self.job_id + "/"
-        self.inputs_glob = self.path + "inputs/glob/"
-        self.outputs_job = self.path + "outputs/" + self.job_id + "/"
+        self.inputs_job = self.data_path + "inputs/" + self.job_id + "/"
+        self.inputs_glob = self.data_path + "inputs/glob/"
+        self.outputs_job = self.data_path + "outputs/" + self.job_id + "/"
 
         if os.path.exists(self.inputs_job):
             shutil.rmtree(self.inputs_job)
@@ -815,7 +819,7 @@ class GPAT(Model):
 
         # Run the box model
         subprocess.call(
-            [self.path + "boxm", self.job_id], 
+            [self.run_path + "boxm", self.job_id], 
         )
 
         # open nc file

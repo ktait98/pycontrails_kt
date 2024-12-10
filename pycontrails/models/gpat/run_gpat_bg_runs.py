@@ -25,7 +25,7 @@ plume_params = {
     "depth": 50.0,  # initial plume depth, [m]
     "width": 50.0,  # initial plume width, [m]
     "shear": 0.01,  # wind shear [1/s]
-    "hres_pl": 0.05, # horizontal resolution of the plume [deg]
+    "hres_pl": 0.5, # horizontal resolution of the plume [deg]
     "vres_pl": 500, # vertical resolution of the plume [m]
     "n_slices": 10,  # number of plume slices
 }
@@ -37,15 +37,16 @@ sim_params = {
     "lat_bounds": (47.0, 48.0),  # lat bounds [deg]
     "lon_bounds": (-33.0, -32.0),  # lon bounds [deg]
     "alt_bounds": (12000, 13000),  # alt bounds [m]
-    "hres_sim": 0.05,  # horizontal resolution [deg]
+    "hres_sim": 0.5,  # horizontal resolution [deg]
     "vres_sim": 500,  # vertical resolution [m]
     "eastward_wind": 0.0,  # m/s
     "northward_wind": 0.0,  # m/s
     "lagrangian_tendency_of_air_pressure": 0.0,  # m/s
     "species_in": ("NO", "NO2", "CO", "HCHO", "CH3CHO", "C2H4", "C3H6", "C2H2", "BENZENE"),
     "species_out": ("O3", "NO2", "NO", "NO3", "HNO3", "PAN", "HONO", "HO2", "OH","H2O2", 
-                    "CO", "HCHO", "CH4"),
-    "gpat_path": os.getcwd() +"/",
+                    "CO", "HCHO", "CH4", "CH3O2"),
+    "run_path": os.getcwd() +"/",
+    "data_path": os.getcwd() +"/",#"/projects/Impact_of_aviation_on_climate/Kieran2024/",
     "job_id": None,
     "run_gpat": None
 }

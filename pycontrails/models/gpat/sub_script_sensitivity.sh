@@ -30,34 +30,81 @@ NFLIBS=`nf-config --prefix`/lib
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${NCLIBS}:${NFLIBS}
 export PYCONTRAILSDIR=/user/work/${USER}/pycontrails_kt/pycontrails/
 
-# ./run_gpat_sensitivity.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" --n_ac 1 --max_age 2 --run_gpat --job_id "sensitivity_NA_1_1000_0_2_0.01_0.05"
-# ./run_gpat_sensitivity.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" --n_ac 2 --max_age 2 --run_gpat --job_id "sensitivity_NA_2_1000_0_2_0.01_0.05"
-# ./run_gpat_sensitivity.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" --n_ac 5 --max_age 2 --run_gpat --job_id "sensitivity_NA_5_1000_0_2_0.01_0.05"
+chmod -R 755 /projects/Impact_of_aviation_on_climate/Kieran2024/
 
-./run_gpat_sensitivity.py --lat_bounds "37.0,38.0" --lon_bounds " -97.0,-96.0" --alt_bounds "11000,12000" --t0_sim "2022-11-10T12:00:00" \
-                          --fl0_coords0 "37.1,-96.9,11500" --t0_fl "2022-11-10T13:00:00" --n_ac 1 --max_age 2 --run_gpat --job_id "sensitivity_US_1_1000_0_2_0.01_0.05"
-./run_gpat_sensitivity.py --lat_bounds "37.0,38.0" --lon_bounds " -97.0,-96.0" --alt_bounds "11000,12000" --t0_sim "2022-11-10T12:00:00" \
-                          --fl0_coords0 "37.1,-96.9,11500" --t0_fl "2022-11-10T13:00:00" --n_ac 2 --max_age 2 --run_gpat --job_id "sensitivity_US_2_1000_0_2_0.01_0.05"
-./run_gpat_sensitivity.py --lat_bounds "37.0,38.0" --lon_bounds " -97.0,-96.0" --alt_bounds "11000,12000" --t0_sim "2022-11-10T12:00:00" \
-                          --fl0_coords0 "37.1,-96.9,11500" --t0_fl "2022-11-10T13:00:00" --n_ac 5 --max_age 2 --run_gpat --job_id "sensitivity_US_5_1000_0_2_0.01_0.05"
 
-./run_gpat_sensitivity.py --lat_bounds "42.0,43.0" --lon_bounds "7.0,8.0" --alt_bounds "9000,10000" --t0_sim "2022-05-20T12:00:00" \
-                          --fl0_coords0 "42.1,7.1,9500" --t0_fl "2022-05-20T13:00:00" --n_ac 1 --max_age 2 --run_gpat --job_id "sensitivity_EU_1_1000_0_2_0.01_0.05"
-./run_gpat_sensitivity.py --lat_bounds "42.0,43.0" --lon_bounds "7.0,8.0" --alt_bounds "9000,10000" --t0_sim "2022-05-20T12:00:00" \
-                          --fl0_coords0 "42.1,7.1,9500" --t0_fl "2022-05-20T13:00:00" --n_ac 2 --max_age 2 --run_gpat --job_id "sensitivity_EU_2_1000_0_2_0.01_0.05"
-./run_gpat_sensitivity.py --lat_bounds "42.0,43.0" --lon_bounds "7.0,8.0" --alt_bounds "9000,10000" --t0_sim "2022-05-20T12:00:00" \
-                          --fl0_coords0 "42.1,7.1,9500" --t0_fl "2022-05-20T13:00:00" --n_ac 5 --max_age 2 --run_gpat --job_id "sensitivity_EU_5_1000_0_2_0.01_0.05"
 
-./run_gpat_sensitivity.py --lat_bounds "22.0,23.0" --lon_bounds "102.0,103.0" --alt_bounds "10000,11000" --t0_sim "2022-03-05T12:00:00" \
-                          --fl0_coords0 "22.1,102.1,10500" --t0_fl "2022-03-05T13:00:00" --n_ac 1 --max_age 2 --run_gpat --job_id "sensitivity_SEA_1_1000_0_2_0.01_0.05"
-./run_gpat_sensitivity.py --lat_bounds "22.0,23.0" --lon_bounds "102.0,103.0" --alt_bounds "10000,11000" --t0_sim "2022-03-05T12:00:00" \
-                          --fl0_coords0 "22.1,102.1,10500" --t0_fl "2022-03-05T13:00:00" --n_ac 2 --max_age 2 --run_gpat --job_id "sensitivity_SEA_2_1000_0_2_0.01_0.05"
-./run_gpat_sensitivity.py --lat_bounds "22.0,23.0" --lon_bounds "102.0,103.0" --alt_bounds "10000,11000" --t0_sim "2022-03-05T12:00:00" \
-                          --fl0_coords0 "22.1,102.1,10500" --t0_fl "2022-03-05T13:00:00" --n_ac 5 --max_age 2 --run_gpat --job_id "sensitivity_SEA_5_1000_0_2_0.01_0.05"
+n_ac=("2" "3" "10")
+sep_dists=("0" "100" "500" "1000" "2000" "3000" "4000" "5000" "10000")
 
-./run_gpat_sensitivity.py --lat_bounds " -28.0,-27.0" --lon_bounds " -68.0,-67.0" --alt_bounds "13000,14000" --t0_sim "2022-08-15T12:00:00" \
-                          --fl0_coords0 " -27.9,-67.9,13500" --t0_fl "2022-08-15T13:00:00" --n_ac 1 --max_age 2 --run_gpat --job_id "sensitivity_SA_1_1000_0_2_0.01_0.05"
-./run_gpat_sensitivity.py --lat_bounds " -28.0,-27.0" --lon_bounds " -68.0,-67.0" --alt_bounds "13000,14000" --t0_sim "2022-08-15T12:00:00" \
-                          --fl0_coords0 " -27.9,-67.9,13500" --t0_fl "2022-08-15T13:00:00" --n_ac 2 --max_age 2 --run_gpat --job_id "sensitivity_SA_2_1000_0_2_0.01_0.05"
-./run_gpat_sensitivity.py --lat_bounds " -28.0,-27.0" --lon_bounds " -68.0,-67.0" --alt_bounds "13000,14000" --t0_sim "2022-08-15T12:00:00" \
-                          --fl0_coords0 " -27.9,-67.9,13500" --t0_fl "2022-08-15T13:00:00" --n_ac 5 --max_age 2 --run_gpat --job_id "sensitivity_SA_5_1000_0_2_0.01_0.05"
+sep_dist=$1
+
+if [ $sep_dist == "5_ac_10000" ]; then
+   ./run_gpat_sensitivity.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" \
+                           --n_ac 5 --sep_dist "10000,0,0" --max_age 6 --run_gpat --job_id "sensitivity_NA_5_10000_0_6_0.01_0.05"
+fi
+
+if [ $sep_dist == "0" ]; then
+   for n_ac in "${n_ac[@]}"; do
+      ./run_gpat_sensitivity.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" \
+                           --n_ac $n_ac --sep_dist "0,0,0" --max_age 6 --run_gpat --job_id "sensitivity_NA_${n_ac}_0_0_6_0.01_0.05"
+      # rsync -av --remove-source-files --progress /user/work/${USER}/pycontrails_kt/pycontrails/models/gpat/inputs/sensitivity_NA_${n_ac}_0_0_6_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/inputs/
+      # rsync -av --remove-source-files --progress /user/work/${USER}/pycontrails_kt/pycontrails/models/gpat/outputs/sensitivity_NA_${n_ac}_0_0_6_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/outputs/
+   done
+elif [ $sep_dist == "100" ]; then
+   for n_ac in "${n_ac[@]}"; do
+      ./run_gpat_sensitivity.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" \
+                           --n_ac $n_ac --sep_dist "100,0,0" --max_age 6 --run_gpat --job_id "sensitivity_NA_${n_ac}_100_0_6_0.01_0.05"
+      # rsync -av --remove-source-files --progress /user/work/${USER}/pycontrails_kt/pycontrails/models/gpat/inputs/sensitivity_NA_${n_ac}_100_0_6_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/inputs/
+      # rsync -av --remove-source-files --progress /user/work/${USER}/pycontrails_kt/pycontrails/models/gpat/outputs/sensitivity_NA_${n_ac}_100_0_6_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/outputs/
+   done
+elif [ $sep_dist == "500" ]; then
+   for n_ac in "${n_ac[@]}"; do
+      ./run_gpat_sensitivity.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" \
+                           --n_ac $n_ac --sep_dist "500,0,0" --max_age 6 --run_gpat --job_id "sensitivity_NA_${n_ac}_500_0_6_0.01_0.05"
+   #    rsync -av --remove-source-files --progress /user/work/${USER}/pycontrails_kt/pycontrails/models/gpat/inputs/sensitivity_NA_${n_ac}_500_0_6_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/inputs/
+   #    rsync -av --remove-source-files --progress /user/work/${USER}/pycontrails_kt/pycontrails/models/gpat/outputs/sensitivity_NA_${n_ac}_500_0_6_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/outputs/
+   done
+elif [ $sep_dist == "1000" ]; then
+   for n_ac in "${n_ac[@]}"; do
+      ./run_gpat_sensitivity.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" \
+                           --n_ac $n_ac --sep_dist "1000,0,0" --max_age 6 --run_gpat --job_id "sensitivity_NA_${n_ac}_1000_0_6_0.01_0.05"
+      # rsync -av --remove-source-files --progress /user/work/${USER}/pycontrails_kt/pycontrails/models/gpat/inputs/sensitivity_NA_${n_ac}_1000_0_6_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/inputs/
+      # rsync -av --remove-source-files --progress /user/work/${USER}/pycontrails_kt/pycontrails/models/gpat/outputs/sensitivity_NA_${n_ac}_1000_0_6_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/outputs/
+   done
+elif [ $sep_dist == "2000" ]; then
+   for n_ac in "${n_ac[@]}"; do
+      ./run_gpat_sensitivity.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" \
+                           --n_ac $n_ac --sep_dist "2000,0,0" --max_age 6 --run_gpat --job_id "sensitivity_NA_${n_ac}_2000_0_6_0.01_0.05"
+      # rsync -av --remove-source-files --progress /user/work/${USER}/pycontrails_kt/pycontrails/models/gpat/inputs/sensitivity_NA_${n_ac}_2000_0_6_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/inputs/
+      # rsync -av --remove-source-files --progress /user/work/${USER}/pycontrails_kt/pycontrails/models/gpat/outputs/sensitivity_NA_${n_ac}_2000_0_6_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/outputs/
+   done
+elif [ $sep_dist == "3000" ]; then
+   for n_ac in "${n_ac[@]}"; do
+      ./run_gpat_sensitivity.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" \
+                           --n_ac $n_ac --sep_dist "3000,0,0" --max_age 6 --run_gpat --job_id "sensitivity_NA_${n_ac}_3000_0_6_0.01_0.05"
+      # rsync -av --remove-source-files --progress /user/work/${USER}/pycontrails_kt/pycontrails/models/gpat/inputs/sensitivity_NA_${n_ac}_3000_0_6_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/inputs/
+      # rsync -av --remove-source-files --progress /user/work/${USER}/pycontrails_kt/pycontrails/models/gpat/outputs/sensitivity_NA_${n_ac}_3000_0_6_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/outputs/
+   done
+elif [ $sep_dist == "4000" ]; then
+   for n_ac in "${n_ac[@]}"; do
+      ./run_gpat_sensitivity.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" \
+                           --n_ac $n_ac --sep_dist "4000,0,0" --max_age 6 --run_gpat --job_id "sensitivity_NA_${n_ac}_4000_0_6_0.01_0.05"
+      # rsync -av --remove-source-files --progress /user/work/${USER}/pycontrails_kt/pycontrails/models/gpat/inputs/sensitivity_NA_${n_ac}_4000_0_6_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/inputs/
+      # rsync -av --remove-source-files --progress /user/work/${USER}/pycontrails_kt/pycontrails/models/gpat/outputs/sensitivity_NA_${n_ac}_4000_0_6_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/outputs/
+   done
+elif [ $sep_dist == "5000" ]; then
+   for n_ac in "${n_ac[@]}"; do
+      ./run_gpat_sensitivity.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" \
+                           --n_ac $n_ac --sep_dist "5000,0,0" --max_age 6 --run_gpat --job_id "sensitivity_NA_${n_ac}_5000_0_6_0.01_0.05"
+      # rsync -av --remove-source-files --progress /user/work/${USER}/pycontrails_kt/pycontrails/models/gpat/inputs/sensitivity_NA_${n_ac}_5000_0_6_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/inputs/
+      # rsync -av --remove-source-files --progress /user/work/${USER}/pycontrails_kt/pycontrails/models/gpat/outputs/sensitivity_NA_${n_ac}_5000_0_6_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/outputs/
+   done
+elif [ $sep_dist == "10000" ]; then
+   for n_ac in "${n_ac[@]}"; do
+      ./run_gpat_sensitivity.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" \
+                           --n_ac $n_ac --sep_dist "10000,0,0" --max_age 6 --run_gpat --job_id "sensitivity_NA_${n_ac}_10000_0_6_0.01_0.05"
+      # rsync -av --remove-source-files --progress /user/work/${USER}/pycontrails_kt/pycontrails/models/gpat/inputs/sensitivity_NA_${n_ac}_10000_0_6_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/inputs/
+      # rsync -av --remove-source-files --progress /user/work/${USER}/pycontrails_kt/pycontrails/models/gpat/outputs/sensitivity_NA_${n_ac}_10000_0_6_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/outputs/
+   done
+fi

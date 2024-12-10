@@ -15,7 +15,7 @@ fl_params = {
     "fl0_speed": 100.0,  # m/s
     "fl0_heading": 45.0,  # deg
     "fl0_coords0": (47.1, -32.9, 12500),  # lat, lon, alt [deg, deg, m]
-    "sep_dist": (0, 0, 0),  # dx, dy, dz [m]
+    "sep_dist": (1000, 0, 0),  # dx, dy, dz [m]
     "n_ac": 2,  # number of aircraft
 }
 
@@ -46,7 +46,8 @@ sim_params = {
     "species_in": ("NO", "NO2", "CO", "HCHO", "CH3CHO", "C2H4", "C3H6", "C2H2", "BENZENE"),
     "species_out": ("O3", "NO2", "NO", "NO3", "HNO3", "PAN", "HONO", "HO2", "OH","H2O2", 
                     "CO", "HCHO", "CH4"),
-    "gpat_path": os.getcwd() +"/",
+    "run_path": os.getcwd() +"/",
+    "data_path": os.getcwd() +"/",
     "job_id": None,
     "run_gpat": None
 }
