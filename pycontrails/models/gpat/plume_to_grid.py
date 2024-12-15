@@ -198,7 +198,7 @@ def segment_property_to_hi_res_grid(
         [plume_segment["lat_edge_l"], plume_segment["lat_edge_r"]], axis=0
     )
 
-    spatial_bbox = spatial_bounding_box(lon_edges, lat_edges, spatial_grid_res, buffer=0.01)
+    spatial_bbox = spatial_bounding_box(lon_edges, lat_edges, spatial_grid_res, buffer=spatial_grid_res)
     segment_grid = _initialise_longitude_latitude_grid(spatial_bbox, spatial_grid_res)
 
     # Calculate gridded plume segment properties
@@ -423,8 +423,10 @@ def _add_segment_to_main_grid(
 
         # Add the masked subgrid to the main grid
         main_grid_arr[ix_:ix, iy_:iy] += mask
-
+        
     except (IndexError, ValueError) as e:
+        
+
         warnings.warn(
             f"Contrail segment resized due to {e}. "
         )

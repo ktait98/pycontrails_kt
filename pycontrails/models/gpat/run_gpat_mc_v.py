@@ -13,8 +13,8 @@ fl_params = {
     "ts_fl": pd.Timedelta(minutes=2),  # flight time step
     "ac_type": "A320",  # aircraft type
     "fl0_speed": 100.0,  # m/s
-    "fl0_heading": 45.0,  # deg
-    "fl0_coords0": (47.1, -32.9, 12500),  # lat, lon, alt [deg, deg, m]
+    "fl0_heading": 90.0,  # deg
+    "fl0_coords0": (0.5, 0.1, 10500),  # lat, lon, alt [deg, deg, m]
     "sep_dist": (1000, 0, 0),  # dx, dy, dz [m]
     "n_ac": 2,  # number of aircraft
 }
@@ -34,11 +34,11 @@ plume_params = {
 # chemistry sim parameters
 sim_params = {
     "t0_sim": pd.to_datetime("2022-01-20 12:00:00"),  # chemistry start time
-    "rt_sim": plume_params["max_age"] + pd.Timedelta(hours=2),  # chemistry runtime
+    "rt_sim": pd.Timedelta(hours=12),  # chemistry runtime
     "ts_sim": pd.Timedelta(seconds=20),  # chemistry time step
-    "lat_bounds": (47.0, 48.0),  # lat bounds [deg]
-    "lon_bounds": (-33.0, -32.0),  # lon bounds [deg]
-    "alt_bounds": (12000, 13000),  # alt bounds [m]
+    "lat_bounds": (0.0, 1.0),  # lat bounds [deg]
+    "lon_bounds": (0.0, 1.0),  # lon bounds [deg]
+    "alt_bounds": (10000, 11000),  # alt bounds [m]
     "hres_sim": 0.05,  # horizontal resolution [deg]
     "vres_sim": 500,  # vertical resolution [m]
     "eastward_wind": 0.0,  # m/s
@@ -46,8 +46,9 @@ sim_params = {
     "lagrangian_tendency_of_air_pressure": 0.0,  # m/s
     "species_in": ("NO", "NO2", "CO", "HCHO", "CH3CHO", "C2H4", "C3H6", "C2H2", "BENZENE"),
     "species_out": ("O3", "NO2", "NO", "NO3", "HNO3", "PAN", "HONO", "HO2", "OH","H2O2", 
-                    "CO", "HCHO", "CH4"),
-    "gpat_path": os.getcwd() +"/",
+                    "CO", "HCHO", "CH4", "CH3O2"),
+    "run_path": os.getcwd() +"/",
+    "data_path": os.getcwd() +"/", # "/projects/Impact_of_aviation_on_climate
     "job_id": None,
     "run_gpat": None
 }
@@ -65,13 +66,6 @@ update_plume_params_from_args(plume_params, updated_args)
 print("PlumeParams:", asdict(plume_params))
 
 update_sim_params_from_args(sim_params, updated_args)
-sim_params.job_id = (f"mc_v_{fl_params.n_ac}_"
-                f"{int(fl_params.sep_dist[0])}_"
-                f"{int(fl_params.sep_dist[1])}_"
-                f"{plume_params.n_slices}_"
-                f"{plume_params.max_age.components.hours}_"
-                f"{plume_params.dt_integration.components.minutes}_"
-                f"{plume_params.hres_pl}")
 
 print("SimParams:", asdict(sim_params)) 
 
@@ -82,4 +76,3 @@ if gpat.sim_params.run_gpat:
 else:
     print("GPAT simulation is not run.")
     print(f'Job ID is : {gpat.sim_params.job_id}')
-    print(f'Path is : {gpat.sim_params.gpat_path}')

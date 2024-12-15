@@ -152,11 +152,11 @@ C
      &'/DJ.OUT', STATUS='UNKNOWN')
       OPEN(12, FILE=TRIM(PATH)//'outputs/'//TRIM(JOB_ID)//
      &'/RC.OUT', STATUS='UNKNOWN')
-      OPEN(13, FILE=TRIM(PATH)//'inputs/'//TRIM(JOB_ID)//
+      OPEN(13, FILE=TRIM(PATH)//'outputs/'//TRIM(JOB_ID)//
      &'/boxm_input.txt', STATUS='OLD')
-      OPEN(14, FILE=TRIM(PATH)//'inputs/'//TRIM(JOB_ID)//
+      OPEN(14, FILE=TRIM(PATH)//'outputs/'//TRIM(JOB_ID)//
      &'/zen.csv', STATUS='OLD')
-      OPEN(15, FILE=TRIM(PATH)//'inputs/'//TRIM(JOB_ID)//
+      OPEN(15, FILE=TRIM(PATH)//'outputs/'//TRIM(JOB_ID)//
      &'/emi.csv', STATUS='OLD')
 C
       READ(13, *) inDAY, inMONTH, inYEAR, inLEVEL, inLONG,
@@ -407,7 +407,7 @@ C
       READ(15, '(A)') EMI_LINE
       READ(EMI_LINE, *) EMI(1), EMI(2), EMI(3), EMI(4), EMI(5), EMI(6),
      &EMI(7), EMI(8), EMI(9)
-      PRINT *, EMI(1)
+C PRINT *, EMI(1)
 C
 C     reset previous concentrations at current value
       DO 10  I = 1,NC
