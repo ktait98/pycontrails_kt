@@ -34,7 +34,7 @@ plume_params = {
 
 sim_params = {
     "t0_sim": pd.to_datetime("2022-01-20 12:00:00"),  # chemistry start time
-    "rt_sim": plume_params["max_age"] + pd.Timedelta(hours=2),  # chemistry runtime
+    "rt_sim": pd.Timedelta(hours=24),  # chemistry runtime
     "ts_sim": pd.Timedelta(seconds=20),  # chemistry time step
     "lat_bounds": (47.0, 48.0),  # lat bounds [deg]
     "lon_bounds": (-33.0, -32.0),  # lon bounds [deg]
@@ -48,13 +48,7 @@ sim_params = {
     "species_out": ("O3", "NO2", "NO", "NO3", "HNO3", "PAN", "HONO", "HO2", "OH","H2O2", 
                     "CO", "HCHO", "CH4"),
     "gpat_path": os.getcwd() +"/",
-    "job_id":   (f"mc_v_{fl_params['n_ac']}_"
-                f"{fl_params['sep_dist'][0]}_"
-                f"{fl_params['sep_dist'][1]}_"
-                f"{plume_params['n_slices']}_"
-                f"{plume_params['max_age'].components.hours}_"
-                f"{plume_params['dt_integration'].components.minutes}_"
-                f"{plume_params["hres_pl"]}"),
+    "job_id": None
     "run_gpat": True
 }
 ```

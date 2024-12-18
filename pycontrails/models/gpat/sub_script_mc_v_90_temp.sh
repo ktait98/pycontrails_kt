@@ -47,7 +47,7 @@ export PYCONTRAILSDIR=/user/work/${USER}/pycontrails_kt/pycontrails/
 #   plume_params["hres_sim"]: [0.01, 0.02, 0.05, 0.1, 0.5] # chem sim hres [degrees]
 
 # Define the parameter ranges
-n_ac=("10")
+n_ac=("5" "10")
 fl0_heading=("60" "75" "90")
 fl0_coords0=("0.225, 0.1, 10500" "0.375, 0.1, 10500" "0.5,0.1,10500")
 sep_dist1=("5000,0,0" "10000,0,0")
@@ -59,7 +59,7 @@ hres2=("0.1" "0.5")
 
 # Base case values
 base_n_ac="2"
-base_fl0_heading="45"
+base_fl0_heading="90"
 base_fl0_coords0="0.1,0.1,10500"
 base_sep_dist="1000,0,0"
 base_n_slices="10"

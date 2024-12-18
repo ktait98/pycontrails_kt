@@ -787,3 +787,11 @@ def update_chem_ds(cell_chem_ds, job_id):
     
     return cell_chem_ds
     
+def r_sq(y_true, y_pred):
+    """Calculate the R-squared value for a model."""
+    y_true_mean = np.mean(y_true)
+    ss_res = np.sum((y_true - y_pred) ** 2)
+    ss_tot = np.sum((y_true - y_true_mean) ** 2)
+    r2 = 1 - (ss_res / ss_tot)
+
+    return r2
