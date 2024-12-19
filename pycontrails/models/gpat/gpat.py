@@ -167,7 +167,7 @@ class GPAT(Model):
             self.job_id = sim_params.job_id
 
         sim_params.date_created = pd.Timestamp.now()
-        sim_params.species_out_num = grab_species_num(sim_params.species_out)
+        sim_params.species_out_num = grab_species_num(self.run_path, sim_params.species_out)
 
         # Define input and output paths     
         self.inputs_job = self.data_path + "inputs/" + self.job_id + "/"
@@ -853,10 +853,10 @@ class GPAT(Model):
 
 
 # Functions used in GPAT Model
-def grab_species_num(species_out: np.array) -> np.array:
+def grab_species_num(run_path, species_out: np.array) -> np.array:
     """Grab the species numbers for the species of interest in output."""
     # Read species names from the file into a list
-    with open('species_num.txt', 'r') as file:
+    with open(f'{run_path}species_num.txt', 'r') as file:
         species_list = [line.strip() for line in file]
 
     # Create a dictionary mapping species names to their line numbers

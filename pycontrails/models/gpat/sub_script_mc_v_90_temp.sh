@@ -47,7 +47,8 @@ export PYCONTRAILSDIR=/user/work/${USER}/pycontrails_kt/pycontrails/
 #   plume_params["hres_sim"]: [0.01, 0.02, 0.05, 0.1, 0.5] # chem sim hres [degrees]
 
 # Define the parameter ranges
-n_ac=("5" "10")
+n_ac1=("5")
+n_ac2=("10")
 fl0_heading=("60" "75" "90")
 fl0_coords0=("0.225, 0.1, 10500" "0.375, 0.1, 10500" "0.5,0.1,10500")
 sep_dist1=("5000,0,0" "10000,0,0")
@@ -92,10 +93,14 @@ run_script() {
 # Loop through the specified parameter range
 if [ "$param" == "base_case" ]; then
       run_script "$base_n_ac" "$base_fl0_heading" "$base_fl0_coords0" "$base_sep_dist" "$base_n_slices" "$base_max_age" "$base_hres"
-elif [ "$param" == "n_ac" ]; then
-      for value in "${n_ac[@]}"; do
+elif [ "$param" == "n_ac1" ]; then
+      for value in "${n_ac1[@]}"; do
          run_script "$value" "$base_fl0_heading" "$base_fl0_coords0" "$base_sep_dist" "$base_n_slices" "$base_max_age" "$base_hres"
       done
+elif [ "$param" == "n_ac2" ]; then
+        for value in "${n_ac2[@]}"; do
+             run_script "$value" "$base_fl0_heading" "$base_fl0_coords0" "$base_sep_dist" "$base_n_slices" "$base_max_age" "$base_hres"
+        done
 elif [ "$param" == "fl0_heading" ]; then
     for i in "${!fl0_heading[@]}"; do
         run_script "$base_n_ac" "${fl0_heading[$i]}" "${fl0_coords0[$i]}" "$base_sep_dist" "$base_n_slices" "$base_max_age" "$base_hres"
