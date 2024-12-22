@@ -40,20 +40,8 @@ export PYCONTRAILSDIR=/user/work/${USER}/pycontrails_kt/pycontrails/
 # ./run_gpat_id_vs_plume.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" --sep_dist "1000,0,0" --n_ac 3 --max_age 2 --run_gpat --job_id "id_vs_plume_NA_3_1000_0_2_0.01_0.05"
 # ./run_gpat_id_vs_plume.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" --sep_dist "1000,0,0" --n_ac 5 --max_age "ID" --run_gpat --job_id "id_vs_plume_NA_5_1000_0_ID_0.01_0.05"
 # ./run_gpat_id_vs_plume.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" --sep_dist "1000,0,0" --n_ac 5 --max_age 2 --run_gpat --job_id "id_vs_plume_NA_5_1000_0_2_0.01_0.05"
-# ./run_gpat_id_vs_plume.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" --sep_dist "1000,0,0" --n_ac 10 --max_age "ID" --run_gpat --job_id "id_vs_plume_NA_10_1000_0_ID_0.01_0.05"
+./run_gpat_id_vs_plume.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" --sep_dist "1000,0,0" --n_ac 10 --max_age "ID" --run_gpat --job_id "id_vs_plume_NA_10_1000_0_ID_0.01_0.05"
 # ./run_gpat_id_vs_plume.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" --sep_dist "1000,0,0" --n_ac 10 --max_age 2 --run_gpat --job_id "id_vs_plume_NA_10_1000_0_2_0.01_0.05"
 
 # ./run_gpat_id_vs_plume.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" \
 #                           --n_ac 10 --max_age 2 --sep_dist "2000,0,0" --species_in "NO" --run_gpat --shear "0.05" --job_id "id_vs_plume_NA_10_2000_0_2_0.05_0.05"
-
-# rsync -av --remove-source-files --progress outputs/id_vs_plume_NA_2_1000_0_ID_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/outputs/
-rsync -av --remove-source-files --progress outputs/id_vs_plume_NA_2_1000_0_2_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/outputs/
-
-rsync -av --remove-source-files --progress outputs/id_vs_plume_NA_3_1000_0_ID_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/outputs/
-rsync -av --remove-source-files --progress outputs/id_vs_plume_NA_3_1000_0_2_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/outputs/
-
-rsync -av --remove-source-files --progress outputs/id_vs_plume_NA_5_1000_0_ID_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/outputs/
-rsync -av --remove-source-files --progress outputs/id_vs_plume_NA_5_1000_0_2_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/outputs/
-
-rsync -av --remove-source-files --progress outputs/id_vs_plume_NA_10_1000_0_ID_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/outputs/
-rsync -av --remove-source-files --progress outputs/id_vs_plume_NA_10_1000_0_2_0.01_0.05 /projects/Impact_of_aviation_on_climate/Kieran2024/outputs/

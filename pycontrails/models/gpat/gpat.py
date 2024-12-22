@@ -113,19 +113,19 @@ class GPAT(Model):
 
         # Generate the grid
         self.lats_pl = np.arange(
-            sim_params.lat_bounds[0], sim_params.lat_bounds[1] + plume_params.hres_pl, plume_params.hres_pl
+            sim_params.lat_bounds[0], sim_params.lat_bounds[1] + plume_params.hres_pl / 2, plume_params.hres_pl
         )
         self.lons_pl = np.arange(
-            sim_params.lon_bounds[0], sim_params.lon_bounds[1] + plume_params.hres_pl, plume_params.hres_pl
+            sim_params.lon_bounds[0], sim_params.lon_bounds[1] + plume_params.hres_pl / 2, plume_params.hres_pl
         )
         self.lats = np.arange(
-            sim_params.lat_bounds[0], sim_params.lat_bounds[1] + sim_params.hres_sim, sim_params.hres_sim
+            sim_params.lat_bounds[0], sim_params.lat_bounds[1] + sim_params.hres_sim / 2, sim_params.hres_sim
         )
         self.lons = np.arange(
-            sim_params.lon_bounds[0], sim_params.lon_bounds[1] + sim_params.hres_sim, sim_params.hres_sim
+            sim_params.lon_bounds[0], sim_params.lon_bounds[1] + sim_params.hres_sim / 2, sim_params.hres_sim
         )
         self.alts = np.arange(
-            sim_params.alt_bounds[0], sim_params.alt_bounds[1] + sim_params.vres_sim, sim_params.vres_sim
+            sim_params.alt_bounds[0], sim_params.alt_bounds[1] + sim_params.vres_sim / 2, sim_params.vres_sim
         )
         self.levels = units.m_to_pl(self.alts)
 
@@ -167,7 +167,7 @@ class GPAT(Model):
             self.job_id = sim_params.job_id
 
         sim_params.date_created = pd.Timestamp.now()
-        sim_params.species_out_num = grab_species_num(sim_params.species_out)
+        sim_params.species_out_num = grab_species_num(self.run_path, sim_params.species_out)
 
         # Define input and output paths     
         self.inputs_job = self.data_path + "inputs/" + self.job_id + "/"
@@ -324,8 +324,8 @@ class GPAT(Model):
         fl0 = Flight(df).resample_and_fill(freq=f"{ts_fl_min}min")
         fl0.attrs = {"flight_id": 0, "aircraft_type": fl_params.ac_type}
         mask = (
-                    (fl0["latitude"] > self.sim_params.lat_bounds[0] + 0.05) & (fl0["latitude"] < self.sim_params.lat_bounds[1] - 0.05) &
-                    (fl0["longitude"] > self.sim_params.lon_bounds[0] + 0.05) & (fl0["longitude"] < self.sim_params.lon_bounds[1] - 0.05) &
+                    (fl0["latitude"] > self.sim_params.lat_bounds[0] + 0.01) & (fl0["latitude"] < self.sim_params.lat_bounds[1] - 0.01) &
+                    (fl0["longitude"] > self.sim_params.lon_bounds[0] + 0.01) & (fl0["longitude"] < self.sim_params.lon_bounds[1] - 0.01) &
                     (fl0["altitude"] > self.sim_params.alt_bounds[0]) & (fl0["altitude"] < self.sim_params.alt_bounds[1])
 
                 )
@@ -359,8 +359,8 @@ class GPAT(Model):
                 fli.attrs = {"flight_id": int(i), "aircraft_type": fl_params.ac_type}
 
                 mask = (
-                    (fli["latitude"] > self.sim_params.lat_bounds[0] + 0.05) & (fli["latitude"] < self.sim_params.lat_bounds[1] - 0.05) &
-                    (fli["longitude"] > self.sim_params.lon_bounds[0] + 0.05) & (fli["longitude"] < self.sim_params.lon_bounds[1] - 0.05) &
+                    (fli["latitude"] > self.sim_params.lat_bounds[0] + 0.01) & (fli["latitude"] < self.sim_params.lat_bounds[1] - 0.01) &
+                    (fli["longitude"] > self.sim_params.lon_bounds[0] + 0.01) & (fli["longitude"] < self.sim_params.lon_bounds[1] - 0.01) &
                     (fli["altitude"] > self.sim_params.alt_bounds[0]) & (fli["altitude"] < self.sim_params.alt_bounds[1])
                 )
                 fli = fli.filter(mask)
@@ -476,6 +476,7 @@ class GPAT(Model):
             fl[i]["air_temperature"] = models.interpolate_met(met, fli, "air_temperature")
             fl[i]["specific_humidity"] = models.interpolate_met(met, fli, "specific_humidity")
             fl[i]["true_airspeed"] = fli.segment_groundspeed()
+            print(f"flight {i} done")
 
             # get ac performance data using Poll-Schumann Model
             fl[i] = ps_model.eval(fl[i])
@@ -699,6 +700,9 @@ class GPAT(Model):
                         # find altitude index for flight level
                         alt = units.m_to_pl(self.fl_params.fl0_coords0[2])
 
+                        # Ensure consistent dimensions
+                        plume = plume.reindex(latitude=emi.latitude, longitude=emi.longitude, method="nearest")
+
                         # find time index for time slice covering dt_integration
                         if time < pl["time"].unique()[-1]:
                             next_time = pl["time"].unique()[t + 1]
@@ -849,10 +853,10 @@ class GPAT(Model):
 
 
 # Functions used in GPAT Model
-def grab_species_num(species_out: np.array) -> np.array:
+def grab_species_num(run_path, species_out: np.array) -> np.array:
     """Grab the species numbers for the species of interest in output."""
     # Read species names from the file into a list
-    with open('species_num.txt', 'r') as file:
+    with open(f'{run_path}species_num.txt', 'r') as file:
         species_list = [line.strip() for line in file]
 
     # Create a dictionary mapping species names to their line numbers
@@ -925,29 +929,23 @@ def calc_sza(latitudes, longitudes, timesteps):
     return sza
 
 # Validation
-def mc_test(job_id, jobs_df, fl_df, pl_df, chem_ds):
+def mc_test(params, fl_df, pl_df, chem_ds):
     """Check if mass is conserved in the box model."""
 
-    params = jobs_df.loc[job_id]
-    fl_df_job = fl_df.loc[job_id]
-    pl_df_job = pl_df.loc[job_id]
-    chem_ds_job = chem_ds.sel(job_id=job_id)
-
-
     # Initialize the dictionary
-    vecmass = {emi_species: [] for emi_species in chem_ds_job["emi_species"].values.tolist()}
-    gridmass = {emi_species: [] for emi_species in chem_ds_job["emi_species"].values.tolist()}
-    mc = {emi_species: [] for emi_species in chem_ds_job["emi_species"].values.tolist()}
+    vecmass = {emi_species: [] for emi_species in chem_ds["emi_species"].values.tolist()}
+    gridmass = {emi_species: [] for emi_species in chem_ds["emi_species"].values.tolist()}
+    mc = {emi_species: [] for emi_species in chem_ds["emi_species"].values.tolist()}
 
     # Constants
     mm = [30.01, 46.01, 28.01, 30.03, 44.05, 28.05, 42.08, 26.04, 78.11]  # g/mol
     NA = 6.022e23  # Avogadro's number
 
-    for s, emi_species in enumerate(chem_ds_job["emi_species"].values):
+    for s, emi_species in enumerate(chem_ds["emi_species"].values):
         
-        max_fl_time = fl_df_job["time"].max()
+        max_fl_time = fl_df["time"].max()
 
-        for ts, time in enumerate(pl_df_job["time"].unique()[:-1]):
+        for ts, time in enumerate(pl_df["time"].unique()[:-1]):
             if ts == 0:
                 total_vector_mass = 0
                 total_grid_mass = 0
@@ -957,8 +955,8 @@ def mc_test(job_id, jobs_df, fl_df, pl_df, chem_ds):
                 mc[emi_species].append(percent_mass_conserved)
                 continue
             
-            previous_time = pl_df_job["time"].unique()[ts-1]
-            fl_snapshot = fl_df_job[fl_df_job["time"] == previous_time]
+            previous_time = pl_df["time"].unique()[ts-1]
+            fl_snapshot = fl_df[fl_df["time"] == previous_time]
 
             if time <= max_fl_time:
                 # Accumulate vector mass for all flights
@@ -967,15 +965,17 @@ def mc_test(job_id, jobs_df, fl_df, pl_df, chem_ds):
                 total_vector_mass += vector_mass.sum()
 
             # Grab plume mass from grid data
-            grid_concs = chem_ds_job["emi"].sel(emi_species=emi_species, time=time).sel(level=178.6, method="nearest")
+            grid_concs = chem_ds["emi"].sel(emi_species=emi_species, time=time)
 
             if (grid_concs == 0).all():
                 pass
             else:
-                grid_concs_over_zero = grid_concs.where(grid_concs > 0, drop=True)
-
+                # Compute the boolean indexer first
+                grid_concs_over_zero = (grid_concs > 0)
+                grid_concs_over_zero = grid_concs.where(grid_concs_over_zero, drop=True)
+                               
                 grid_mass = grid_concs_over_zero \
-                    * chem_ds_job["M"].sel(time=time).sel(level=178.6, method="nearest") \
+                    * chem_ds["M"].sel(time=time) \
                     * 1e-9 \
                     * (mm[s] / NA) \
                     * params.loc["vres_sim"] \
@@ -993,52 +993,41 @@ def mc_test(job_id, jobs_df, fl_df, pl_df, chem_ds):
             mc[emi_species].append(percent_mass_conserved)
 
     # convert the dictionary to a DataFrame
-    vecmass = pd.DataFrame(vecmass, index=pl_df_job["time"].unique()[:-1], columns=chem_ds_job["emi_species"].values.tolist())
-    gridmass = pd.DataFrame(gridmass, index=pl_df_job["time"].unique()[:-1], columns=chem_ds_job["emi_species"].values.tolist())
-    mc = pd.DataFrame(mc, index=pl_df_job["time"].unique()[:-1], columns=chem_ds_job["emi_species"].values.tolist())
-
-    # Save the mass conservation data to a pickle file
-    pd.to_pickle(mc, f"outputs/{job_id}/mc_{job_id}.pkl")
+    vecmass = pd.DataFrame(vecmass, index=pl_df["time"].unique()[:-1], columns=chem_ds["emi_species"].values.tolist())
+    gridmass = pd.DataFrame(gridmass, index=pl_df["time"].unique()[:-1], columns=chem_ds["emi_species"].values.tolist())
+    mc = pd.DataFrame(mc, index=pl_df["time"].unique()[:-1], columns=chem_ds["emi_species"].values.tolist())
 
     return vecmass, gridmass, mc
 
-def boxm_test(path, job_id, cell, chem_ds):
+def boxm_test(run_path, data_path, job_id, chem_ds):
     """Run the box model for selected cells and job_id."""
 
-    chem_ds_stacked = chem_ds.stack(
-            {"cell": ["level", "longitude", "latitude"]}
-        )
-    chem_ds_stacked = chem_ds_stacked.reset_index("cell")
-
-    chem_ds_stacked = chem_ds_stacked.assign_coords(species_out=chem_ds_stacked.attrs["species_out"])
-
-    cell_chem_ds = chem_ds_stacked.sel(job_id=job_id, cell=cell)
 
     # create input file for original boxm
-    gen_boxm_orig_input(cell_chem_ds, job_id)
+    gen_boxm_orig_input(data_path, chem_ds, job_id)
 
-    gen_zen_file(cell_chem_ds, job_id)
+    gen_zen_file(data_path, chem_ds, job_id)
 
-    gen_emi_file(cell_chem_ds, job_id)
+    gen_emi_file(data_path, chem_ds, job_id)
 
     # # calls fortran with input file and generates .OUT files
     subprocess.call(
-        [path + "boxm_orig", path, job_id],
+        [run_path + "boxm_orig", data_path, job_id],
     )
 
-    cell_chem_ds = update_chem_ds(cell_chem_ds, job_id)
+    cell_chem_ds = update_chem_ds(data_path, chem_ds, job_id)
 
     return cell_chem_ds
 
-def gen_boxm_orig_input(cell_chem_ds, job_id):
+def gen_boxm_orig_input(data_path, cell_chem_ds, job_id):
     """Generate the input file for the original box model."""
 
     # delete any existing input files
-    if pathlib.Path(f"inputs/{job_id}/boxm_input.txt").exists():
-            pathlib.Path(f"inputs/{job_id}/boxm_input.txt").unlink()
+    if pathlib.Path(f"{data_path}outputs/{job_id}/boxm_input.txt").exists():
+            pathlib.Path(f"{data_path}outputs/{job_id}/boxm_input.txt").unlink()
 
     # open file
-    boxm_input = open(f"inputs/{job_id}/boxm_input.txt", "w")
+    boxm_input = open(f"{data_path}outputs/{job_id}/boxm_input.txt", "w")
 
     start_time = pd.to_datetime(cell_chem_ds["time"].values[0])
     end_time = pd.to_datetime(cell_chem_ds["time"].values[-1])
@@ -1068,11 +1057,11 @@ def gen_boxm_orig_input(cell_chem_ds, job_id):
         
     boxm_input.close()
 
-def gen_zen_file(cell_chem_ds, job_id):
+def gen_zen_file(data_path, cell_chem_ds, job_id):
     """Generate the ZEN file for the original box model."""
 
     # delete any existing input files
-    zen_file_path = pathlib.Path(f"inputs/{job_id}/zen.csv")
+    zen_file_path = pathlib.Path(f"{data_path}outputs/{job_id}/zen.csv")
     if zen_file_path.exists():
         zen_file_path.unlink()
 
@@ -1083,11 +1072,11 @@ def gen_zen_file(cell_chem_ds, job_id):
     # Write the DataFrame to a CSV file
     sza_df.to_csv(zen_file_path, index=False, header=False)
 
-def gen_emi_file(cell_chem_ds, job_id):
+def gen_emi_file(data_path, cell_chem_ds, job_id):
     """Generate the EMI file for the original box model."""
 
     # delete any existing input files
-    emi_file_path = pathlib.Path(f"inputs/{job_id}/emi.csv")
+    emi_file_path = pathlib.Path(f"{data_path}outputs/{job_id}/emi.csv")
     if emi_file_path.exists():
         emi_file_path.unlink()
 
@@ -1130,23 +1119,23 @@ def get_pressure_level(alt):
 
         return idx
 
-def update_chem_ds(cell_chem_ds, job_id):
-    sza_df = pd.read_csv(f"outputs/{job_id}/ZEN.OUT", header=0,
+def update_chem_ds(data_path, cell_chem_ds, job_id):
+    sza_df = pd.read_csv(f"{data_path}outputs/{job_id}/ZEN.OUT", header=0,
                         names=['TIME', 'ZEN'], dtype=np.float64)
         
-    J_df = pd.read_csv(f"outputs/{job_id}/J.OUT", header=0,
+    J_df = pd.read_csv(f"{data_path}outputs/{job_id}/J.OUT", header=0,
                         names=['TIME', 'J1', 'J2', 'J3', 'J4', 'J5', 'J6', 'J7', 'J8', 'J9', 'J10', 'J11', 'J12', 'J13','J14', 'J15', 'J16', 'J17', 'J18', 'J19', 'J20', 'J21', 'J22', 'J23', 'J24', 'J25', 'J26', 'J27', 'J28', 'J29', 'J30', 'J31', 'J32', 'J33', 'J34', 'J35', 'J36', 'J37', 'J38', 'J39', 'J40', 'J41', 'J42', 'J43', 'J44', 'J45', 'J46', 'J47', 'J48', 'J49', 'J50'], dtype=np.float64)
 
-    DJ_df = pd.read_csv(f"outputs/{job_id}/DJ.OUT", header=0,
+    DJ_df = pd.read_csv(f"{data_path}outputs/{job_id}/DJ.OUT", header=0,
                             names=['TIME', 'DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6', 'DJ7', 'DJ8', 'DJ9', 'DJ10', 'DJ11', 'DJ12', 'DJ13','DJ14', 'DJ15', 'DJ16', 'DJ17', 'DJ18', 'DJ19', 'DJ20', 'DJ21', 'DJ22', 'DJ23', 'DJ24', 'DJ25', 'DJ26', 'DJ27', 'DJ28', 'DJ29', 'DJ30', 'DJ31', 'DJ32', 'DJ33', 'DJ34', 'DJ35', 'DJ36', 'DJ37', 'DJ38', 'DJ39', 'DJ40', 'DJ41', 'DJ42', 'DJ43', 'DJ44', 'DJ45', 'DJ46', 'DJ47', 'DJ48', 'DJ49', 'DJ50'], dtype=np.float64)
 
-    RC_df = pd.read_csv(f"outputs/{job_id}/RC.OUT", header=0,
+    RC_df = pd.read_csv(f"{data_path}outputs/{job_id}/RC.OUT", header=0,
                         names=['TIME', 'RC1', 'RC2', 'RC3', 'RC4', 'RC5', 'RC6', 'RC7', 'RC8', 'RC9', 'RC10', 'RC11', 'RC12', 'RC13','RC14', 'RC15', 'RC16', 'RC17', 'RC18', 'RC19', 'RC20', 'RC21', 'RC22', 'RC23', 'RC24', 'RC25', 'RC26', 'RC27', 'RC28', 'RC29', 'RC30', 'RC31', 'RC32', 'RC33', 'RC34', 'RC35', 'RC36', 'RC37', 'RC38', 'RC39', 'RC40', 'RC41', 'RC42', 'RC43', 'RC44', 'RC45', 'RC46', 'RC47', 'RC48', 'RC49', 'RC50'], dtype=np.float64)
 
     # get species names
     header_names = ['TIME'] + list(cell_chem_ds["species"].values)
 
-    Y_df = pd.read_csv(f"outputs/{job_id}/Y.OUT", header=0,
+    Y_df = pd.read_csv(f"{data_path}/outputs/{job_id}/Y.OUT", header=0,
                             names=header_names, dtype=np.float64) 
     
     # # Update the chem_ds_stacked with the new data
@@ -1169,7 +1158,7 @@ def update_chem_ds(cell_chem_ds, job_id):
     cell_chem_ds["Y_orig"] = (["time", "species_out"], da.zeros((cell_chem_ds.sizes["time"], cell_chem_ds.sizes["species_out"])))
     for s, species_out in enumerate(cell_chem_ds["species_out"].values):
         cell_chem_ds["Y_orig"].loc[:, species_out] = Y_df[species_out].values
-     
+    
     return cell_chem_ds
     
 

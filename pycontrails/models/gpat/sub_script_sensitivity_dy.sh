@@ -33,7 +33,7 @@ chmod -R 755 /projects/Impact_of_aviation_on_climate/Kieran2024/
 
 
 n_ac=("5")
-sep_dists=("0" "100" "500" "1000" "2000" "3000" "4000" "5000" "10000")
+sep_dists=("100" "500" "1000" "2000" "3000" "4000" "5000" "10000")
 
 sep_dist=$1
 
@@ -42,16 +42,15 @@ sep_dist=$1
 #                            --n_ac 5 --sep_dist "10000,0,0" --max_age 6 --run_gpat --job_id "sensitivity_NA_5_10000_0_6_0.01_0.05"
 # fi
 
-
-if [ $sep_dist == "10" ]; then
-   for n_ac in "${n_ac[@]}"; do
-      ./run_gpat_sensitivity.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" \
-                           --n_ac $n_ac --sep_dist "1000,10,0" --max_age 6 --run_gpat --job_id "sensitivity_NA_5_1000_10_6_0.01_0.05"
-   done
-elif [ $sep_dist == "100" ]; then
+if [ $sep_dist == "100" ]; then
    for n_ac in "${n_ac[@]}"; do
       ./run_gpat_sensitivity.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" \
                            --n_ac $n_ac --sep_dist "1000,100,0" --max_age 6 --run_gpat --job_id "sensitivity_NA_5_1000_100_6_0.01_0.05"
+   done
+elif [ $sep_dist == "500" ]; then
+   for n_ac in "${n_ac[@]}"; do
+      ./run_gpat_sensitivity.py --lat_bounds "47.0,48.0" --lon_bounds " -33.0,-32.0" --alt_bounds "12000,13000" --t0_sim "2022-01-20T12:00:00" \
+                           --n_ac $n_ac --sep_dist "1000,500,0" --max_age 6 --run_gpat --job_id "sensitivity_NA_5_1000_500_6_0.01_0.05"
    done
 elif [ $sep_dist == "1000" ]; then
    for n_ac in "${n_ac[@]}"; do

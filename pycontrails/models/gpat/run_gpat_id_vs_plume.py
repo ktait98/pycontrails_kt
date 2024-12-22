@@ -46,8 +46,8 @@ sim_params = {
     "species_in": ("NO", "NO2", "CO", "HCHO", "CH3CHO", "C2H4", "C3H6", "C2H2", "BENZENE"),
     "species_out": ("O3", "NO2", "NO", "NO3", "HNO3", "PAN", "HONO", "HO2", "OH","H2O2", 
                     "CO", "HCHO", "CH4"),
-    "run_path": os.getcwd() +"/",
-    "data_path": os.getcwd() +"/",
+    "run_path": "/user/work/kt16229/pycontrails_kt/pycontrails/models/gpat/",
+    "data_path": "/user/work/kt16229/pycontrails_kt/pycontrails/models/gpat/",
     "job_id": None,
     "run_gpat": None
 }
