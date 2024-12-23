@@ -17,7 +17,7 @@
 \makeatletter
 \newcounter{reaction}
 %%% >> for article <<
-%\renewcommand\thereaction{R\arabic{reaction}}
+%\renewcommand\thereaction{R\arabic{reaction}}(x, y)
 %%% << for article <<
 %%% >> for report and book >>
 \renewcommand\thereaction{R\,\thechapter.\arabic{reaction}}
@@ -123,8 +123,7 @@
 
 \mainmatter
 
-\chapter{Introduction}
-\label{chapter1}
+\chapter{Introduction}\label{chapter1}
 \input{Chapters/1/1}
 
 %\chapter{Aircraft Emissions, their Plume-Scale Effects, and the Spatio-Temporal Sensitivity of the Atmospheric Response}
@@ -135,20 +134,16 @@
 %\label{chapter3}
 %\input{Chapters/3/3}
 %
-\chapter{Potential to Offset Aviation NOx-induced Warming Through Formation Flight and Chemical Saturation}
-\label{chapter4}
+\chapter{Potential to Offset Aviation NOx-induced Warming Through Formation Flight and Chemical Saturation}\label{chapter4}
 \input{Chapters/4/4}
 
-\chapter{Development of a Novel Aircraft Plume Modelling Framework}
-\label{chapter5}
+\chapter{Development of a Novel Aircraft Plume Modelling Framework}\label{chapter5}
 \input{Chapters/5/5}
 
-\chapter{Plume Overlap as A Climate Solution – A Sensitivity Study}
-\label{chapter6}
+\chapter{Plume Overlap as A Climate Solution – A Sensitivity Study}\label{chapter6}
 \input{Chapters/6/6}
 
-\chapter{Conclusion}
-\label{chapter7}
+\chapter{Conclusion}\label{chapter7}
 \input{Chapters/7/7}
 
 
@@ -160,6 +155,6 @@
 
 \chapter*{Bibliography}
 
-\printbibliography[heading=none]
+% \printbibliography[heading=none]
 
 \end{document}

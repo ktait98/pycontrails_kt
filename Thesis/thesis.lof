@@ -8,7 +8,7 @@
 \contentsline {figure}{\numberline {2.6}{\ignorespaces \ce {O3} mixing ratios as a function of distance from the flight path at increasing times after the passage of an aircraft, each offset by 3~ppb.}}{30}{figure.caption.18}%
 \contentsline {figure}{\numberline {2.7}{\ignorespaces Time development of the average \ce {O3} mixing ratios across the 99.9~km grid for a base case with one aircraft, five aircraft flying together and flying with horizontal separations increasing from 100~m to 10~km.}}{32}{figure.caption.19}%
 \contentsline {chapteratlist}{\numberline {3}Development of a Novel Aircraft Plume Modelling Framework}{35}{chapter.3}%
-\contentsline {figure}{\numberline {3.1}{\ignorespaces GPAT process flow schematic portraying the input parameters, constituent models and flow of data through a range of datasets.}}{38}{figure.caption.20}%
-\contentsline {chapteratlist}{\numberline {4}Plume Overlap as A Climate Solution – A Sensitivity Study}{44}{chapter.4}%
-\contentsline {chapteratlist}{\numberline {5}Conclusion}{45}{chapter.5}%
+\contentsline {figure}{\numberline {3.1}{\ignorespaces GPAT process flow schematic portraying the input parameters (rhombi), constituent models (boxes) and flow of data through a range of datasets (cylinders).}}{38}{figure.caption.20}%
+\contentsline {chapteratlist}{\numberline {4}Plume Overlap as A Climate Solution – A Sensitivity Study}{46}{chapter.4}%
+\contentsline {chapteratlist}{\numberline {5}Conclusion}{47}{chapter.5}%
 \providecommand \tocbasic@end@toc@file {}\tocbasic@end@toc@file 
