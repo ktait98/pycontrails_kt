@@ -1143,6 +1143,50 @@
       \verb 10.1038/s41612-019-0086-4
       \endverb
     \endentry
+    \entry{Cameron2013}{article}{}
+      \name{author}{4}{}{%
+        {{hash=99c020199b218de370e773058ea40c33}{%
+           family={Cameron},
+           familyi={C\bibinitperiod},
+           given={Mary\bibnamedelima A.},
+           giveni={M\bibinitperiod\bibinitdelim A\bibinitperiod}}}%
+        {{hash=ab9ea5648ef9accb143dbfc05c98267b}{%
+           family={Jacobson},
+           familyi={J\bibinitperiod},
+           given={Mark\bibnamedelima Z.},
+           giveni={M\bibinitperiod\bibinitdelim Z\bibinitperiod}}}%
+        {{hash=c8215520d363d6c348f2d9b1177f383e}{%
+           family={Naiman},
+           familyi={N\bibinitperiod},
+           given={Alexander\bibnamedelima D.},
+           giveni={A\bibinitperiod\bibinitdelim D\bibinitperiod}}}%
+        {{hash=eb0c8b8ebf8d37bc976ec5f6699a051c}{%
+           family={Lele},
+           familyi={L\bibinitperiod},
+           given={Sanjiva\bibnamedelima K.},
+           giveni={S\bibinitperiod\bibinitdelim K\bibinitperiod}}}%
+      }
+      \strng{namehash}{587660dd9bd11965c240fa6f35b24d7d}
+      \strng{fullhash}{587660dd9bd11965c240fa6f35b24d7d}
+      \strng{bibnamehash}{587660dd9bd11965c240fa6f35b24d7d}
+      \strng{authorbibnamehash}{587660dd9bd11965c240fa6f35b24d7d}
+      \strng{authornamehash}{587660dd9bd11965c240fa6f35b24d7d}
+      \strng{authorfullhash}{587660dd9bd11965c240fa6f35b24d7d}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Geophysical Research Letters}
+      \field{number}{21}
+      \field{title}{Effects of plume-scale versus grid-scale treatment of aircraft exhaust photochemistry}
+      \field{volume}{40}
+      \field{year}{2013}
+      \field{pages}{5815\bibrangedash 5820}
+      \range{pages}{6}
+      \verb{doi}
+      \verb 10.1002/2013GL057665
+      \endverb
+    \endentry
     \entry{Cariolle2009}{article}{}
       \name{author}{7}{}{%
         {{hash=1ac92d57cd823553c8e44308ff522ecb}{%
@@ -1624,6 +1668,54 @@
       \verb Derwent et al. - 1996 - Photochemical ozone creation potentials for a larg.pdf:C\:\\Users\\kt162\\Zotero\\storage\\PFEF6VUS\\Derwent et al. - 1996 - Photochemical ozone creation potentials for a larg.pdf:application/pdf;ScienceDirect Snapshot:C\:\\Users\\kt162\\Zotero\\storage\\7JBTW9KK\\135223109500303G.html:text/html
       \endverb
     \endentry
+    \entry{Derwent2024}{article}{}
+      \name{author}{5}{}{%
+        {{hash=1babb8bc5d00b25216fa6b1cfbd92962}{%
+           family={Derwent},
+           familyi={D\bibinitperiod},
+           given={Richard\bibnamedelima G.},
+           giveni={R\bibinitperiod\bibinitdelim G\bibinitperiod}}}%
+        {{hash=1daa1bed2647275cde917d13bfb8950d}{%
+           family={Dosa},
+           familyi={D\bibinitperiod},
+           given={Monica},
+           giveni={M\bibinitperiod}}}%
+        {{hash=9b06b33eb60f43f0c12445a489ae45c7}{%
+           family={Khan},
+           familyi={K\bibinitperiod},
+           given={M.\bibnamedelimi Anwar\bibnamedelima H.},
+           giveni={M\bibinitperiod\bibinitdelim A\bibinitperiod\bibinitdelim H\bibinitperiod}}}%
+        {{hash=e7b7ed66eb040254b3160d49a805de1d}{%
+           family={Holland},
+           familyi={H\bibinitperiod},
+           given={Rayne},
+           giveni={R\bibinitperiod}}}%
+        {{hash=4ed9c868adfff304df871109a7b82bd1}{%
+           family={Shallcross},
+           familyi={S\bibinitperiod},
+           given={Dudley\bibnamedelima E.},
+           giveni={D\bibinitperiod\bibinitdelim E\bibinitperiod}}}%
+      }
+      \strng{namehash}{9b64cf73447ca08378dbb32e675d4316}
+      \strng{fullhash}{9b64cf73447ca08378dbb32e675d4316}
+      \strng{bibnamehash}{9b64cf73447ca08378dbb32e675d4316}
+      \strng{authorbibnamehash}{9b64cf73447ca08378dbb32e675d4316}
+      \strng{authornamehash}{9b64cf73447ca08378dbb32e675d4316}
+      \strng{authorfullhash}{9b64cf73447ca08378dbb32e675d4316}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Atmospheric Environment}
+      \field{title}{Atmospheric chemistry regimes in intercontinental air traffic corridors: Ozone versus NOx sensitivity}
+      \field{volume}{328}
+      \field{year}{2024}
+      \field{pages}{120521}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1016/j.atmosenv.2024.120521
+      \endverb
+    \endentry
     \entry{Dodge1977}{inproceedings}{}
       \name{author}{1}{}{%
         {{hash=2dc164340e5f4a09c82a0c4d428a50cf}{%
@@ -1718,6 +1810,39 @@
       \range{pages}{4}
       \verb{doi}
       \verb 10.1016/S1290-0958(00)80060-X
+      \endverb
+    \endentry
+    \entry{DuBois2006}{report}{}
+      \name{author}{2}{}{%
+        {{hash=059024d470b4598cf8b6a4a959d3b4d5}{%
+           family={DuBois},
+           familyi={D\bibinitperiod},
+           given={Doug},
+           giveni={D\bibinitperiod}}}%
+        {{hash=c241c23fc9f6b55e3a64941be95567bc}{%
+           family={Paynter},
+           familyi={P\bibinitperiod},
+           given={Gerald\bibnamedelima C.},
+           giveni={G\bibinitperiod\bibinitdelim C\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {SAE International}%
+      }
+      \strng{namehash}{c15580463625c8da1cf33a2f95e10834}
+      \strng{fullhash}{c15580463625c8da1cf33a2f95e10834}
+      \strng{bibnamehash}{c15580463625c8da1cf33a2f95e10834}
+      \strng{authorbibnamehash}{c15580463625c8da1cf33a2f95e10834}
+      \strng{authornamehash}{c15580463625c8da1cf33a2f95e10834}
+      \strng{authorfullhash}{c15580463625c8da1cf33a2f95e10834}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{{``Fuel Flow Method2” for Estimating Aircraft Emissions (No. 2006-01-1987)}}
+      \field{type}{techreport}
+      \field{year}{2006}
+      \verb{doi}
+      \verb 10.4271/2006-01-1987
       \endverb
     \endentry
     \entry{Durbeck1995}{article}{}
@@ -2046,6 +2171,50 @@
       \field{type}{techreport}
       \field{year}{2021}
     \endentry
+    \entry{Filippone2021}{article}{}
+      \name{author}{4}{}{%
+        {{hash=6d8d18ffb9c9f26a744fccabb46cb72d}{%
+           family={Filippone},
+           familyi={F\bibinitperiod},
+           given={A.},
+           giveni={A\bibinitperiod}}}%
+        {{hash=efda821efd82865f448582563f66fe5d}{%
+           family={Parkes},
+           familyi={P\bibinitperiod},
+           given={B.},
+           giveni={B\bibinitperiod}}}%
+        {{hash=8c3e160718df3ecfc105a01bc8d112ae}{%
+           family={Bojdo},
+           familyi={B\bibinitperiod},
+           given={N.},
+           giveni={N\bibinitperiod}}}%
+        {{hash=81f4709fbe5f219ea89ee5b53f263341}{%
+           family={Kelly},
+           familyi={K\bibinitperiod},
+           given={T.},
+           giveni={T\bibinitperiod}}}%
+      }
+      \strng{namehash}{60c86aea1f40e4af8221930e6b5e8680}
+      \strng{fullhash}{60c86aea1f40e4af8221930e6b5e8680}
+      \strng{bibnamehash}{60c86aea1f40e4af8221930e6b5e8680}
+      \strng{authorbibnamehash}{60c86aea1f40e4af8221930e6b5e8680}
+      \strng{authornamehash}{60c86aea1f40e4af8221930e6b5e8680}
+      \strng{authorfullhash}{60c86aea1f40e4af8221930e6b5e8680}
+      \field{sortinit}{F}
+      \field{sortinithash}{2638baaa20439f1b5a8f80c6c08a13b4}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{The Aeronautical Journal}
+      \field{number}{1288}
+      \field{title}{Prediction of aircraft engine emissions using ADS-B flight data}
+      \field{volume}{125}
+      \field{year}{2021}
+      \field{pages}{988\bibrangedash 1012}
+      \range{pages}{25}
+      \verb{doi}
+      \verb 10.1017/aer.2021.2
+      \endverb
+    \endentry
     \entry{Fittschen2019}{article}{}
       \name{author}{1}{}{%
         {{hash=6bd72b99ef7b9743ce2d9cf73bb4e8c7}{%
@@ -2053,9 +2222,6 @@
            familyi={F\bibinitperiod},
            given={Christa},
            giveni={C\bibinitperiod}}}%
-      }
-      \list{language}{1}{%
-        {en}%
       }
       \strng{namehash}{6bd72b99ef7b9743ce2d9cf73bb4e8c7}
       \strng{fullhash}{6bd72b99ef7b9743ce2d9cf73bb4e8c7}
@@ -2862,6 +3028,68 @@
       \verb 10.1016/S1352-2310(98)00016-8
       \endverb
     \endentry
+    \entry{Gruber2018}{article}{}
+      \name{author}{7}{}{%
+        {{hash=0f0bc480e34bbd358282e8f5e1e03a49}{%
+           family={Gruber},
+           familyi={G\bibinitperiod},
+           given={Simon},
+           giveni={S\bibinitperiod}}}%
+        {{hash=9fe35b8161b7f267701a85b94c1c4e14}{%
+           family={Unterstrasser},
+           familyi={U\bibinitperiod},
+           given={Simon},
+           giveni={S\bibinitperiod}}}%
+        {{hash=a3c662aae835bfc6028495a71c199cef}{%
+           family={Bechtold},
+           familyi={B\bibinitperiod},
+           given={Jan},
+           giveni={J\bibinitperiod}}}%
+        {{hash=60899b25c6902e2fb8b404687a6bd49b}{%
+           family={Vogel},
+           familyi={V\bibinitperiod},
+           given={Heike},
+           giveni={H\bibinitperiod}}}%
+        {{hash=00a3f1c57008eb4994c9da85847bb146}{%
+           family={Jung},
+           familyi={J\bibinitperiod},
+           given={Martin},
+           giveni={M\bibinitperiod}}}%
+        {{hash=9b5c88947ce9b9b4cfb46a1f8869c482}{%
+           family={Pak},
+           familyi={P\bibinitperiod},
+           given={Henry},
+           giveni={H\bibinitperiod}}}%
+        {{hash=0afa26e6a2e6034d83f5abcefbf441de}{%
+           family={Vogel},
+           familyi={V\bibinitperiod},
+           given={Bernhard},
+           giveni={B\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Copernicus GmbH}%
+      }
+      \strng{namehash}{65baa0f68a49584b6accd53724bf40c4}
+      \strng{fullhash}{65baa0f68a49584b6accd53724bf40c4}
+      \strng{bibnamehash}{65baa0f68a49584b6accd53724bf40c4}
+      \strng{authorbibnamehash}{65baa0f68a49584b6accd53724bf40c4}
+      \strng{authornamehash}{65baa0f68a49584b6accd53724bf40c4}
+      \strng{authorfullhash}{65baa0f68a49584b6accd53724bf40c4}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Atmospheric Chemistry and Physics}
+      \field{number}{9}
+      \field{title}{Contrails and their impact on shortwave radiation and photovoltaic power production--a regional model study}
+      \field{volume}{18}
+      \field{year}{2018}
+      \field{pages}{6393\bibrangedash 6411}
+      \range{pages}{19}
+      \verb{doi}
+      \verb 10.5194/acp-18-6393-2018
+      \endverb
+    \endentry
     \entry{Gunz1990}{article}{}
       \name{author}{2}{}{%
         {{hash=71a2499ec8b6ea4bbfe560029970f562}{%
@@ -3114,6 +3342,50 @@
       \verb Full Text PDF:C\:\\Users\\kt162\\Zotero\\storage\\N55WIR35\\Harris et al. - 2020 - Array programming with NumPy.pdf:application/pdf
       \endverb
       \keyw{Computational neuroscience,Computational science,Computer science,Software,Solar physics}
+    \endentry
+    \entry{Hartjes2019}{article}{}
+      \name{author}{3}{}{%
+        {{hash=b00dfbbee9e7b9005f16191854934f84}{%
+           family={Hartjes},
+           familyi={H\bibinitperiod},
+           given={Sander},
+           giveni={S\bibinitperiod}}}%
+        {{hash=f0837099f8877187d4d052dfa5f87aee}{%
+           family={Hellenberg\bibnamedelima Hubar},
+           familyi={H\bibinitperiod\bibinitdelim H\bibinitperiod},
+           given={Marco\bibnamedelima E.G.},
+           giveni={M\bibinitperiod\bibinitdelim E\bibinitperiod},
+           prefix={van},
+           prefixi={v\bibinitperiod}}}%
+        {{hash=b7e5a63df40fdf62083f1ff8d89d082c}{%
+           family={Visser},
+           familyi={V\bibinitperiod},
+           given={Hendrikus\bibnamedelima G.},
+           giveni={H\bibinitperiod\bibinitdelim G\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Springer Vienna}%
+      }
+      \strng{namehash}{4916fb1fa66dcc0600113a4d39e0a3d5}
+      \strng{fullhash}{4916fb1fa66dcc0600113a4d39e0a3d5}
+      \strng{bibnamehash}{4916fb1fa66dcc0600113a4d39e0a3d5}
+      \strng{authorbibnamehash}{4916fb1fa66dcc0600113a4d39e0a3d5}
+      \strng{authornamehash}{4916fb1fa66dcc0600113a4d39e0a3d5}
+      \strng{authorfullhash}{4916fb1fa66dcc0600113a4d39e0a3d5}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{CEAS Aeronautical Journal}
+      \field{number}{2}
+      \field{title}{Multiple-phase trajectory optimization for formation flight in civil aviation}
+      \field{volume}{10}
+      \field{year}{2019}
+      \field{pages}{453\bibrangedash 462}
+      \range{pages}{10}
+      \verb{doi}
+      \verb 10.1007/s13272-018-0329-9
+      \endverb
     \endentry
     \entry{Hemighaus2007}{report}{}
       \name{author}{11}{}{%
@@ -4081,6 +4353,7 @@
       \strng{authorbibnamehash}{db39f485698f369aa3380209b33126fa}
       \strng{authornamehash}{db39f485698f369aa3380209b33126fa}
       \strng{authorfullhash}{db39f485698f369aa3380209b33126fa}
+      \field{extraname}{1}
       \field{sortinit}{J}
       \field{sortinithash}{b2f54a9081ace9966a7cb9413811edb4}
       \field{labelnamesource}{author}
@@ -4094,6 +4367,40 @@
       \range{pages}{-4}
       \verb{doi}
       \verb https://doi.org/10.1016/S1352-2310(99)00478-1
+      \endverb
+    \endentry
+    \entry{Jenkin2002}{inbook}{}
+      \name{author}{2}{}{%
+        {{hash=37a276e34bf135b9d2135d324fdb81e2}{%
+           family={Jenkin},
+           familyi={J\bibinitperiod},
+           given={Michael\bibnamedelima E.},
+           giveni={M\bibinitperiod\bibinitdelim E\bibinitperiod}}}%
+        {{hash=f19700f2c5e487544b5f146d7a45313d}{%
+           family={Clemitshaw},
+           familyi={C\bibinitperiod},
+           given={Kevin\bibnamedelima C.},
+           giveni={K\bibinitperiod\bibinitdelim C\bibinitperiod}}}%
+      }
+      \strng{namehash}{db39f485698f369aa3380209b33126fa}
+      \strng{fullhash}{db39f485698f369aa3380209b33126fa}
+      \strng{bibnamehash}{db39f485698f369aa3380209b33126fa}
+      \strng{authorbibnamehash}{db39f485698f369aa3380209b33126fa}
+      \strng{authornamehash}{db39f485698f369aa3380209b33126fa}
+      \strng{authorfullhash}{db39f485698f369aa3380209b33126fa}
+      \field{extraname}{2}
+      \field{sortinit}{J}
+      \field{sortinithash}{b2f54a9081ace9966a7cb9413811edb4}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Developments in Environmental Science}
+      \field{title}{Chapter 11 Ozone and other secondary photochemical pollutants: chemical processes governing their formation in the planetary boundary layer}
+      \field{volume}{1}
+      \field{year}{2002}
+      \field{pages}{285\bibrangedash 338}
+      \range{pages}{54}
+      \verb{doi}
+      \verb 10.1016/S1474-8177(02)80014-6
       \endverb
     \endentry
     \entry{Jensen1996}{article}{}
@@ -4639,6 +4946,50 @@
       \verb PDF:C\:\\Users\\kt162\\Zotero\\storage\\8DL5A3AK\\Khan et al. - 2021 - Changes to simulated global atmospheric composition resulting from recent revisions to isoprene oxid.pdf:application/pdf
       \endverb
     \endentry
+    \entry{Klemm1998}{article}{}
+      \name{author}{4}{}{%
+        {{hash=7131bc3717216977e5255f1d9335173c}{%
+           family={Klemm},
+           familyi={K\bibinitperiod},
+           given={Otto},
+           giveni={O\bibinitperiod}}}%
+        {{hash=8fe456082c78a86dca701320283d7545}{%
+           family={Stockwell},
+           familyi={S\bibinitperiod},
+           given={William\bibnamedelima R.},
+           giveni={W\bibinitperiod\bibinitdelim R\bibinitperiod}}}%
+        {{hash=68ae5e7cd8276b9dc99b05a3d43b78c3}{%
+           family={Schlager},
+           familyi={S\bibinitperiod},
+           given={Hans},
+           giveni={H\bibinitperiod}}}%
+        {{hash=c9d96f84c4aa072abf039c0b873f2bbc}{%
+           family={Ziereis},
+           familyi={Z\bibinitperiod},
+           given={Helmut},
+           giveni={H\bibinitperiod}}}%
+      }
+      \strng{namehash}{71f035df074e1e1bda7095f9a00e1722}
+      \strng{fullhash}{71f035df074e1e1bda7095f9a00e1722}
+      \strng{bibnamehash}{71f035df074e1e1bda7095f9a00e1722}
+      \strng{authorbibnamehash}{71f035df074e1e1bda7095f9a00e1722}
+      \strng{authornamehash}{71f035df074e1e1bda7095f9a00e1722}
+      \strng{authorfullhash}{71f035df074e1e1bda7095f9a00e1722}
+      \field{sortinit}{K}
+      \field{sortinithash}{c02bf6bff1c488450c352b40f5d853ab}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Journal of Geophysical Research: Atmospheres}
+      \field{number}{D23}
+      \field{title}{Measurements of nitrogen oxides from aircraft in the northeast Atlantic flight corridor}
+      \field{volume}{103}
+      \field{year}{1998}
+      \field{pages}{31217\bibrangedash 31229}
+      \range{pages}{13}
+      \verb{doi}
+      \verb 10.1029/98JD02624
+      \endverb
+    \endentry
     \entry{Konopka1995}{article}{}
       \name{author}{1}{}{%
         {{hash=71d767bc085f5898c418b65596e8de45}{%
@@ -5099,6 +5450,60 @@
       \verb 10.1016/j.atmosenv.2009.06.005
       \endverb
     \endentry
+    \entry{Lee2023}{article}{}
+      \name{author}{6}{}{%
+        {{hash=95a248b56768f250923ee04ec474cf6c}{%
+           family={Lee},
+           familyi={L\bibinitperiod},
+           given={David\bibnamedelima S.},
+           giveni={D\bibinitperiod\bibinitdelim S\bibinitperiod}}}%
+        {{hash=1125311b595919c6840147bedc113066}{%
+           family={Allen},
+           familyi={A\bibinitperiod},
+           given={Myles\bibnamedelima R.},
+           giveni={M\bibinitperiod\bibinitdelim R\bibinitperiod}}}%
+        {{hash=5726a84acb94151abb52cadd8ce65fbf}{%
+           family={Cumpsty},
+           familyi={C\bibinitperiod},
+           given={Nicholas},
+           giveni={N\bibinitperiod}}}%
+        {{hash=104e778a91921c92716d6b5dfd210b4d}{%
+           family={Owen},
+           familyi={O\bibinitperiod},
+           given={Bethan},
+           giveni={B\bibinitperiod}}}%
+        {{hash=5973ca08b8b85bf8945b40885ec0b181}{%
+           family={Shine},
+           familyi={S\bibinitperiod},
+           given={Keith\bibnamedelima P.},
+           giveni={K\bibinitperiod\bibinitdelim P\bibinitperiod}}}%
+        {{hash=7f872c517ee74abbb2c4dcb6e4148c5f}{%
+           family={Skowron},
+           familyi={S\bibinitperiod},
+           given={Agnieszka},
+           giveni={A\bibinitperiod}}}%
+      }
+      \strng{namehash}{6dbe04fcc4b8e79e65da79541978135d}
+      \strng{fullhash}{6dbe04fcc4b8e79e65da79541978135d}
+      \strng{bibnamehash}{6dbe04fcc4b8e79e65da79541978135d}
+      \strng{authorbibnamehash}{6dbe04fcc4b8e79e65da79541978135d}
+      \strng{authornamehash}{6dbe04fcc4b8e79e65da79541978135d}
+      \strng{authorfullhash}{6dbe04fcc4b8e79e65da79541978135d}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Environmental Science: Atmospheres}
+      \field{number}{12}
+      \field{title}{Uncertainties in mitigating aviation non-CO2 emissions for climate and air quality using hydrocarbon fuels}
+      \field{volume}{3}
+      \field{year}{2023}
+      \field{pages}{1693\bibrangedash 1740}
+      \range{pages}{48}
+      \verb{doi}
+      \verb 10.1039/D3EA00091E
+      \endverb
+    \endentry
     \entry{Lee2009}{article}{}
       \name{author}{8}{}{%
         {{hash=95a248b56768f250923ee04ec474cf6c}{%
@@ -5455,6 +5860,90 @@
       \range{pages}{47}
       \verb{doi}
       \verb 10.1016/j.atmosenv.2014.05.070
+      \endverb
+    \endentry
+    \entry{Matthes2021}{article}{}
+      \name{author}{12}{}{%
+        {{hash=ecd7fb405204cf8fe01eb1efd092ee6e}{%
+           family={Matthes},
+           familyi={M\bibinitperiod},
+           given={Sigrun},
+           giveni={S\bibinitperiod}}}%
+        {{hash=c825aaa1902d9fcffd4e55055cd4f9a3}{%
+           family={Lim},
+           familyi={L\bibinitperiod},
+           given={Ling},
+           giveni={L\bibinitperiod}}}%
+        {{hash=b102284159fc3a6b0e0b4b88898e9c44}{%
+           family={Burkhardt},
+           familyi={B\bibinitperiod},
+           given={Ulrike},
+           giveni={U\bibinitperiod}}}%
+        {{hash=4b50123d65d946686b2679b7e7f392a4}{%
+           family={Dahlmann},
+           familyi={D\bibinitperiod},
+           given={Katrin},
+           giveni={K\bibinitperiod}}}%
+        {{hash=0cd7a5f7d45d3fa0b16ddbb32e69f644}{%
+           family={Dietmüller},
+           familyi={D\bibinitperiod},
+           given={Simone},
+           giveni={S\bibinitperiod}}}%
+        {{hash=a001efe3223e88c6b562753ff390a4f7}{%
+           family={Grewe},
+           familyi={G\bibinitperiod},
+           given={Volker},
+           giveni={V\bibinitperiod}}}%
+        {{hash=5055a631ab3a7e3ef355a2aba6574449}{%
+           family={Haslerud},
+           familyi={H\bibinitperiod},
+           given={Amund\bibnamedelima S.},
+           giveni={A\bibinitperiod\bibinitdelim S\bibinitperiod}}}%
+        {{hash=5241e936ebf5d065cdcb8fb1df1e089c}{%
+           family={Hendricks},
+           familyi={H\bibinitperiod},
+           given={Johannes},
+           giveni={J\bibinitperiod}}}%
+        {{hash=104e778a91921c92716d6b5dfd210b4d}{%
+           family={Owen},
+           familyi={O\bibinitperiod},
+           given={Bethan},
+           giveni={B\bibinitperiod}}}%
+        {{hash=c7993e4fccacc3d9943c0fc33cc5f8e7}{%
+           family={Pitari},
+           familyi={P\bibinitperiod},
+           given={Giovanni},
+           giveni={G\bibinitperiod}}}%
+        {{hash=7e6c914c8584802be79b05182d69e4fe}{%
+           family={Righi},
+           familyi={R\bibinitperiod},
+           given={Mattia},
+           giveni={M\bibinitperiod}}}%
+        {{hash=7f872c517ee74abbb2c4dcb6e4148c5f}{%
+           family={Skowron},
+           familyi={S\bibinitperiod},
+           given={Agnieszka},
+           giveni={A\bibinitperiod}}}%
+      }
+      \strng{namehash}{b56890456a11e3fd0233d737cf0a9c33}
+      \strng{fullhash}{b56890456a11e3fd0233d737cf0a9c33}
+      \strng{bibnamehash}{b56890456a11e3fd0233d737cf0a9c33}
+      \strng{authorbibnamehash}{b56890456a11e3fd0233d737cf0a9c33}
+      \strng{authornamehash}{b56890456a11e3fd0233d737cf0a9c33}
+      \strng{authorfullhash}{b56890456a11e3fd0233d737cf0a9c33}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Aerospace}
+      \field{number}{2}
+      \field{title}{Mitigation of Non-CO2 Aviation's Climate Impact by Changing Cruise Altitudes}
+      \field{volume}{8}
+      \field{year}{2021}
+      \field{pages}{36}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.3390/aerospace8020036
       \endverb
     \endentry
     \entry{Matthes2020}{article}{}
@@ -6391,6 +6880,45 @@
       \field{title}{{Integration of Non-CO2 Effects of Aviation in the EU ETS and under CORSIA}}
       \field{type}{techreport}
       \field{year}{2019}
+    \endentry
+    \entry{Ning2011}{article}{}
+      \name{author}{3}{}{%
+        {{hash=06b73ab9a458de2a15dc368a94cebc0f}{%
+           family={Ning},
+           familyi={N\bibinitperiod},
+           given={S.\bibnamedelimi Andrew},
+           giveni={S\bibinitperiod\bibinitdelim A\bibinitperiod}}}%
+        {{hash=64a4b0d5f96ca3d69977de4351a66df0}{%
+           family={Flanzer},
+           familyi={F\bibinitperiod},
+           given={Tristan\bibnamedelima C.},
+           giveni={T\bibinitperiod\bibinitdelim C\bibinitperiod}}}%
+        {{hash=a98f0b0efbeb57211e7a102bbf1cdb43}{%
+           family={Kroo},
+           familyi={K\bibinitperiod},
+           given={Ilan\bibnamedelima M.},
+           giveni={I\bibinitperiod\bibinitdelim M\bibinitperiod}}}%
+      }
+      \strng{namehash}{aa820facbe4a7a35354158ef23f95398}
+      \strng{fullhash}{aa820facbe4a7a35354158ef23f95398}
+      \strng{bibnamehash}{aa820facbe4a7a35354158ef23f95398}
+      \strng{authorbibnamehash}{aa820facbe4a7a35354158ef23f95398}
+      \strng{authornamehash}{aa820facbe4a7a35354158ef23f95398}
+      \strng{authorfullhash}{aa820facbe4a7a35354158ef23f95398}
+      \field{sortinit}{N}
+      \field{sortinithash}{22369a73d5f88983a108b63f07f37084}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Journal of Aircraft}
+      \field{number}{3}
+      \field{title}{Aerodynamic Performance of Extended Formation Flight}
+      \field{volume}{48}
+      \field{year}{2011}
+      \field{pages}{855\bibrangedash 865}
+      \range{pages}{11}
+      \verb{doi}
+      \verb 10.2514/1.C031046
+      \endverb
     \endentry
     \entry{NOTAMS}{misc}{}
       \field{sortinit}{N}
@@ -8545,6 +9073,63 @@
       \verb 10.1039/c2cs35140d
       \endverb
     \endentry
+    \entry{Sun2022}{inproceedings}{}
+      \name{author}{7}{}{%
+        {{hash=1143e2165747efb25d0b6194fdd45826}{%
+           family={Sun},
+           familyi={S\bibinitperiod},
+           given={Junzi},
+           giveni={J\bibinitperiod}}}%
+        {{hash=0b0338a1f09220e37e4ffc33341e880a}{%
+           family={Basora},
+           familyi={B\bibinitperiod},
+           given={Luis},
+           giveni={L\bibinitperiod}}}%
+        {{hash=a4b583fa0e665ccfe90dcc27ff3c7bcb}{%
+           family={Olive},
+           familyi={O\bibinitperiod},
+           given={Xavier},
+           giveni={X\bibinitperiod}}}%
+        {{hash=bade8eca92e6e0f62acc03aa3c6fa3d0}{%
+           family={Strohmeier},
+           familyi={S\bibinitperiod},
+           given={Martin},
+           giveni={M\bibinitperiod}}}%
+        {{hash=1e7b16300921bf5eaedbb2489b9690eb}{%
+           family={Schäfer},
+           familyi={S\bibinitperiod},
+           given={Matthias},
+           giveni={M\bibinitperiod}}}%
+        {{hash=1645d8bef55e7f7b84b3ae7a9a8e3729}{%
+           family={Martinovic},
+           familyi={M\bibinitperiod},
+           given={Ivan},
+           giveni={I\bibinitperiod}}}%
+        {{hash=6d4f48d80340f4c57d4a6c28dcde5ad2}{%
+           family={Lenders},
+           familyi={L\bibinitperiod},
+           given={Vincent},
+           giveni={V\bibinitperiod}}}%
+      }
+      \strng{namehash}{55d719626fb634f6b930063d2941ff59}
+      \strng{fullhash}{55d719626fb634f6b930063d2941ff59}
+      \strng{bibnamehash}{55d719626fb634f6b930063d2941ff59}
+      \strng{authorbibnamehash}{55d719626fb634f6b930063d2941ff59}
+      \strng{authornamehash}{55d719626fb634f6b930063d2941ff59}
+      \strng{authorfullhash}{55d719626fb634f6b930063d2941ff59}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{2022 IEEE/AIAA 41st Digital Avionics Systems Conference (DASC)}
+      \field{title}{OpenSky Report 2022: Evaluating Aviation Emissions Using Crowdsourced Open Flight Data}
+      \field{year}{2022}
+      \field{pages}{1\bibrangedash 8}
+      \range{pages}{8}
+      \verb{doi}
+      \verb 10.1109/DASC55683.2022.9925852
+      \endverb
+    \endentry
     \entry{Sun2020}{article}{}
       \name{author}{3}{}{%
         {{hash=1143e2165747efb25d0b6194fdd45826}{%
@@ -8582,6 +9167,55 @@
       \range{pages}{1}
       \verb{doi}
       \verb 10.3390/aerospace7080104
+      \endverb
+    \endentry
+    \entry{Tait2022}{article}{}
+      \name{author}{5}{}{%
+        {{hash=199187598f0d52095bb69cfa657f4927}{%
+           family={Tait},
+           familyi={T\bibinitperiod},
+           given={Kieran\bibnamedelima N.},
+           giveni={K\bibinitperiod\bibinitdelim N\bibinitperiod}}}%
+        {{hash=03c68b699f09266bbf917ef7d19e9d2c}{%
+           family={Khan},
+           familyi={K\bibinitperiod},
+           given={Mohammad\bibnamedelimb Anwar\bibnamedelima H.},
+           giveni={M\bibinitperiod\bibinitdelim A\bibinitperiod\bibinitdelim H\bibinitperiod}}}%
+        {{hash=b454081fafc664194ca6479c3f20027b}{%
+           family={Bullock},
+           familyi={B\bibinitperiod},
+           given={Steve},
+           giveni={S\bibinitperiod}}}%
+        {{hash=de6af711f6f978012fe1aacd6b20db8f}{%
+           family={Lowenberg},
+           familyi={L\bibinitperiod},
+           given={Mark\bibnamedelima H.},
+           giveni={M\bibinitperiod\bibinitdelim H\bibinitperiod}}}%
+        {{hash=4ed9c868adfff304df871109a7b82bd1}{%
+           family={Shallcross},
+           familyi={S\bibinitperiod},
+           given={Dudley\bibnamedelima E.},
+           giveni={D\bibinitperiod\bibinitdelim E\bibinitperiod}}}%
+      }
+      \strng{namehash}{9abee8e3d9791e6fcee3c48b2a28fe5f}
+      \strng{fullhash}{9abee8e3d9791e6fcee3c48b2a28fe5f}
+      \strng{bibnamehash}{9abee8e3d9791e6fcee3c48b2a28fe5f}
+      \strng{authorbibnamehash}{9abee8e3d9791e6fcee3c48b2a28fe5f}
+      \strng{authornamehash}{9abee8e3d9791e6fcee3c48b2a28fe5f}
+      \strng{authorfullhash}{9abee8e3d9791e6fcee3c48b2a28fe5f}
+      \field{sortinit}{T}
+      \field{sortinithash}{9af77f0292593c26bde9a56e688eaee9}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Aerospace}
+      \field{number}{7}
+      \field{title}{Aircraft Emissions, Their Plume-Scale Effects, and the Spatio-Temporal Sensitivity of the Atmospheric Response: A Review}
+      \field{volume}{9}
+      \field{year}{2022}
+      \field{pages}{355}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.3390/aerospace9070355
       \endverb
     \endentry
     \entry{Pandas2024}{software}{}
@@ -9447,20 +10081,7 @@
       \endverb
     \endentry
   \enddatalist
-  \missing{1}
-  \missing{10}
-  \missing{11}
-  \missing{12}
-  \missing{13}
-  \missing{14}
-  \missing{2}
-  \missing{3}
-  \missing{4}
   \missing{5}
-  \missing{6}
-  \missing{7}
-  \missing{8}
-  \missing{9}
   \missing{Atkinson2003}
   \missing{Atkinson2004}
   \missing{Baulch1992}
@@ -9469,17 +10090,10 @@
   \missing{Dameris2010}
   \missing{DeMore1997}
   \missing{Doliente2020}
-  \missing{Dubois2006}
   \missing{Dufour2016}
-  \missing{Filippone2021}
-  \missing{Flightradar24}
   \missing{Fuglestvedt1999}
-  \missing{Gruber2018}
-  \missing{Jenkin2002}
   \missing{Jenkin2020}
   \missing{Khan2022}
-  \missing{Lee2020}
-  \missing{Matthes2021}
   \missing{Niklass2019}
   \missing{Olive2019}
   \missing{Opensky2022}
@@ -9494,8 +10108,6 @@
   \missing{Stockwell1999}
   \missing{Stockwell2019}
   \missing{Sun2018}
-  \missing{Sun2022}
-  \missing{Tait2022}
   \missing{Tie2002}
   \missing{Utembe2009}
   \missing{VonSchneidemesser2015}
