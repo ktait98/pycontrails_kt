@@ -1,12 +1,14 @@
 \documentclass[
-  % ieee        % uncomment for IEEE bibliography style
+  ieee        % uncomment for IEEE bibliography style
 ]{uob-thesis}
 
 \usepackage{lipsum}
 \usepackage{graphicx}
 \usepackage[version=4]{mhchem}
+\usepackage{longtable}
 \usepackage{booktabs}
 \usepackage{float}
+\usepackage{caption}
 \usepackage{subcaption}
 \usepackage{changepage}
 \usepackage{adjustbox}
@@ -42,7 +44,7 @@
 %%%%%%%%%%%%%%%%%%%
 
 
-\title{Exploring the Potential to Reduce Aviation’s Non-CO2 Climate Impact through Controlled Plume Intersections}
+\title{Exploring the Potential to Reduce Aviation's Non-CO2 Climate Impact through Controlled Plume Intersections}
 \subtitle{}
 \author{Kieran Tait}
 
@@ -123,28 +125,37 @@
 
 \mainmatter
 
-\chapter{Introduction}\label{chapter1}
+\chapter{Introduction}
+\label{chapter1}
 \input{Chapters/1/1}
 
-%\chapter{Aircraft Emissions, their Plume-Scale Effects, and the Spatio-Temporal Sensitivity of the Atmospheric Response}
-%\label{chapter2}
-%\input{Chapters/2/2}
-%
-%\chapter{Investigating the Real-World Feasibility of Aircraft Exhaust Plume Intersections using Open Source Air Traffic Data} 
-%\label{chapter3}
-%\input{Chapters/3/3}
-%
-\chapter{Potential to Offset Aviation NOx-induced Warming Through Formation Flight and Chemical Saturation}\label{chapter4}
+\chapter{Aircraft Emissions, their Plume-Scale Effects, and the Spatio-Temporal Sensitivity of the Atmospheric Response}
+\label{chapter2}
+\input{Chapters/2/2}
+
+\chapter{Investigating the Real-World Feasibility of Aircraft Exhaust Plume Intersections using Open Source Air Traffic Data} 
+\label{chapter3}
+\input{Chapters/3/3}
+
+\chapter{Potential to Offset Aviation \ce{NOx}-induced Warming Through Formation Flight and Chemical Saturation}\label{chapter4}
 \input{Chapters/4/4}
 
-\chapter{Development of a Novel Aircraft Plume Modelling Framework}\label{chapter5}
+\chapter{Development of a Novel Aircraft Plume Modelling Framework}
+\label{chapter5}
 \input{Chapters/5/5}
 
-\chapter{Plume Overlap as A Climate Solution – A Sensitivity Study}\label{chapter6}
+\chapter{Investigating Plume Overlap as A Climate Solution}
+\label{chapter6}
 \input{Chapters/6/6}
 
-\chapter{Conclusion}\label{chapter7}
+\chapter{Conclusions and Further Work}
+\label{chapter7}
 \input{Chapters/7/7}
+
+\appendix
+\chapter{Appendix}
+\label{appendix}
+\input{Chapters/A/A}
 
 
 %%%%%%%%%%%%%%%%
@@ -155,6 +166,6 @@
 
 \chapter*{Bibliography}
 
-% \printbibliography[heading=none]
+\printbibliography[heading=none]
 
 \end{document}

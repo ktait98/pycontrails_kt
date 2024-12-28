@@ -1,72 +1,79 @@
 [0] Config.pm:307> INFO - This is Biber 2.19
 [0] Config.pm:310> INFO - Logfile is 'thesis.blg'
-[47] biber:340> INFO - === Sun Dec 22, 2024, 23:02:26
-[56] Biber.pm:419> INFO - Reading 'thesis.bcf'
-[88] Biber.pm:979> INFO - Found 56 citekeys in bib section 0
-[93] Biber.pm:4419> INFO - Processing section 0
-[100] Biber.pm:4610> INFO - Looking for bibtex file 'refs.bib' for section 0
-[101] bibtex.pm:1713> INFO - LaTeX decoding ...
-[103] bibtex.pm:1519> INFO - Found BibTeX data source 'refs.bib'
-[107] UCollate.pm:68> INFO - Overriding locale 'en-US' defaults 'variable = shifted' with 'variable = non-ignorable'
-[107] UCollate.pm:68> INFO - Overriding locale 'en-US' defaults 'normalization = NFD' with 'normalization = prenormalized'
-[107] Biber.pm:4239> INFO - Sorting list 'nyt/global//global/global' of type 'entry' with template 'nyt' and locale 'en-US'
-[107] Biber.pm:4245> INFO - No sort tailoring available for locale 'en-US'
-[108] bbl.pm:660> INFO - Writing 'thesis.bbl' with encoding 'UTF-8'
-[108] bbl.pm:763> INFO - Output to thesis.bbl
-[108] Biber.pm:131> WARN - I didn't find a database entry for '1' (section 0)
-[108] Biber.pm:131> WARN - I didn't find a database entry for '2' (section 0)
-[108] Biber.pm:131> WARN - I didn't find a database entry for '3' (section 0)
-[108] Biber.pm:131> WARN - I didn't find a database entry for '4' (section 0)
-[108] Biber.pm:131> WARN - I didn't find a database entry for 'Gossling2020' (section 0)
-[108] Biber.pm:131> WARN - I didn't find a database entry for 'EPA1992' (section 0)
-[108] Biber.pm:131> WARN - I didn't find a database entry for '6' (section 0)
-[108] Biber.pm:131> WARN - I didn't find a database entry for '7' (section 0)
-[108] Biber.pm:131> WARN - I didn't find a database entry for '8' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for '9' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for '10' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for '11' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for '12' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for '13' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for '14' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for 'x' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for 'Rowland2006' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for 'Dameris2010' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for 'VonSchneidemesser2015' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for 'Stockwell2019' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for 'Wasiuk2016' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for 'Tait2022' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for 'Schumann1997' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for 'Tie2002' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for 'Schumann2007' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for 'Stockwell1999' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for 'Lee2021' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for 'Yusaf2022' (section 0)
-[109] Biber.pm:131> WARN - I didn't find a database entry for 'Khan2022' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'Doliente2020' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'Niklass2019' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'Xu2014' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'Bower2009' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'Unterstrasser2020' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'Jenkin2020' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'Sillman2020' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'Atkinson2004' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'Butkovskaya2005' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'Atkinson2003' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'Fuglestvedt1999' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'Khan2021' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'Baulch1992' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'DeMore1997' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'Shallcross2020' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'Collins1997' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'Blot2021' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'Paoli2011' (section 0)
-[110] Biber.pm:131> WARN - I didn't find a database entry for 'Schumann1995' (section 0)
-[111] Biber.pm:131> WARN - I didn't find a database entry for 'Jenkin2008' (section 0)
-[111] Biber.pm:131> WARN - I didn't find a database entry for 'Watson2008' (section 0)
-[111] Biber.pm:131> WARN - I didn't find a database entry for 'Utembe2009' (section 0)
-[111] Biber.pm:131> WARN - I didn't find a database entry for 'Pozzer2022' (section 0)
-[111] Biber.pm:131> WARN - I didn't find a database entry for 'Dufour2016' (section 0)
-[111] Biber.pm:131> WARN - I didn't find a database entry for '5' (section 0)
-[111] Biber.pm:131> WARN - I didn't find a database entry for 'Xarray2024' (section 0)
-[111] Biber.pm:131> WARN - I didn't find a database entry for 'pycontrails2024' (section 0)
-[111] Biber.pm:133> INFO - WARNINGS: 56
+[44] biber:340> INFO - === Sat Dec 28, 2024, 00:19:53
+[54] Biber.pm:419> INFO - Reading 'thesis.bcf'
+[125] Biber.pm:979> INFO - Found 260 citekeys in bib section 0
+[131] Biber.pm:4419> INFO - Processing section 0
+[139] Biber.pm:4610> INFO - Looking for bibtex file 'refs.bib' for section 0
+[143] bibtex.pm:1713> INFO - LaTeX decoding ...
+[247] bibtex.pm:1519> INFO - Found BibTeX data source 'refs.bib'
+[1274] UCollate.pm:68> INFO - Overriding locale 'en-US' defaults 'variable = shifted' with 'variable = non-ignorable'
+[1274] UCollate.pm:68> INFO - Overriding locale 'en-US' defaults 'normalization = NFD' with 'normalization = prenormalized'
+[1274] Biber.pm:4239> INFO - Sorting list 'nyt/global//global/global' of type 'entry' with template 'nyt' and locale 'en-US'
+[1274] Biber.pm:4245> INFO - No sort tailoring available for locale 'en-US'
+[1439] bbl.pm:660> INFO - Writing 'thesis.bbl' with encoding 'UTF-8'
+[1490] bbl.pm:763> INFO - Output to thesis.bbl
+[1490] Biber.pm:131> WARN - Duplicate entry key: 'Masiol2014' in file 'refs.bib', skipping ...
+[1490] Biber.pm:131> WARN - Possible typo (case mismatch) between citation and datasource keys: 'Dubois2006' and 'DuBois2006' in file 'refs.bib'
+[1490] Biber.pm:131> WARN - misc entry 'FritzConvo' (refs.bib): Invalid format '04-02-2021' of date field 'date' - ignoring
+[1491] Biber.pm:131> WARN - Possible typo (case mismatch) between citation and datasource keys: 'Flightradar24' and 'flightradar24' in file 'refs.bib'
+[1491] Biber.pm:131> WARN - BibTeX subsystem: /tmp/biber_tmp_wbZR/8fe4c9854184545302f21ebf0d47516c_81571.utf8, line 4, warning: 37 characters of junk seen at toplevel
+[1491] Biber.pm:131> WARN - BibTeX subsystem: /tmp/biber_tmp_wbZR/8fe4c9854184545302f21ebf0d47516c_81571.utf8, line 13, warning: 1 characters of junk seen at toplevel
+[1491] Biber.pm:131> WARN - I didn't find a database entry for '1' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for '2' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for '3' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for '4' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for '6' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for '7' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for '8' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for '9' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for '10' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for '11' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for '12' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for '13' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for '14' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for 'x' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for 'Lee2020' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for 'Dubois2006' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for 'Flightradar24' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for 'Opensky2022' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for 'Niklass2019' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for 'Matthes2021' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for 'Jenkin2002' (section 0)
+[1491] Biber.pm:131> WARN - I didn't find a database entry for 'Filippone2021' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Sun2022' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Gruber2018' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Schafer2014' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Olive2019' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Shallcross2022' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Tait2022' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Sun2018' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Rowland2006' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Dameris2010' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'VonSchneidemesser2015' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Stockwell2019' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Tie2002' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Schumann2007' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Stockwell1999' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Yusaf2022' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Khan2022' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Doliente2020' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Jenkin2020' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Sillman2020' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Atkinson2004' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Butkovskaya2005' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Atkinson2003' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Fuglestvedt1999' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Baulch1992' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'DeMore1997' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Shallcross2020' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Blot2021' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Watson2008' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Utembe2009' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Pozzer2022' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Dufour2016' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for '5' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'pycontrails_sza' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'pycontrails_DryAdvection2024' (section 0)
+[1492] Biber.pm:131> WARN - I didn't find a database entry for 'Schumann2012' (section 0)
+[1492] Biber.pm:133> INFO - WARNINGS: 63

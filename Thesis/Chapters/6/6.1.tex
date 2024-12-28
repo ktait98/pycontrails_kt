@@ -1,0 +1,25 @@
+\section{Introduction}
+In this chapter, GPAT is used to conduct a series of studies to explore the potential for climate benefits through controlled formation flight of commercial aircraft, and the resulting overlap of their exhaust plumes. As explained in detail in section \ref{Saturation}, microphysical and gas-phase photochemical saturation effects can occur under high emissions concentrations in the Upper Troposphere (UT), where aircraft typically cruise. This means that inside a fresh exhaust plume, or in a region where many aircraft plumes are clustered, nonlinear plume-scale saturation effects can occur, influencing the fate of key chemical species and aircraft contrails. 
+
+Aircraft nitrogen oxide (\ce{NOx} = NO + \ce{NO2}) emissions are responsible for around 16~\% of aviation climate impact, primarily due to the short-term production of ozone to ozone, a potent greenhouse gas. Emissions of water vapour and particulates from the aircraft exhaust can generate condensation trails (contrails), which are thought to have a net warming effect that is responsible for around 50~\% of aviation-induced climate change. There are two primary saturation effects that occur in high-emissions regions at a particular flight level in the UT, which can reduce the climate impact of aviation \ce{NOx} and contrails; when critical \ce{NOx} threshold concentrations are surpassed, ozone production efficiency decreases with increasing \ce{NOx}. It is thought this could reduce the net-\ce{NOx}  Furthermore, when persistent contrails are formed in a close proximity to one another, they experience mutually inhibited growth due to competing for finite ambient water vapour. In both cases, this means that flying aircraft close together and overlapping their exhaust plumes can provide climate benefits over the alternative scenario, where plumes evolve independently of each other.
+
+The following series of studies presented in this chapter focus on \ce{NOx} saturation, building on many years of experience and previous studies published by the University of Bristol ACRG. It is also a direct continuation of the research presented thus far in this thesis, and serves as a prime use case for the GPAT modelling framework.
+
+\subsection{\ce{NOx} saturation}
+When aircraft plumes overlap, \ce{NOx} emissions accumulate, and can tip the local domain from a \ce{NOx}-limited to a \ce{NOx}-saturated (or VOC-limited) regime. In the \ce{NOx}-limited regime, hydroxyl radicals (OH) typically react with volatile organic compounds (VOCs), driving the daytime odd hydrogen cycle (\ce{HOx} = OH + \ce{HO2}). This process generates organic peroxy radicals (\ce{RO2}), which contribute to ozone formation through the following mechanism:
+
+%\reaction[NO+OH+M]{NO + OH + M -> HONO + M}
+\reaction[RH+OH]{RH + OH -> R + H2O}
+\reaction[R+O2]{R + O2 -> RO2}
+
+Aircraft \ce{NOx} emissions are composed mostly of nitric oxide (\ce{NO} $\approx$ 95~\%), with the remainder being nitrogen dioxide (\ce{NO2} $\approx$ 5~\%) \cite{}. The organic peroxy radical then reacts with aircraft NO to form \ce{NO2}:
+
+\reaction[RO2+NO]{RO2 + NO -> RO + NO2}
+
+Ozone formation occurs through reactions \eqref{}. \ce{RO2} reacts with \ce{NO} to form \ce{NO2}, followed by photolysis of \ce{NO2} which results in the production of atomic oxygen, and subsequently ozone \cite{Fittschen2019}.
+
+\reaction[NO2+hv]{NO_2 + h\nu (\lambda $<$ 420 nm) -> NO + O(^3P)}
+\reaction[O3P+O2+M]{O(^3P) + O_2 + M -> O_3 + M}
+
+
+% It is thought that these saturation effects are likely to reduce the radiative forcing of the local region with high aircraft transit frequencies. 
