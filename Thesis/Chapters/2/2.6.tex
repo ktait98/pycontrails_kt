@@ -17,7 +17,7 @@ Most oxidation processes that occur in the troposphere are photochemical reactio
 \begin{figure}[H]
 	\centering
 
-	\begin{subfigure}[h]{0.38\textwidth}
+	\begin{subfigure}[h]{0.50\textwidth}
 		\centering
 		\includegraphics[width=1\textwidth]{2/NOx-VOC_curve.png}
 		%\vspace{-.1cm}
@@ -25,7 +25,7 @@ Most oxidation processes that occur in the troposphere are photochemical reactio
 		\label{NO_x_VOC}
 	\end{subfigure}
 	\hfill
-	\begin{subfigure}[h]{0.33\textwidth}
+	\begin{subfigure}[h]{0.45\textwidth}
 		\centering
 		\includegraphics[width=1\textwidth]{2/NO_x_ozone.png}
 		\caption{}
@@ -57,7 +57,7 @@ Alternatively, \ce{HO_2} can react with itself to form hydrogen peroxide (\ce{H_
 \reaction[CH3O2+HO2_2]{CH_3O_2 + HO_2 -> CH_3O_2H + O_2}
 
 \subsubsection{\ce{NO_x}-Limited Regime}
-In polluted environments, where \ce{NO_x} levels are raised considerably above ambient concentrations (e.g. typical aircraft cruising altitudes), CO oxidation takes place through reactions \eqref{OH+CO_2} \eqref{H+O2+M_2}, however in the presence of nitrogen oxides, ozone is produced rather than depleted. Peroxide formation reactions \eqref{HO2+HO2_2} and \eqref{CH3O2+HO2_2} compete with the oxidation of NO to \ce{NO_2} \eqref{HO2+NO_2} for available \ce{HO_2} concentrations. When the latter reaction prevails, \ce{NO_2} photolysis takes place, converting back to NO with ground state oxygen \ce{O(^{3}P)} forming as a byproduct \eqref{NO2+hv_2}. Subsequently, \ce{O(^{3}P)} reacts with atmospheric oxygen to produce \ce{O_3} \eqref{O3P+O2+M_2}.
+In polluted environments, where \ce{NO_x} levels are raised considerably above ambient concentrations (e.g. typical aircraft cruising altitudes), CO oxidation takes place through reactions \eqref{OH+CO_2} and \eqref{H+O2+M_2}, however in the presence of nitrogen oxides, ozone is produced rather than depleted. Peroxide formation reactions, \eqref{HO2+HO2_2} and \eqref{CH3O2+HO2_2}, compete with the oxidation of NO to \ce{NO_2} \eqref{HO2+NO_2} for available \ce{HO_2} concentrations. When the latter reaction prevails, \ce{NO_2} photolysis takes place, converting back to NO with ground state oxygen \ce{O(^{3}P)} forming as a byproduct \eqref{NO2+hv_2}. Subsequently, \ce{O(^{3}P)} reacts with atmospheric oxygen to produce \ce{O_3} \eqref{O3P+O2+M_2}.
 
 \reaction[HO2+NO_2]{HO_2 + NO -> OH + NO_2}
 
@@ -182,14 +182,14 @@ The radiative forcing of contrails is thought to be determined by the product of
 
 \begin{figure}[H]
 	\centering
-	\begin{subfigure}[h]{0.34\textwidth}
+	\begin{subfigure}[h]{0.45\textwidth}
 		\centering
 		\includegraphics[width=1\textwidth]{2/RFvsOD.pdf}
 		\caption{}
 		\label{RFvsOD}
 	\end{subfigure}
 	\hfill
-	\begin{subfigure}[h]{0.34\textwidth}
+	\begin{subfigure}[h]{0.45\textwidth}
 		\centering
 		\vspace{0.2cm}
 		\includegraphics[width=1\textwidth]{2/RFvsSZA.pdf}
@@ -226,7 +226,7 @@ Furthermore, model results from Kraabol et al. \cite{Kraabol2000b} in a study ob
 \subsubsection{Dehydration Effects due to Contrail Formation}
 Contrails grow and persist in the atmosphere through deposition of water vapour from ice-supersaturated layers of the atmosphere. The conversion of atmospheric water vapour to solid phase ice particles has the potential to deplete local water vapour concentrations in regions conducive to persistent contrail generation \cite{Unterstrasser2010}. It is thought that the depositional growth of contrail cirrus in regions of high airspace density can even lead to the dehydration of \ce{H_2O} at typical flight levels, followed by the redistribution of humidity to lower levels, due to sedimentation and advection processes \cite{Schumann2015}. 
 
-Contrail dehydration effects were first quantified by Burkhardt and K\"{a}rcher \cite{Burkhardt2011}, in which a global atmospheric model was used to perform long-term integrations of the global impact of contrail cirrus on natural cirrus reduction due to ambient water vapour depletion. The paper found initial RF estimates to be -7~\ce{mWm^{-2}}, lessening the contrail cirrus RF estimate by a factor of approximately one fifth, however the results were not conclusive. Schumann et al.\ \cite{Schumann2015} furthered this investigation through quantification of the impact of water exchange on contrail properties, large-scale humidity and the background climate. The results suggested that the drying at flight levels caused contrails to become thinner and last longer in the atmosphere, and the net reduction in contrail cirrus RF was deemed to be \textasciitilde15\% (not too dissimilar to the results of \cite{Burkhardt2011}). Furthermore, the results from a second run of the model, with aircraft emissions enhanced by 100 times, showing increasingly significant dehydration effects due to contrail cirrus formation and the redirection of humidity to lower flight levels. This implies that local dehydration effects will be far more significant in dense airspace regions where emissions accumulate and contrails can overlap, such as over mainland areas and in flight corridors. Work by Unterstrasser \cite{Unterstrasser2010, Unterstrasser2020} has elaborated on this concept of local dehydration, through numerical analysis of contrail growth in close proximity flight scenarios. The studies conclude that aircraft contrails compete for available water vapour, mutually inhibiting growth and leading to a saturation effect which diminishes the contrail of subsequent aircraft travelling through that region. Under proposed formation flight scenarios, the total extinction (optical depth) and total ice mass behind a two-aircraft formation are found to be reduced by 20--50\% and 30--60\% respectively.
+Contrail dehydration effects were first quantified by Burkhardt and K\"{a}rcher \cite{Burkhardt2011}, in which a global atmospheric model was used to perform long-term integrations of the global impact of contrail cirrus on natural cirrus reduction due to ambient water vapour depletion. The paper found initial RF estimates to be -7~\ce{mW/m^2}, lessening the contrail cirrus RF estimate by a factor of approximately one fifth, however the results were not conclusive. Schumann et al.\ \cite{Schumann2015} furthered this investigation through quantification of the impact of water exchange on contrail properties, large-scale humidity and the background climate. The results suggested that the drying at flight levels caused contrails to become thinner and last longer in the atmosphere, and the net reduction in contrail cirrus RF was deemed to be \textasciitilde15\% (not too dissimilar to the results of \cite{Burkhardt2011}). Furthermore, the results from a second run of the model, with aircraft emissions enhanced by 100 times, showing increasingly significant dehydration effects due to contrail cirrus formation and the redirection of humidity to lower flight levels. This implies that local dehydration effects will be far more significant in dense airspace regions where emissions accumulate and contrails can overlap, such as over mainland areas and in flight corridors. Work by Unterstrasser \cite{Unterstrasser2010, Unterstrasser2020} has elaborated on this concept of local dehydration, through numerical analysis of contrail growth in close proximity flight scenarios. The studies conclude that aircraft contrails compete for available water vapour, mutually inhibiting growth and leading to a saturation effect which diminishes the contrail of subsequent aircraft travelling through that region. Under proposed formation flight scenarios, the total extinction (optical depth) and total ice mass behind a two-aircraft formation are found to be reduced by 20--50\% and 30--60\% respectively.
 
 The presence of plume-scale effects that are amplified in close-proximity flight scenarios begs the question; can climate beneficial saturation effects such as \ce{NO_x}-saturated regimes and contrail-induced dehydration be exploited for mitigation purposes? Section \ref{Mitigation} explores the concept of formation flight and how these additional climate benefits from emissions saturation may provide further impetus for real-world implementation of these concepts.
 

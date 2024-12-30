@@ -1,17 +1,19 @@
 [0] Config.pm:307> INFO - This is Biber 2.19
 [0] Config.pm:310> INFO - Logfile is 'thesis.blg'
-[56] biber:340> INFO - === Sun Dec 29, 2024, 23:43:38
-[68] Biber.pm:419> INFO - Reading 'thesis.bcf'
-[158] Biber.pm:979> INFO - Found 243 citekeys in bib section 0
-[172] Biber.pm:4419> INFO - Processing section 0
-[182] Biber.pm:4610> INFO - Looking for bibtex file 'refs.bib' for section 0
-[190] bibtex.pm:1713> INFO - LaTeX decoding ...
-[323] bibtex.pm:1519> INFO - Found BibTeX data source 'refs.bib'
-[3201] UCollate.pm:68> INFO - Overriding locale 'en-US' defaults 'variable = shifted' with 'variable = non-ignorable'
-[3201] UCollate.pm:68> INFO - Overriding locale 'en-US' defaults 'normalization = NFD' with 'normalization = prenormalized'
-[3201] Biber.pm:4239> INFO - Sorting list 'none/global//global/global' of type 'entry' with template 'none' and locale 'en-US'
-[3201] Biber.pm:4245> INFO - No sort tailoring available for locale 'en-US'
-[3269] bbl.pm:660> INFO - Writing 'thesis.bbl' with encoding 'UTF-8'
-[3336] bbl.pm:763> INFO - Output to thesis.bbl
-[3336] Biber.pm:131> WARN - BibTeX subsystem: /tmp/biber_tmp_MbXU/8fe4c9854184545302f21ebf0d47516c_127616.utf8, line 4, warning: 37 characters of junk seen at toplevel
-[3336] Biber.pm:133> INFO - WARNINGS: 1
+[45] biber:340> INFO - === Mon Dec 30, 2024, 18:54:25
+[53] Biber.pm:419> INFO - Reading 'thesis.bcf'
+[85] Biber.pm:979> INFO - Found 67 citekeys in bib section 0
+[93] Biber.pm:4419> INFO - Processing section 0
+[99] Biber.pm:4610> INFO - Looking for bibtex file 'refs.bib' for section 0
+[104] bibtex.pm:1713> INFO - LaTeX decoding ...
+[221] bibtex.pm:1519> INFO - Found BibTeX data source 'refs.bib'
+[610] UCollate.pm:68> INFO - Overriding locale 'en-US' defaults 'normalization = NFD' with 'normalization = prenormalized'
+[610] UCollate.pm:68> INFO - Overriding locale 'en-US' defaults 'variable = shifted' with 'variable = non-ignorable'
+[610] Biber.pm:4239> INFO - Sorting list 'none/global//global/global' of type 'entry' with template 'none' and locale 'en-US'
+[610] Biber.pm:4245> INFO - No sort tailoring available for locale 'en-US'
+[631] bbl.pm:660> INFO - Writing 'thesis.bbl' with encoding 'UTF-8'
+[651] bbl.pm:763> INFO - Output to thesis.bbl
+[651] Biber.pm:131> WARN - BibTeX subsystem: /tmp/biber_tmp_SyZK/8fe4c9854184545302f21ebf0d47516c_109262.utf8, line 4, warning: 37 characters of junk seen at toplevel
+[651] Biber.pm:131> WARN - I didn't find a database entry for 'IAGOS' (section 0)
+[651] Biber.pm:131> WARN - I didn't find a database entry for 'BC4' (section 0)
+[651] Biber.pm:133> INFO - WARNINGS: 3
