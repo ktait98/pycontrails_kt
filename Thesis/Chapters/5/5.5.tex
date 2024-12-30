@@ -7,10 +7,10 @@ The Trajectory Model generates sampled flight trajectory data from the input Fli
 If there is more than one flight present in the simulation, the same process is applied except the initial coordinates are shifted according to the user-defined separation minima (sep\_dist). This informs the model of the latitude, longitude and altitude offset to start subsequent flights. Figure \ref{traj_gen_model} portrays the data flow for the Trajectory Model.
 
 \begin{figure}[h!]
+    \label{traj_gen_model}
     \centering	
     \includegraphics[width=0.75\textwidth]{5/traj_gen_model.png}
     \caption{}
-    \label{traj_gen_model}
 \end{figure}
 
 \subsection{Meteorology Model (gen\_met)}
@@ -32,7 +32,7 @@ $M_d$ and $\rho_d$ are then used to calculate the number density of air [\ce{M}]
     [\ce{M}] = \frac{N_A \times 1 \times 10^{6}}{M_d \times \rho_d}
 \end{equation}
 
-Solar zenith angle is then calculated across all grid cells and time steps using the pycontrails in-built SZA calculator function \cite{pycontrails_sza}. Knowledge of these meteorological parameters is crucial for estimating the photochemical and microphysical evolution of an aircraft plume and its associated emissions masses.
+Solar zenith angle is then calculated across all grid cells and time steps using the pycontrails in-built SZA calculator function. Knowledge of these meteorological parameters is crucial for estimating the photochemical and microphysical evolution of an aircraft plume and its associated emissions masses.
 
 \begin{figure}[h!]
     \centering	
@@ -42,7 +42,7 @@ Solar zenith angle is then calculated across all grid cells and time steps using
 \end{figure}
 
 \subsection{Background Chemistry Model (gen\_bg\_chem)}
-The gen\_bg\_chem model sets an initial baseline for the atmospheric chemistry in the simulated environment, focusing on the dominant species of the upper troposphere where aircraft cruise. This includes nitrogen oxides (\ce{NOx}), ozone (\ce{O3}) and volatile organic compounds (\ce{VOCs}). The species concentrations are derived from monthly-averaged STOCHEM-CRI global model outputs \cite{Khan2021}. These data are converted from molecules/cm\textsuperscript{3} to parts per billion by volume (ppbv) and then interpolated to the grid resolution specified in the GPAT Simulation Parameters. The BG\_CHEM dataset contains these gridded background concentrations, as shown in figure \ref{bg_chem_model}.
+The gen\_bg\_chem model sets an initial baseline for the atmospheric chemistry in the simulated environment, focusing on the dominant species of the upper troposphere where aircraft cruise. This includes nitrogen oxides (\ce{NO_x}), ozone (\ce{O3}) and volatile organic compounds (\ce{VOCs}). The species concentrations are derived from monthly-averaged STOCHEM-CRI global model outputs \cite{Khan2021}. These data are converted from molecules/cm\textsuperscript{3} to parts per billion by volume (ppbv) and then interpolated to the grid resolution specified in the GPAT Simulation Parameters. The BG\_CHEM dataset contains these gridded background concentrations, as shown in figure \ref{bg_chem_model}.
 
 \begin{figure}[h!]
     \centering	
@@ -64,7 +64,7 @@ Prior to passing FL data to the Poll-Schumann performance model, MET data is dow
 \end{figure}
 
 \subsection{Emissions Model (emissions)}
-The emissions model utilises aircraft performance outputs from FL to quantify the emissions speciation in the plume, in terms of the emission indices (EIs) and emissions totals for each waypoint. The mass fractions of unburnt hydrocarbons were estimated from empirical data, presented in figure 9 of Masiol et al. \cite{Masiol2014}. The GPAT Emissions Model is responsible for the emissions masses of carbon dioxide (\ce{CO2}), water vapour (\ce{H2O}), sulphur dioxide (\ce{SO2}), nitric oxide (\ce{NO}), nitrogen dioxide (NO2), carbon monoxide (CO), formaldehyde (HCHO), acetaldehyde (CH3CHO), ethylene (C2H4), propene (C3H6), acetylene (C2H2), benzene and non-volatile particulate matter (\ce{nvPM}). Emission species and their corresponding emission indices are provided in table \ref{emi_indices}. \ce{NOx}, CO and CO EIs are calculated from interpolation of the International Civil Aviation Organisation's Engine Emissions Databank \cite{ICAOEEDB}.
+The emissions model utilises aircraft performance outputs from FL to quantify the emissions speciation in the plume, in terms of the emission indices (EIs) and emissions totals for each waypoint. The mass fractions of unburnt hydrocarbons were estimated from empirical data, presented in figure 9 of Masiol et al. \cite{Masiol2014}. The GPAT Emissions Model is responsible for the emissions masses of carbon dioxide (\ce{CO2}), water vapour (\ce{H2O}), sulphur dioxide (\ce{SO2}), nitric oxide (\ce{NO}), nitrogen dioxide (\ce{NO2}), carbon monoxide (CO), formaldehyde (HCHO), acetaldehyde (\ce{CH3CHO}), ethylene (\ce{C2H4}), propene (\ce{C3H6}), acetylene (\ce{C2H2}), benzene and non-volatile particulate matter (\ce{nvPM}). Emission species and their corresponding emission indices are provided in table \ref{emi_indices}. \ce{NO_x}, CO and CO EIs are calculated from interpolation of the International Civil Aviation Organisation's Engine Emissions Databank \cite{ICAOEEDB}.
 
 % EI table
 
@@ -84,7 +84,7 @@ Accurate estimation of emission masses at each flight waypoint are a crucial ste
 \end{figure}
 
 \subsection{Dispersion/Advection Model (sim\_plumes)}
-The sim\_plumes model captures the spread and movement of emissions by simulating the dispersion and advection of all aircraft exhaust plume segments present in the simulation environment. The pycontrails Dry Advection scheme is utilised to approximate the dynamical evolution of all aircraft plumes, which derives from the Contrail Cirrus Prediction Tool Gaussian dispersion methodology \cite{pycontrails_DryAdvection2024, Schumann2012}. It takes input of the plume integration time step (dt\_integration), plume max age (max\_age), intial plume width and depth. Using knowledge of the wind and wind shear fields, the Dry Advection module estimates the change in plume cross-sectional dimensions and geographical position, at each time step.
+The sim\_plumes model captures the spread and movement of emissions by simulating the dispersion and advection of all aircraft exhaust plume segments present in the simulation environment. The pycontrails Dry Advection scheme is utilised to approximate the dynamical evolution of all aircraft plumes, which derives from the Contrail Cirrus Prediction Tool Gaussian dispersion methodology \cite{Schumann2012a}. It takes input of the plume integration time step (dt\_integration), plume max age (max\_age), intial plume width and depth. Using knowledge of the wind and wind shear fields, the Dry Advection module estimates the change in plume cross-sectional dimensions and geographical position, at each time step.
 
 The output parameters from this model include new latitude, longitude, altitude values, width, height and the covariance matrix ($\sigma$), which defines the Gaussian dispersion characteristics of the plume at each waypoint. These parameters make up the majority of the data contained in PL. The FL dataset is effectively merged into this new Plume Dataset, meaning primary flight and emissions data is carried over for further plume calculations.
 %Models the spread of emissions using a Gaussian plume framework.
@@ -97,7 +97,7 @@ The output parameters from this model include new latitude, longitude, altitude 
 \end{figure}
 
 \subsection{Plume-to-Grid Model (plume\_to\_grid)}
-\label{plume_to_grid_model}
+\label{plume_to_grid_model_section}
 The PL dataset generated previously provides 1D vector data on the temporal evolution of plume waypoints, regarding position, heading, plume cross-sectional dimensions and emissions masses. To simulate the regional-scale chemical and physical processes which occur, and hence capture the cumulative effects due to plume intersections, it is necessary to aggregate the vector data to a common grid. 
 
 \subsubsection{Gaussian Plume Aggregation}

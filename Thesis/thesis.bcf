@@ -116,15 +116,15 @@
     </bcf:option>
     <bcf:option type="singlevalued">
       <bcf:key>minbibnames</bcf:key>
-      <bcf:value>3</bcf:value>
+      <bcf:value>1</bcf:value>
     </bcf:option>
     <bcf:option type="singlevalued">
       <bcf:key>mincitenames</bcf:key>
-      <bcf:value>3</bcf:value>
+      <bcf:value>1</bcf:value>
     </bcf:option>
     <bcf:option type="singlevalued">
       <bcf:key>minsortnames</bcf:key>
-      <bcf:value>3</bcf:value>
+      <bcf:value>1</bcf:value>
     </bcf:option>
     <bcf:option type="singlevalued">
       <bcf:key>minitems</bcf:key>
@@ -172,7 +172,7 @@
     </bcf:option>
     <bcf:option type="singlevalued">
       <bcf:key>sortingtemplatename</bcf:key>
-      <bcf:value>nyt</bcf:value>
+      <bcf:value>none</bcf:value>
     </bcf:option>
     <bcf:option type="singlevalued">
       <bcf:key>sortsets</bcf:key>
@@ -351,15 +351,15 @@
     </bcf:option>
     <bcf:option type="singlevalued">
       <bcf:key>minbibnames</bcf:key>
-      <bcf:value>3</bcf:value>
+      <bcf:value>1</bcf:value>
     </bcf:option>
     <bcf:option type="singlevalued">
       <bcf:key>mincitenames</bcf:key>
-      <bcf:value>3</bcf:value>
+      <bcf:value>1</bcf:value>
     </bcf:option>
     <bcf:option type="singlevalued">
       <bcf:key>minsortnames</bcf:key>
-      <bcf:value>3</bcf:value>
+      <bcf:value>1</bcf:value>
     </bcf:option>
     <bcf:option type="singlevalued">
       <bcf:key>minitems</bcf:key>
@@ -642,8 +642,6 @@
     <bcf:option datatype="boolean">eprint</bcf:option>
     <bcf:option datatype="boolean">related</bcf:option>
     <bcf:option datatype="boolean">subentry</bcf:option>
-    <bcf:option datatype="boolean">dashed</bcf:option>
-    <bcf:option datatype="boolean">subentrycomp</bcf:option>
     <bcf:option datatype="boolean">bibtexcaseprotection</bcf:option>
     <bcf:option datatype="integer">mincrossrefs</bcf:option>
     <bcf:option datatype="integer">minxrefs</bcf:option>
@@ -726,7 +724,6 @@
     <bcf:option datatype="boolean">eprint</bcf:option>
     <bcf:option datatype="boolean">related</bcf:option>
     <bcf:option datatype="boolean">subentry</bcf:option>
-    <bcf:option datatype="boolean">subentrycomp</bcf:option>
     <bcf:option datatype="boolean">bibtexcaseprotection</bcf:option>
     <bcf:option datatype="xml">labelalphatemplate</bcf:option>
     <bcf:option datatype="xml">translit</bcf:option>
@@ -815,7 +812,6 @@
     <bcf:option datatype="boolean" backendout="1">eprint</bcf:option>
     <bcf:option datatype="boolean" backendout="1">related</bcf:option>
     <bcf:option datatype="boolean" backendout="1">subentry</bcf:option>
-    <bcf:option datatype="boolean" backendout="1">subentrycomp</bcf:option>
     <bcf:option datatype="boolean" backendout="1">bibtexcaseprotection</bcf:option>
     <bcf:option datatype="integer" backendin="maxcitenames,maxbibnames,maxsortnames">maxnames</bcf:option>
     <bcf:option datatype="integer" backendin="mincitenames,minbibnames,minsortnames">minnames</bcf:option>
@@ -2746,8 +2742,8 @@
     <bcf:citekey order="344" intorder="1">Marks2020</bcf:citekey>
     <bcf:citekey order="345" intorder="1">Marks2020</bcf:citekey>
     <bcf:citekey order="346" intorder="1">Dahlmann2020</bcf:citekey>
-    <bcf:citekey order="347" intorder="1">Opensky2022</bcf:citekey>
-    <bcf:citekey order="348" intorder="1">x</bcf:citekey>
+    <bcf:citekey order="347" intorder="1">Sun2022</bcf:citekey>
+    <bcf:citekey order="348" intorder="1">Schlager1997</bcf:citekey>
     <bcf:citekey order="349" intorder="1">Lee2021</bcf:citekey>
     <bcf:citekey order="350" intorder="1">Karcher2018</bcf:citekey>
     <bcf:citekey order="350" intorder="2">Schumann2017</bcf:citekey>
@@ -2783,7 +2779,7 @@
     <bcf:citekey order="374" intorder="1">Rowland2006</bcf:citekey>
     <bcf:citekey order="374" intorder="2">Dameris2010</bcf:citekey>
     <bcf:citekey order="375" intorder="1">VonSchneidemesser2015</bcf:citekey>
-    <bcf:citekey order="375" intorder="2">Stockwell2019</bcf:citekey>
+    <bcf:citekey order="375" intorder="2">Stockwell2020</bcf:citekey>
     <bcf:citekey order="376" intorder="1">Wasiuk2016</bcf:citekey>
     <bcf:citekey order="376" intorder="2">Tait2022</bcf:citekey>
     <bcf:citekey order="376" intorder="3">Schumann1997</bcf:citekey>
@@ -2794,12 +2790,12 @@
     <bcf:citekey order="379" intorder="1">Yusaf2022</bcf:citekey>
     <bcf:citekey order="379" intorder="2">Khan2022</bcf:citekey>
     <bcf:citekey order="380" intorder="1">Doliente2020</bcf:citekey>
-    <bcf:citekey order="381" intorder="1">Niklass2019</bcf:citekey>
+    <bcf:citekey order="381" intorder="1">Niklass2019a</bcf:citekey>
     <bcf:citekey order="382" intorder="1">Xu2014</bcf:citekey>
     <bcf:citekey order="382" intorder="2">Bower2009</bcf:citekey>
     <bcf:citekey order="383" intorder="1">Unterstrasser2020</bcf:citekey>
-    <bcf:citekey order="384" intorder="1">Jenkin2020</bcf:citekey>
-    <bcf:citekey order="384" intorder="2">Sillman2020</bcf:citekey>
+    <bcf:citekey order="384" intorder="1">Jenkin2002</bcf:citekey>
+    <bcf:citekey order="384" intorder="2">Sillman2000</bcf:citekey>
     <bcf:citekey order="385" intorder="1">Atkinson2004</bcf:citekey>
     <bcf:citekey order="385" intorder="2">Butkovskaya2005</bcf:citekey>
     <bcf:citekey order="386" intorder="1">Atkinson2003</bcf:citekey>
@@ -2820,10 +2816,10 @@
     <bcf:citekey order="401" intorder="1">Jenkin2008</bcf:citekey>
     <bcf:citekey order="401" intorder="2">Watson2008</bcf:citekey>
     <bcf:citekey order="401" intorder="3">Utembe2009</bcf:citekey>
-    <bcf:citekey order="402" intorder="1">Pozzer2022</bcf:citekey>
-    <bcf:citekey order="403" intorder="1">Pozzer2022</bcf:citekey>
-    <bcf:citekey order="404" intorder="1">Dufour2016</bcf:citekey>
-    <bcf:citekey order="405" intorder="1">5</bcf:citekey>
+    <bcf:citekey order="402" intorder="1">Li2022</bcf:citekey>
+    <bcf:citekey order="403" intorder="1">Li2022</bcf:citekey>
+    <bcf:citekey order="404" intorder="1">DuFour2016</bcf:citekey>
+    <bcf:citekey order="405" intorder="1">Wasiuk2016</bcf:citekey>
     <bcf:citekey order="406" intorder="1">Kraabol2000b</bcf:citekey>
     <bcf:citekey order="406" intorder="2">Marks2020</bcf:citekey>
     <bcf:citekey order="406" intorder="3">Dahlmann2020</bcf:citekey>
@@ -2842,47 +2838,35 @@
     <bcf:citekey order="416" intorder="1">Collins1997</bcf:citekey>
     <bcf:citekey order="417" intorder="1">Khan2021</bcf:citekey>
     <bcf:citekey order="418" intorder="1">Pyproj2021</bcf:citekey>
-    <bcf:citekey order="419" intorder="1">pycontrails_sza</bcf:citekey>
-    <bcf:citekey order="420" intorder="1">Khan2021</bcf:citekey>
-    <bcf:citekey order="421" intorder="1">Poll2021</bcf:citekey>
-    <bcf:citekey order="421" intorder="2">Poll2024</bcf:citekey>
-    <bcf:citekey order="422" intorder="1">Masiol2014</bcf:citekey>
-    <bcf:citekey order="423" intorder="1">ICAOEEDB</bcf:citekey>
-    <bcf:citekey order="424" intorder="1">pycontrails_DryAdvection2024</bcf:citekey>
-    <bcf:citekey order="424" intorder="2">Schumann2012</bcf:citekey>
-    <bcf:citekey order="425" intorder="1">Derwent2024</bcf:citekey>
-    <bcf:citekey order="426" intorder="1">Klemm1998</bcf:citekey>
-    <bcf:citekey order="427" intorder="1">Fittschen2019</bcf:citekey>
-    <bcf:citekey order="428" intorder="1">Paoli2011</bcf:citekey>
+    <bcf:citekey order="419" intorder="1">Khan2021</bcf:citekey>
+    <bcf:citekey order="420" intorder="1">Poll2021</bcf:citekey>
+    <bcf:citekey order="420" intorder="2">Poll2024</bcf:citekey>
+    <bcf:citekey order="421" intorder="1">Masiol2014</bcf:citekey>
+    <bcf:citekey order="422" intorder="1">ICAOEEDB</bcf:citekey>
+    <bcf:citekey order="423" intorder="1">Schumann2012a</bcf:citekey>
+    <bcf:citekey order="424" intorder="1">Derwent2024</bcf:citekey>
+    <bcf:citekey order="425" intorder="1">Klemm1998</bcf:citekey>
+    <bcf:citekey order="426" intorder="1">Fittschen2019</bcf:citekey>
+    <bcf:citekey order="427" intorder="1">Paoli2011</bcf:citekey>
+    <bcf:citekey order="428" intorder="1">Derwent2024</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
-  <bcf:sortingtemplate name="nyt">
+  <bcf:sortingtemplate name="none">
     <bcf:sort order="1">
-      <bcf:sortitem order="1">presort</bcf:sortitem>
+      <bcf:sortitem order="1">citeorder</bcf:sortitem>
     </bcf:sort>
-    <bcf:sort order="2" final="1">
-      <bcf:sortitem order="1">sortkey</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="3">
-      <bcf:sortitem order="1">sortname</bcf:sortitem>
-      <bcf:sortitem order="2">author</bcf:sortitem>
-      <bcf:sortitem order="3">editor</bcf:sortitem>
-      <bcf:sortitem order="4">translator</bcf:sortitem>
-      <bcf:sortitem order="5">sorttitle</bcf:sortitem>
-      <bcf:sortitem order="6">title</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="4">
-      <bcf:sortitem order="1">sortyear</bcf:sortitem>
-      <bcf:sortitem order="2">year</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="5">
-      <bcf:sortitem order="1">sorttitle</bcf:sortitem>
-      <bcf:sortitem order="2">title</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="6">
-      <bcf:sortitem order="1">volume</bcf:sortitem>
-      <bcf:sortitem literal="1" order="2">0</bcf:sortitem>
+    <bcf:sort order="2">
+      <bcf:sortitem order="1">intciteorder</bcf:sortitem>
     </bcf:sort>
   </bcf:sortingtemplate>
   <!-- DATALISTS -->
+  <bcf:datalist section="0"
+                name="none/global//global/global"
+                type="entry"
+                sortingtemplatename="none"
+                sortingnamekeytemplatename="global"
+                labelprefix=""
+                uniquenametemplatename="global"
+                labelalphanametemplatename="global">
+  </bcf:datalist>
 </bcf:controlfile>

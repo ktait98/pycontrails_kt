@@ -12,11 +12,16 @@
 \usepackage{subcaption}
 \usepackage{changepage}
 \usepackage{adjustbox}
-\usepackage{url}
+% \usepackage{url}
 \usepackage{hyperref}
 \usepackage{lscape}
 \captionsetup[subfigure]{justification=centering}
-\graphicspath{ {./Figures/} }
+\graphicspath{{./Figures/}}
+
+% \usepackage[headheight=40.8pt]{geometry} % Adjust headheight
+
+%\usepackage[backend=biber,style=numeric,sorting=none]{biblatex}
+\addbibresource{refs.bib}
 
 \makeatletter
 \newcounter{reaction}
@@ -39,7 +44,6 @@
 {\@ifstar{\reaction@nonumber}{\reaction@}}
 \makeatother
 
-\addbibresource{refs.bib}
 
 %%%%%%%%%%%%%%%%%%%
 %% AUTHOR DETAILS %
@@ -139,7 +143,7 @@
 \label{chapter3}
 \input{Chapters/3/3}
 
-\chapter{Potential to Offset Aviation \ce{NOx}-induced Warming Through Formation Flight and Chemical Saturation}\label{chapter4}
+\chapter{Potential to Offset Aviation \texorpdfstring{\ce{NO_x}}{NOx}-induced Warming Through Formation Flight and Chemical Saturation}\label{chapter4}
 \input{Chapters/4/4}
 
 \chapter{Development of a Novel Aircraft Plume Modelling Framework}
@@ -154,11 +158,6 @@
 \label{chapter7}
 \input{Chapters/7/7}
 
-\appendix
-\chapter{Appendix}
-\label{appendix}
-\input{Chapters/A/A}
-
 
 %%%%%%%%%%%%%%%%
 %% BACK MATTER %
@@ -167,7 +166,11 @@
 \backmatter
 
 \chapter*{Bibliography}
-
 \printbibliography[heading=none]
+
+\appendix
+\chapter{Appendix}
+\label{appendix}
+\input{Chapters/A/A}
 
 \end{document}

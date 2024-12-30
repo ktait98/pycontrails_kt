@@ -4,11 +4,11 @@ As detailed in the previous section, the global contributions to aviation radiat
 
 \subsection{Gas-Phase Photochemistry}
 \label{Gas-phase_photochem}
-The ultimate chemical composition of the troposphere is largely influenced by the removal of natural and anthropogenic trace species (e.g. \ce{CH_4}, CO, \ce{O_3}) through oxidation reactions with atmospheric free radicals, primarily the hydroxyl radical (\ce{OH}), which are relatively short-lived and in low concentrations owing to their fast reactivity \cite{Stone2012, Monks2005}. The relative abundance of OH in the troposphere controls the degree of removal of ambient trace species, otherwise known as the atmosphere's oxidative capacity. In the purely hypothetical situation where gas-phase radical chemistry was absent and hence the oxidative capacity of the atmosphere was zero, the levels of many harmful pollutants would continue to rise unabated, resulting in a drastic change in the chemical, biological and radiative state of the Earth-atmosphere system \cite{Prinn2003}. OH is produced via atmospheric photochemistry and photolysis; sunlight-initiated reaction of photolabile molecules to produce highly reactive species and/or radical species. Ozone is photolysed by ultraviolet light ($\lambda <$ 320~nm) to produce excited singlet oxygen \ce{O(^{1}D)} \eqref{O3+hv}, which then produces two hydroxyl radicals in the presence of sufficient levels of water vapour \eqref{O1D+H2O}. The symbol M represents a non-reacting molecule in the equation, that has the role of absorbing reaction energy to create stable products.
+The ultimate chemical composition of the troposphere is largely influenced by the removal of natural and anthropogenic trace species (e.g. \ce{CH_4}, CO, \ce{O_3}) through oxidation reactions with atmospheric free radicals, primarily the hydroxyl radical (\ce{OH}), which are relatively short-lived and in low concentrations owing to their fast reactivity \cite{Stone2012, Monks2005}. The relative abundance of OH in the troposphere controls the degree of removal of ambient trace species, otherwise known as the atmosphere's oxidative capacity. In the purely hypothetical situation where gas-phase radical chemistry was absent and hence the oxidative capacity of the atmosphere was zero, the levels of many harmful pollutants would continue to rise unabated, resulting in a drastic change in the chemical, biological and radiative state of the Earth-atmosphere system \cite{Prinn2003}. OH is produced via atmospheric photochemistry and photolysis; sunlight-initiated reaction of photolabile molecules to produce highly reactive species and/or radical species. Ozone is photolysed by ultraviolet light ($\lambda <$ 320~nm) to produce excited singlet oxygen \ce{O(^{1}D)} \eqref{O3+hv_2}, which then produces two hydroxyl radicals in the presence of sufficient levels of water vapour \eqref{O1D+H2O_2}. The symbol M represents a non-reacting molecule in the equation, that has the role of absorbing reaction energy to create stable products.
 
-\reaction[O3+hv]{O_3 + h\nu  (\lambda \ $<$  320 nm) -> O(^1D) + O_2}
+\reaction[O3+hv_2]{O_3 + h\nu  (\lambda \ $<$  320 nm) -> O(^1D) + O_2}
 
-\reaction[O1D+H2O]{O(^1D) + H_2O -> OH + OH}
+\reaction[O1D+H2O_2]{O(^1D) + H_2O -> OH + OH}
 
 Understanding the influence of OH and the oxidative capacity of the upper troposphere is critical for the environmental analysis of aircraft emissions, as the closely-coupled chemical scheme involving hydroxyl and hydroperoxy radicals ($\ce{HO_x} = \ce{OH} + \ce{HO_2}$) and nitrogen oxides ($\ce{NO_x} = \ce{NO} + \ce{NO_2}$) determines the production and loss of key climate forcing species such as ozone and methane.
 
@@ -38,48 +38,48 @@ Most oxidation processes that occur in the troposphere are photochemical reactio
 Figure \ref{NO_x_VOC} from Jenkin et al.\ \cite{Jenkin2000} is an exemplary ozone isopleth diagram that illustrates the \ce{O_3}-\ce{NO_x}-VOC relationship. At typical aircraft cruising altitudes (i.e. UTLS), where the emissions of \ce{NO_x} have a significant influence on atmospheric chemistry, it is likely that VOC content is very low relative to the background NO and \ce{NO_2} concentrations. Therefore, it is likely that typical VOC/\ce{NO_x} ratios are low in the UTLS, meaning that under the assumption of constant VOC concentrations, the \ce{NO_x}-\ce{O_3} relationship takes a form similar to figure \ref{NO_x_ozone}.
 
 \subsubsection{Low-\ce{NO_x} Regime}
-In unpolluted environments characterised by low \ce{NO_x} concentrations, such as in regions where the ambient air is unperturbed by aircraft emissions, the dominant reaction pathway of OH is to react with CO (\textasciitilde75\%), with the remainder reacting with \ce{CH_4} \cite{Thompson1992}. The dominant reaction pathway therefore involves the oxidation of CO to form \ce{CO_2}, as in reaction \eqref{OH+CO} (for a detailed description of both the CO and the \ce{CH_4} oxidation cycles in low \ce{NO_x} conditions, see Wasiuk\ \cite{Wasiuk2014}). In this CO oxidation cycle, produced atomic hydrogen (H) then reacts with oxygen to form \ce{HO_2} \eqref{H+O2+M}, which subsequently reacts with \ce{O_3} to form OH in the background troposphere \eqref{HO2+O3}. This initiates a chain sequence in which OH and \ce{HO_2} interconvert through the termination of ozone \eqref{OH+O3}. This clean condition scheme therefore limits pollutant build up in the unpolluted upper troposphere and keeps ozone levels under control \cite{Jacob1999}.
+In unpolluted environments characterised by low \ce{NO_x} concentrations, such as in regions where the ambient air is unperturbed by aircraft emissions, the dominant reaction pathway of OH is to react with CO (\textasciitilde75\%), with the remainder reacting with \ce{CH_4} \cite{Thompson1992}. The dominant reaction pathway therefore involves the oxidation of CO to form \ce{CO_2}, as in reaction \eqref{OH+CO_2} (for a detailed description of both the CO and the \ce{CH_4} oxidation cycles in low \ce{NO_x} conditions, see Wasiuk\ \cite{Wasiuk2014}). In this CO oxidation cycle, produced atomic hydrogen (H) then reacts with oxygen to form \ce{HO_2} \eqref{H+O2+M_2}, which subsequently reacts with \ce{O_3} to form OH in the background troposphere \eqref{HO2+O3_2}. This initiates a chain sequence in which OH and \ce{HO_2} interconvert through the termination of ozone \eqref{OH+O3_2}. This clean condition scheme therefore limits pollutant build up in the unpolluted upper troposphere and keeps ozone levels under control \cite{Jacob1999}.
 
-\reaction[OH+CO]{OH + CO -> H + CO_2}
+\reaction[OH+CO_2]{OH + CO -> H + CO_2}
 
-\reaction[H+O2+M]{H + O_2 + M -> HO_2 + M}
+\reaction[H+O2+M_2]{H + O_2 + M -> HO_2 + M}
 
-\reaction[HO2+O3]{HO_2 + O_3 -> OH + 2O_2}
+\reaction[HO2+O3_2]{HO_2 + O_3 -> OH + 2O_2}
 
-\reaction[OH+O3]{OH + O_3 -> HO_2 + O_2}
+\reaction[OH+O3_2]{OH + O_3 -> HO_2 + O_2}
 
-Net reaction: \reaction[CO+O3->CO2+O2]{OH + CO + 2O_3 -> CO_2 + HO_2 + 2O_2}
+Net reaction: \reaction[CO+O3->CO2+O2_2]{OH + CO + 2O_3 -> CO_2 + HO_2 + 2O_2}
 
-Alternatively, \ce{HO_2} can react with itself to form hydrogen peroxide (\ce{H_2O_2}) \eqref{HO2+HO2}, or with organic peroxy radicals such as the methyl peroxy radical (\ce{CH_3O_2}) to form organic hydroperoxides \eqref{CH3O2+HO2}. These reaction pathways can become an effective sink for \ce{HO_x} under most conditions, because the formation of peroxides prevents further \ce{HO_x} interconversion \cite{Gunz1990}.
+Alternatively, \ce{HO_2} can react with itself to form hydrogen peroxide (\ce{H_2O_2}) \eqref{HO2+HO2_2}, or with organic peroxy radicals such as the methyl peroxy radical (\ce{CH_3O_2}) to form organic hydroperoxides \eqref{CH3O2+HO2_2}. These reaction pathways can become an effective sink for \ce{HO_x} under most conditions, because the formation of peroxides prevents further \ce{HO_x} interconversion \cite{Gunz1990}.
 
-\reaction[HO2+HO2]{HO_2 + HO_2 + M -> M + O_2 + H_2O_2}
+\reaction[HO2+HO2_2]{HO_2 + HO_2 + M -> M + O_2 + H_2O_2}
 
-\reaction[CH3O2+HO2]{CH_3O_2 + HO_2 -> CH_3O_2H + O_2}
+\reaction[CH3O2+HO2_2]{CH_3O_2 + HO_2 -> CH_3O_2H + O_2}
 
 \subsubsection{\ce{NO_x}-Limited Regime}
-In polluted environments, where \ce{NO_x} levels are raised considerably above ambient concentrations (e.g. typical aircraft cruising altitudes), CO oxidation takes place through reactions \eqref{OH+CO} \eqref{H+O2+M}, however in the presence of nitrogen oxides, ozone is produced rather than depleted. Peroxide formation reactions \eqref{HO2+HO2} and \eqref{CH3O2+HO2} compete with the oxidation of NO to \ce{NO_2} \eqref{HO2+NO} for available \ce{HO_2} concentrations. When the latter reaction prevails, \ce{NO_2} photolysis takes place, converting back to NO with ground state oxygen \ce{O(^{3}P)} forming as a byproduct \eqref{NO2+hv}. Subsequently, \ce{O(^{3}P)} reacts with atmospheric oxygen to produce \ce{O_3} \eqref{O3P+O2+M}.
+In polluted environments, where \ce{NO_x} levels are raised considerably above ambient concentrations (e.g. typical aircraft cruising altitudes), CO oxidation takes place through reactions \eqref{OH+CO_2} \eqref{H+O2+M_2}, however in the presence of nitrogen oxides, ozone is produced rather than depleted. Peroxide formation reactions \eqref{HO2+HO2_2} and \eqref{CH3O2+HO2_2} compete with the oxidation of NO to \ce{NO_2} \eqref{HO2+NO_2} for available \ce{HO_2} concentrations. When the latter reaction prevails, \ce{NO_2} photolysis takes place, converting back to NO with ground state oxygen \ce{O(^{3}P)} forming as a byproduct \eqref{NO2+hv_2}. Subsequently, \ce{O(^{3}P)} reacts with atmospheric oxygen to produce \ce{O_3} \eqref{O3P+O2+M_2}.
 
-\reaction[HO2+NO]{HO_2 + NO -> OH + NO_2}
+\reaction[HO2+NO_2]{HO_2 + NO -> OH + NO_2}
 
-\reaction[NO2+hv]{NO_2 + h\nu (\lambda $<$ 420 nm) -> NO + O(^3P)}
+\reaction[NO2+hv_2]{NO_2 + h\nu (\lambda $<$ 420 nm) -> NO + O(^3P)}
 
-\reaction[O3P+O2+M]{O(^3P) + O_2 + M -> O_3 + M}
+\reaction[O3P+O2+M_2]{O(^3P) + O_2 + M -> O_3 + M}
 
-Net reaction: \reaction[CO+2O2]{CO + 2O_2 -> CO_2 + O_3}
+Net reaction: \reaction[CO+2O2_2]{CO + 2O_2 -> CO_2 + O_3}
 
-Additionally, the methane oxidation cycle leads to net ozone production in the presence of \ce{NO_x}. The oxidation of methane by OH produces water vapour and the methyl radical (\ce{CH_3}) \eqref{OH+CH4}, which further reacts with oxygen to form \ce{CH_3O_2} \eqref{CH3+O2+M}. The produced methyl peroxy radical can then react with \ce{NO} to form \ce{NO_2} through reaction \eqref{CH3O2+NO}.
+Additionally, the methane oxidation cycle leads to net ozone production in the presence of \ce{NO_x}. The oxidation of methane by OH produces water vapour and the methyl radical (\ce{CH_3}) \eqref{OH+CH4_2}, which further reacts with oxygen to form \ce{CH_3O_2} \eqref{CH3+O2+M_2}. The produced methyl peroxy radical can then react with \ce{NO} to form \ce{NO_2} through reaction \eqref{CH3O2+NO_2}.
 
-\reaction[OH+CH4]{OH + CH_4 -> H_2O + CH_3}
+\reaction[OH+CH4_2]{OH + CH_4 -> H_2O + CH_3}
 
-\reaction[CH3+O2+M]{CH_3 + O_2 + M -> M + CH_3O_2}
+\reaction[CH3+O2+M_2]{CH_3 + O_2 + M -> M + CH_3O_2}
 
-\reaction[CH3O2+NO]{CH_3O_2 + NO -> CH_3O + NO_2}
+\reaction[CH3O2+NO_2]{CH_3O_2 + NO -> CH_3O + NO_2}
 
-\reaction[CH3O+O2]{CH_3O + O_2 -> HO_2 + HCHO}
+\reaction[CH3O+O2_2]{CH_3O + O_2 -> HO_2 + HCHO}
 
-Net reaction: \reaction[CH4+2O2]{CH_4 + 2O_2 -> HCHO + O_3}
+Net reaction: \reaction[CH4+2O2_2]{CH_4 + 2O_2 -> HCHO + O_3}
 
-The methoxy radical (\ce{CH_3O}) produced can form additional \ce{HO_2} and formaldehyde (HCHO) through reaction \eqref{CH3O+O2}, which is then capable of reacting to form further \ce{NO_2} through reaction \eqref{HO2+NO}. The resultant \ce{NO_2} produced through reactions \eqref{CH3O2+NO} and \eqref{HO2+NO} consequently produces ozone through the same pathway as CO oxidation (i.e. \ce{NO_2} photolysis \eqref{NO2+hv} followed by reaction of the \ce{O(^3P)} photoproduct \eqref{O3P+O2+M}). The net reaction of methane oxidation in polluted environments therefore results in positive ozone production. Figure \ref{NOx-O3-CO-CH4} is a visual representation of the \ce{NO_x}-\ce{O_3}-CO-\ce{CH_4} oxidation reaction scheme described thus far.
+The methoxy radical (\ce{CH_3O}) produced can form additional \ce{HO_2} and formaldehyde (HCHO) through reaction \eqref{CH3O+O2_2}, which is then capable of reacting to form further \ce{NO_2} through reaction \eqref{HO2+NO_2}. The resultant \ce{NO_2} produced through reactions \eqref{CH3O2+NO_2} and \eqref{HO2+NO_2} consequently produces ozone through the same pathway as CO oxidation (i.e. \ce{NO_2} photolysis \eqref{NO2+hv_2} followed by reaction of the \ce{O(^3P)} photoproduct \eqref{O3P+O2+M_2}). The net reaction of methane oxidation in polluted environments therefore results in positive ozone production. Figure \ref{NOx-O3-CO-CH4} is a visual representation of the \ce{NO_x}-\ce{O_3}-CO-\ce{CH_4} oxidation reaction scheme described thus far.
 
 \begin{figure}[H]
   \centering
@@ -94,19 +94,19 @@ The methoxy radical (\ce{CH_3O}) produced can form additional \ce{HO_2} and form
 %Ozone role in oxidation of atmosphere. How it leads to warming. How aircraft NOx increases ozone production rate.
 
 \subsubsection{\ce{NO_x}-Saturated Regime}
-Under very high \ce{NO_x} conditions, such as inside aircraft exhaust plumes or in regions of the atmosphere where aircraft fly in close proximity and their corresponding emissions accumulate, the ozone production efficiency starts to drop off. This is because as NO and \ce{NO_2} surpass a threshold concentration, known as the compensation point (peak of the curve in figure \ref{NO_x_ozone}), they begin to compete with VOCs (e.g. methane) for reaction with hydroxyl (OH), organic peroxy (\ce{RO_2}) and peroxide \ce{RCO_3} radicals \cite{Wasiuk2014}. The products of these reactions are examples of nitrogen reservoir species: nitrous acid (HONO), nitric acid (\ce{HNO_3}), peroxynitric acid (\ce{HO_2NO_2}), peroxy nitrates (\ce{RO_2NO_2}) and peroxyacyl nitrates (\ce{RCO_3NO_2}). Reservoir species are much less efficient at forming ozone as they are more stable and are also more likely to get washed out of the atmosphere through depositional processes \cite{Jenkin2000}. They are also much more stable in the upper troposphere compared to the surface equivalent \cite{Khan2020}. Thus, reactions \eqref{NO+OH+M} to \eqref{NO2+RCO3+M} serve as termination reactions, removing radicals from the atmosphere and preventing additional ozone formation through conversion of \ce{NO_x} to its more stable counterparts.
+Under very high \ce{NO_x} conditions, such as inside aircraft exhaust plumes or in regions of the atmosphere where aircraft fly in close proximity and their corresponding emissions accumulate, the ozone production efficiency starts to drop off. This is because as NO and \ce{NO_2} surpass a threshold concentration, known as the compensation point (peak of the curve in figure \ref{NO_x_ozone}), they begin to compete with VOCs (e.g. methane) for reaction with hydroxyl (OH), organic peroxy (\ce{RO_2}) and peroxide \ce{RCO_3} radicals \cite{Wasiuk2014}. The products of these reactions are examples of nitrogen reservoir species: nitrous acid (HONO), nitric acid (\ce{HNO_3}), peroxynitric acid (\ce{HO_2NO_2}), peroxy nitrates (\ce{RO_2NO_2}) and peroxyacyl nitrates (\ce{RCO_3NO_2}). Reservoir species are much less efficient at forming ozone as they are more stable and are also more likely to get washed out of the atmosphere through depositional processes \cite{Jenkin2000}. They are also much more stable in the upper troposphere compared to the surface equivalent \cite{Khan2020}. Thus, reactions \eqref{NO+OH+M_2} to \eqref{NO2+RCO3+M_2} serve as termination reactions, removing radicals from the atmosphere and preventing additional ozone formation through conversion of \ce{NO_x} to its more stable counterparts.
 
-\reaction[NO+OH+M]{NO + OH + M -> HONO + M}
-\reaction[NO2+OH+M]{NO_2 + OH + M -> HNO_3 + M}
-\reaction[NO2+HO2+M]{NO2 + HO_2 + M -> HO_2NO_2 + M}
-\reaction[NO2+RO2+M]{NO_2 + RO_2 + M -> RO_2NO_2 + M}
-\reaction[NO2+RCO3+M]{NO_2 + RCO_3 + M -> RCO_3NO_2 + M}
+\reaction[NO+OH+M_2]{NO + OH + M -> HONO + M}
+\reaction[NO2+OH+M_2]{NO_2 + OH + M -> HNO_3 + M}
+\reaction[NO2+HO2+M_2]{NO2 + HO_2 + M -> HO_2NO_2 + M}
+\reaction[NO2+RO2+M_2]{NO_2 + RO_2 + M -> RO_2NO_2 + M}
+\reaction[NO2+RCO3+M_2]{NO_2 + RCO_3 + M -> RCO_3NO_2 + M}
 
-\ce{NO_x} saturation effects become particularly important to observe in the case of diluting aircraft exhaust plumes, because the high \ce{NO_X}-VOC ratio means that termination reactions are often favoured over catalytic ozone formation \cite{Song2003}. In the relatively fresh exhaust plume (first 10 minutes) where \ce{NO_x} concentrations are significantly enhanced, ozone titration by NO results in large scale production of \ce{NO_2} \eqref{NO+O3}, but decreases the formation of \ce{HO_x} due to depleted ozone levels in the plume.
+\ce{NO_x} saturation effects become particularly important to observe in the case of diluting aircraft exhaust plumes, because the high \ce{NO_X}-VOC ratio means that termination reactions are often favoured over catalytic ozone formation \cite{Song2003}. In the relatively fresh exhaust plume (first 10 minutes) where \ce{NO_x} concentrations are significantly enhanced, ozone titration by NO results in large scale production of \ce{NO_2} \eqref{NO+O3_2}, but decreases the formation of \ce{HO_x} due to depleted ozone levels in the plume.
 
-\reaction[NO+O3]{NO + O_3 -> NO_2 + O_2}
+\reaction[NO+O3_2]{NO + O_3 -> NO_2 + O_2_2}
 
-The dilution of the plume results in reduced \ce{NO_x} concentrations over time, and the in-plume chemistry transitions from \ce{NO_x}-saturated to \ce{NO_x}-limited. With ozone levels still depleted, the remaining \ce{HO_2} and \ce{RO_2} in the plume (formed from the oxidation of CO and VOCs by OH) react with the remaining NO to produce OH and \ce{NO_2} without further depleting ozone. This leads to increasing OH and \ce{NO_2} concentrations which give rise to a net ozone recovery due to \ce{NO_2} photolysis (reactions \eqref{NO2+hv} and \eqref{O3P+O2+M}), with full recovery to ambient concentrations within 1--2~h post emission. As ozone levels rise in the plume back towards ambient concentrations, the photochemical formation of OH becomes more common, through reactions \eqref{O3+hv} and \eqref{O1D+H2O}. Newly formed OH can oxidise CO and VOCs to form peroxy radicals which catalyse ozone production, however it can also react with NO and \ce{NO_2} to form stable nitrogen reservoir species, through reactions \eqref{NO+OH+M} to \eqref{NO2+RCO3+M} \cite{Fritz2020}.
+The dilution of the plume results in reduced \ce{NO_x} concentrations over time, and the in-plume chemistry transitions from \ce{NO_x}-saturated to \ce{NO_x}-limited. With ozone levels still depleted, the remaining \ce{HO2} and \ce{RO2} in the plume (formed from the oxidation of CO and VOCs by OH) react with the remaining NO to produce OH and \ce{NO2} without further depleting ozone. This leads to increasing OH and \ce{NO2} concentrations which give rise to a net ozone recovery due to \ce{NO2} photolysis (reactions \eqref{NO2+hv_2} and \eqref{O3P+O2+M_2}), with full recovery to ambient concentrations within 1--2~h post emission. As ozone levels rise in the plume back towards ambient concentrations, the photochemical formation of OH becomes more common, through reactions \eqref{O3+hv_2} and \eqref{O1D+H2O_2}. Newly formed OH can oxidise CO and VOCs to form peroxy radicals which catalyse ozone production, however it can also react with NO and \ce{NO2} to form stable nitrogen reservoir species, through reactions \eqref{NO+OH+M_2} to \eqref{NO2+RCO3+M_2} \cite{Fritz2020}.
 
 In the ID scenario inherent to large-scale climate models, ozone titration doesn't occur on the same scale due to lower mixing ratios of \ce{NO_x} when instantly diluted. Therefore, initial ozone depletion and subsequent recovery in the exhaust plume is not properly captured, meaning that instead, ozone levels remain reasonably high throughout and hence \ce{HO_x} production can remain stable. The stable \ce{HO_x} levels mean \ce{NO_x} to reservoir species conversion remains stable also, throughout the \ce{NO_x} lifetime. On a global scale, it has been shown that inclusion of plume processes leads to a net reduction in ozone forming potential of aviation \ce{NO_x} emissions. Vohralik et al.\ \cite{Vohralik2008} summarises the estimates made for the degree of reduction in ozone forming potential when plume effects were included. Initial findings from Kraabol et al.\ \cite{Kraabol2002} and Meijer et al.\ \cite{Meijer1997} estimated discrepancies in ozone production of 15--18\%, however these studies only accounted for ozone depletion in the plume, and not the \ce{O_3} generated during plume expansion. Inclusion of both ozone depletion and production in the plume in Meijer\ \cite{Meijer2001}, led to updated estimates in ozone formation changes 0\% to -5\% in January and +5\% to -10\% in July, indicating that plume processing can actually increase net ozone production when propagated to global scales. %Estimates from Fritz?
 
@@ -117,19 +117,19 @@ In the ID scenario inherent to large-scale climate models, ozone titration doesn
 \subsection{Heterogeneous Chemistry}
 Reactions occurring in the atmosphere on either the gas-solid interface (e.g. aerosol particles) or the gas-liquid interface (e.g. cloud droplets) are referred to as heterogeneous reactions. The heterogeneous chemistry which can affect ozone concentrations through production and loss of \ce{HO_x} and \ce{NO_x} and the production of halogen radicals is extremely important in particle rich aircraft exhaust plumes and contrails \cite{Jacob2000}. The exhaust plume contains emitted soot particles and ultrafine aqueous aerosol particles which are either formed within the plume or entrained into the plume from ambient air, as elaborated on in the following subsection. In the case of contrail formation, heterogeneous chemistry becomes very efficient, due to the four-fold increase in particle surface area of contrail ice compared to typical exhaust and background aerosol surface area. Meilinger et al.\ \cite{Meilinger2005} states that the heterogeneous reactions occurring on aerosol particles have a negligible effect on ozone, however contrail ice can influence the ozone response to aircraft emissions by $\pm$0.5\% on a macroscopic scale which varies depending on time of day and year. Due to the relatively minor impact heterogeneous chemical reactions have on aircraft-induced ozone perturbations, and hence on aviation climate impact, their effect will be acknowledged, but the chemical intricacies will not be discussed further. For more information, see the references contained within this paragraph. 
 
-%The effect of plumes on atmospheric photochemistry is shown to increase the soot, sulphate and water-ice surface areas for heterogeneous reactions which are important in defining ozone removal rates in the UTLS. \ce{N_2O_5} formed from the oxidation of \ce{NO_x} undergoes a reactive uptake on the plume species (e.g. water-ice surface), which results in \ce{HNO_3} formation. The reaction of \ce{N_2O_5} with HCl on ice results in \ce{ClNO_2} formation \eqref{N2O5+HCl->ClNO2+HNO3} which can compete with heterogeneous hydrolysis of N2O5 \eqref{N2O5+H2O->2HNO3}.
+%The effect of plumes on atmospheric photochemistry is shown to increase the soot, sulphate and water-ice surface areas for heterogeneous reactions which are important in defining ozone removal rates in the UTLS. \ce{N_2O_5} formed from the oxidation of \ce{NO_x} undergoes a reactive uptake on the plume species (e.g. water-ice surface), which results in \ce{HNO_3} formation. The reaction of \ce{N_2O_5} with HCl on ice results in \ce{ClNO_2} formation \eqref{N2O5+HCl->ClNO2+HNO3_2} which can compete with heterogeneous hydrolysis of N2O5 \eqref{N2O5+H2O->2HNO3_2}.
 %
 %\reaction[N2O5+H2O->2HNO3]{N_2O_5 + H_2O -> 2HNO_3}
 %
 %\reaction[N2O5+HCl->ClNO2+HNO3]{N_2O_5 + HCl -> ClNO_2 + HNO_3}
 %
-%The heterogeneous interactions are very important to the removal of \ce{NO_x} and \ce{HO_x} species during sedimentation events in the UTLS. These reactions can form reservoir species (e.g. \ce{HNO_3}, \ce{H_2O_2}) which can absorb onto sulphate aerosol and ice particles. Heterogeneous denoxification (reactions \eqref{N2O5+H2O->2HNO3} and \eqref{N2O5+HCl->ClNO2+HNO3}) and dehoxification (reactions \eqref{2HO2->H2O2+O2} and \eqref{2OH->H2O2}) lead to reduced concentrations of \ce{NO_x} and \ce{HO_x} which reduce the ozone production through gas-phase reactions \cite{Meilinger2005}.
+%The heterogeneous interactions are very important to the removal of \ce{NO_x} and \ce{HO_x} species during sedimentation events in the UTLS. These reactions can form reservoir species (e.g. \ce{HNO_3}, \ce{H_2O_2}) which can absorb onto sulphate aerosol and ice particles. Heterogeneous denoxification (reactions \eqref{N2O5+H2O->2HNO3_2} and \eqref{N2O5+HCl->ClNO2+HNO3_2}) and dehoxification (reactions \eqref{2HO2->H2O2+O2_2} and \eqref{2OH->H2O2_2}) lead to reduced concentrations of \ce{NO_x} and \ce{HO_x} which reduce the ozone production through gas-phase reactions \cite{Meilinger2005}.
 %
 %\reaction[2HO2->H2O2+O2]{2HO_2 -> H_2O_2 + O_2}
 %
 %\reaction[2OH->H2O2]{2OH -> H_2O_2}
 %
-%In the stratosphere, a number of heterogeneous reactions \eqref{ClONO2+H2O->HOCl+HNO3} to \eqref{HOBr+HBr->Br2+H2O} are important to various degrees on the surface of ice particles and saturated ternary solutions of water, HNO3 and H2SO4 in terms of ozone depletion on a global scale.
+%In the stratosphere, a number of heterogeneous reactions \eqref{ClONO2+H2O->HOCl+HNO3_2} to \eqref{HOBr+HBr->Br2+H2O_2} are important to various degrees on the surface of ice particles and saturated ternary solutions of water, HNO3 and H2SO4 in terms of ozone depletion on a global scale.
 %
 %\reaction[ClONO2+H2O->HOCl+HNO3]{ClONO_2 + H_2O -> HOCl + HNO_3}
 %
@@ -137,7 +137,9 @@ Reactions occurring in the atmosphere on either the gas-solid interface (e.g. ae
 %
 %\reaction[ClONO2+HBr->BrCl+HNO3]{ClONO_2 + HBr -> BrCl + HNO_3}
 %
-%\reaction[HOCl+HCl->Cl2+H2O]{HOCl + HCl -> Cl_2 + H_2O}
+%\reaction[HOCl+HCl->Cl2+H2O]{HOCl + HCl -> Cl_2 + H_2O}ently enhance ozone depletion \cite{Meilinger2005}.
+%
+%The extent of heterogeneous reactions \eqref{N2O5+H2O->2HNO3_2} to \eqref{HOBr+HBr->Br2+H2O_2} offset the effects of gas-phase reactions \eqref{NO+O3->NO2+O2_2} to \eqref{NO2+RCO3+M->RCO3NO2+M_2} on \ce{NO_x} initiated ozone formation which depends on a variety of chemical and dynamic factors (e.g. aerosol microphysics, atmospheric dynamics).
 %
 %\reaction[HOCl+HBr->BrCl+H2O]{HOCl + HBr -> BrCl + H_2O}
 %
@@ -149,9 +151,7 @@ Reactions occurring in the atmosphere on either the gas-solid interface (e.g. ae
 %
 %\reaction[HOBr+HBr->Br2+H2O]{HOBr + HBr -> Br_2 + H_2O}
 %
-%The heterogeneous reactions initiated by \ce{ClONO_2}, HOCl, \ce{BrONO_2}, HOBr produce \ce{Cl_2}, BrCl, \ce{Br_2} which then yields Cl and Br radicals by photolysis. The heterogeneously activated Cl and Br can subsequently enhance ozone depletion \cite{Meilinger2005}.
-%
-%The extent of heterogeneous reactions \eqref{N2O5+H2O->2HNO3} to \eqref{HOBr+HBr->Br2+H2O} offset the effects of gas-phase reactions \eqref{NO+O3->NO2+O2} to \eqref{NO2+RCO3+M->RCO3NO2+M} on \ce{NO_x} initiated ozone formation which depends on a variety of chemical and dynamic factors (e.g. aerosol microphysics, atmospheric dynamics).
+%The heterogeneous reactions initiated by \ce{ClONO_2}, HOCl, \ce{BrONO_2}, HOBr produce \ce{Cl_2}, BrCl, \ce{Br_2} which then yields Cl and Br radicals by photolysis. The heterogeneously activated Cl and Br can subsequ
 
  \subsection{Aerosol and Contrail Microphysics}
 \label{Microphysics}

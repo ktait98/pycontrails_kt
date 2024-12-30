@@ -74,59 +74,59 @@
 \contentsline {section}{\numberline {3.3}Results}{97}{section.3.3}%
 \contentsline {section}{\numberline {3.4}Discussion}{102}{section.3.4}%
 \contentsline {section}{\numberline {3.5}Limitations}{103}{section.3.5}%
-\contentsline {chapter}{\numberline {4}Potential to Offset Aviation \ce {NOx}-induced Warming Through Formation Flight and Chemical Saturation}{104}{chapter.4}%
+\contentsline {chapter}{\numberline {4}Potential to Offset Aviation \ce {NO_x}-induced Warming Through Formation Flight and Chemical Saturation}{104}{chapter.4}%
 \contentsline {section}{\numberline {4.1}Introduction}{105}{section.4.1}%
 \contentsline {section}{\numberline {4.2}Methodology}{109}{section.4.2}%
 \contentsline {subsection}{\numberline {4.2.1}Determination of Threshold \ce {NO_x} from Kinetic Data}{109}{subsection.4.2.1}%
-\contentsline {subsection}{\numberline {4.2.2}Determination of Threshold \ce {NO_x} from STOCHEM-CRI CTM Modelling Data and IAGOS Measurement Data}{113}{subsection.4.2.2}%
-\contentsline {subsection}{\numberline {4.2.3}Development of 1-D Box Model of Flight Corridor}{114}{subsection.4.2.3}%
-\contentsline {section}{\numberline {4.3}Results and Discussion}{115}{section.4.3}%
-\contentsline {subsection}{\numberline {4.3.1}${[\ce {NO2}]_{\mathrm {equiv}}}$ in the Troposphere Determined from Kinetic Data}{115}{subsection.4.3.1}%
+\contentsline {subsection}{\numberline {4.2.2}Determination of Threshold \ce {NO_x} from STOCHEM-CRI CTM Modelling Data and IAGOS Measurement Data}{112}{subsection.4.2.2}%
+\contentsline {subsection}{\numberline {4.2.3}Development of 1-D Box Model of Flight Corridor}{113}{subsection.4.2.3}%
+\contentsline {section}{\numberline {4.3}Results and Discussion}{114}{section.4.3}%
+\contentsline {subsection}{\numberline {4.3.1}${[\ce {NO2}]_{\mathrm {equiv}}}$ in the Troposphere Determined from Kinetic Data}{114}{subsection.4.3.1}%
 \contentsline {subsection}{\numberline {4.3.2}Global Mapping of ${[\ce {NO2}]_{\mathrm {equiv}}}$ at the Cruise Level}{115}{subsection.4.3.2}%
-\contentsline {subsection}{\numberline {4.3.3}Aircraft Plume and its Chemistry Study using a 1D Dispersion Model}{119}{subsection.4.3.3}%
-\contentsline {section}{\numberline {4.4}Conclusion}{127}{section.4.4}%
-\contentsline {chapter}{\numberline {5}Development of a Novel Aircraft Plume Modelling Framework}{129}{chapter.5}%
-\contentsline {section}{\numberline {5.1}Introduction}{129}{section.5.1}%
-\contentsline {section}{\numberline {5.2}GPAT Overview}{131}{section.5.2}%
-\contentsline {section}{\numberline {5.3}Input Parameters}{133}{section.5.3}%
-\contentsline {subsection}{\numberline {5.3.1}Flight Parameters (fl\_params)}{133}{subsection.5.3.1}%
-\contentsline {subsection}{\numberline {5.3.2}Plume Parameters (plume\_params)}{134}{subsection.5.3.2}%
-\contentsline {subsection}{\numberline {5.3.3}Simulation Parameters (sim\_params)}{135}{subsection.5.3.3}%
-\contentsline {section}{\numberline {5.4}Datasets}{136}{section.5.4}%
-\contentsline {subsection}{\numberline {5.4.1}Flight Dataset (FL)}{137}{subsection.5.4.1}%
-\contentsline {subsection}{\numberline {5.4.2}Meteorology Dataset (MET)}{138}{subsection.5.4.2}%
-\contentsline {subsection}{\numberline {5.4.3}Background Chemistry Dataset (BG\_CHEM)}{139}{subsection.5.4.3}%
-\contentsline {subsection}{\numberline {5.4.4}Plume Dataset (PL)}{140}{subsection.5.4.4}%
-\contentsline {subsection}{\numberline {5.4.5}Emissions Dataset (EMI)}{141}{subsection.5.4.5}%
-\contentsline {subsection}{\numberline {5.4.6}Contrail Dataset (CONTRAIL)}{141}{subsection.5.4.6}%
-\contentsline {subsection}{\numberline {5.4.7}Chemistry Dataset (CHEM)}{141}{subsection.5.4.7}%
-\contentsline {section}{\numberline {5.5}Models and Methods}{142}{section.5.5}%
-\contentsline {subsection}{\numberline {5.5.1}Trajectory Model (traj\_gen)}{142}{subsection.5.5.1}%
-\contentsline {subsection}{\numberline {5.5.2}Meteorology Model (gen\_met)}{143}{subsection.5.5.2}%
-\contentsline {subsection}{\numberline {5.5.3}Background Chemistry Model (gen\_bg\_chem)}{144}{subsection.5.5.3}%
-\contentsline {subsection}{\numberline {5.5.4}Aircraft Performance Model (ac\_perf)}{145}{subsection.5.5.4}%
-\contentsline {subsection}{\numberline {5.5.5}Emissions Model (emissions)}{145}{subsection.5.5.5}%
-\contentsline {subsection}{\numberline {5.5.6}Dispersion/Advection Model (sim\_plumes)}{147}{subsection.5.5.6}%
-\contentsline {subsection}{\numberline {5.5.7}Plume-to-Grid Model (plume\_to\_grid)}{148}{subsection.5.5.7}%
-\contentsline {subsubsection}{\nonumberline Gaussian Plume Aggregation}{148}{subsubsection*.144}%
-\contentsline {subsection}{\numberline {5.5.8}Contrail Model (run\_cc)}{149}{subsection.5.5.8}%
-\contentsline {subsection}{\numberline {5.5.9}Chemistry Model (run\_boxm)}{149}{subsection.5.5.9}%
-\contentsline {subsection}{\numberline {5.5.10}Validation}{149}{subsection.5.5.10}%
-\contentsline {subsubsection}{\nonumberline Mass Conversation}{149}{subsubsection*.149}%
-\contentsline {subsubsection}{\nonumberline Box Model Outputs}{149}{subsubsection*.151}%
-\contentsline {section}{\numberline {5.6}Assumptions and Limitations}{149}{section.5.6}%
-\contentsline {chapter}{\numberline {6}Investigating Plume Overlap as A Climate Solution}{150}{chapter.6}%
-\contentsline {section}{\numberline {6.1}Introduction}{150}{section.6.1}%
-\contentsline {subsection}{\numberline {6.1.1}\ce {NOx}-Saturated Chemistry Primer}{151}{subsection.6.1.1}%
-\contentsline {subsection}{\numberline {6.1.2}Exploiting \ce {NOx} Saturation through Plume Overlap}{152}{subsection.6.1.2}%
-\contentsline {section}{\numberline {6.2}Background Study}{153}{section.6.2}%
-\contentsline {section}{\numberline {6.3}ID Vs Plume Study}{153}{section.6.3}%
-\contentsline {section}{\numberline {6.4}Sensitivity Study}{153}{section.6.4}%
-\contentsline {chapter}{\numberline {7}Conclusions and Further Work}{154}{chapter.7}%
-\contentsline {section}{\numberline {7.1}Conclusions}{154}{section.7.1}%
-\contentsline {section}{\numberline {7.2}Further Work}{154}{section.7.2}%
-\contentsline {chapter}{\numberline {A}Appendix}{155}{appendix.A}%
-\contentsline {section}{\numberline {A.1}GPAT}{155}{section.A.1}%
-\contentsline {subsection}{\numberline {A.1.1}Flight Dataset Example}{155}{subsection.A.1.1}%
-\contentsline {subsection}{\numberline {A.1.2}Plume Dataset Example}{155}{subsection.A.1.2}%
+\contentsline {subsection}{\numberline {4.3.3}Aircraft Plume and its Chemistry Study using a 1D Dispersion Model}{118}{subsection.4.3.3}%
+\contentsline {section}{\numberline {4.4}Conclusion}{126}{section.4.4}%
+\contentsline {chapter}{\numberline {5}Development of a Novel Aircraft Plume Modelling Framework}{128}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Introduction}{128}{section.5.1}%
+\contentsline {section}{\numberline {5.2}GPAT Overview}{130}{section.5.2}%
+\contentsline {section}{\numberline {5.3}Input Parameters}{132}{section.5.3}%
+\contentsline {subsection}{\numberline {5.3.1}Flight Parameters (fl\_params)}{132}{subsection.5.3.1}%
+\contentsline {subsection}{\numberline {5.3.2}Plume Parameters (plume\_params)}{133}{subsection.5.3.2}%
+\contentsline {subsection}{\numberline {5.3.3}Simulation Parameters (sim\_params)}{134}{subsection.5.3.3}%
+\contentsline {section}{\numberline {5.4}Datasets}{135}{section.5.4}%
+\contentsline {subsection}{\numberline {5.4.1}Flight Dataset (FL)}{136}{subsection.5.4.1}%
+\contentsline {subsection}{\numberline {5.4.2}Meteorology Dataset (MET)}{137}{subsection.5.4.2}%
+\contentsline {subsection}{\numberline {5.4.3}Background Chemistry Dataset (BG\_CHEM)}{138}{subsection.5.4.3}%
+\contentsline {subsection}{\numberline {5.4.4}Plume Dataset (PL)}{139}{subsection.5.4.4}%
+\contentsline {subsection}{\numberline {5.4.5}Emissions Dataset (EMI)}{140}{subsection.5.4.5}%
+\contentsline {subsection}{\numberline {5.4.6}Contrail Dataset (CONTRAIL)}{140}{subsection.5.4.6}%
+\contentsline {subsection}{\numberline {5.4.7}Chemistry Dataset (CHEM)}{140}{subsection.5.4.7}%
+\contentsline {section}{\numberline {5.5}Models and Methods}{141}{section.5.5}%
+\contentsline {subsection}{\numberline {5.5.1}Trajectory Model (traj\_gen)}{141}{subsection.5.5.1}%
+\contentsline {subsection}{\numberline {5.5.2}Meteorology Model (gen\_met)}{142}{subsection.5.5.2}%
+\contentsline {subsection}{\numberline {5.5.3}Background Chemistry Model (gen\_bg\_chem)}{143}{subsection.5.5.3}%
+\contentsline {subsection}{\numberline {5.5.4}Aircraft Performance Model (ac\_perf)}{144}{subsection.5.5.4}%
+\contentsline {subsection}{\numberline {5.5.5}Emissions Model (emissions)}{144}{subsection.5.5.5}%
+\contentsline {subsection}{\numberline {5.5.6}Dispersion/Advection Model (sim\_plumes)}{146}{subsection.5.5.6}%
+\contentsline {subsection}{\numberline {5.5.7}Plume-to-Grid Model (plume\_to\_grid)}{147}{subsection.5.5.7}%
+\contentsline {subsubsection}{\nonumberline Gaussian Plume Aggregation}{147}{subsubsection*.144}%
+\contentsline {subsection}{\numberline {5.5.8}Contrail Model (run\_cc)}{148}{subsection.5.5.8}%
+\contentsline {subsection}{\numberline {5.5.9}Chemistry Model (run\_boxm)}{148}{subsection.5.5.9}%
+\contentsline {subsection}{\numberline {5.5.10}Validation}{148}{subsection.5.5.10}%
+\contentsline {subsubsection}{\nonumberline Mass Conversation}{148}{subsubsection*.149}%
+\contentsline {subsubsection}{\nonumberline Box Model Outputs}{148}{subsubsection*.151}%
+\contentsline {section}{\numberline {5.6}Assumptions and Limitations}{148}{section.5.6}%
+\contentsline {chapter}{\numberline {6}Investigating Plume Overlap as A Climate Solution}{149}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Introduction}{149}{section.6.1}%
+\contentsline {subsection}{\numberline {6.1.1}\ce {NO_x}-Saturated Chemistry Primer}{150}{subsection.6.1.1}%
+\contentsline {subsection}{\numberline {6.1.2}Exploiting \ce {NO_x} Saturation through Plume Overlap}{151}{subsection.6.1.2}%
+\contentsline {section}{\numberline {6.2}Background Study}{152}{section.6.2}%
+\contentsline {section}{\numberline {6.3}ID Vs Plume Study}{152}{section.6.3}%
+\contentsline {section}{\numberline {6.4}Sensitivity Study}{152}{section.6.4}%
+\contentsline {chapter}{\numberline {7}Conclusions and Further Work}{153}{chapter.7}%
+\contentsline {section}{\numberline {7.1}Conclusions}{153}{section.7.1}%
+\contentsline {section}{\numberline {7.2}Further Work}{153}{section.7.2}%
+\contentsline {chapter}{\nonumberline Appendix}{192}{chapter*.159}%
+\contentsline {section}{\numberline {1}GPAT}{192}{section.Alph0.1}%
+\contentsline {subsection}{\numberline {1.1}Flight Dataset Example}{192}{subsection.Alph0.1.1}%
+\contentsline {subsection}{\numberline {1.2}Plume Dataset Example}{192}{subsection.Alph0.1.2}%
 \providecommand \tocbasic@end@toc@file {}\tocbasic@end@toc@file 

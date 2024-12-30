@@ -5,6 +5,7 @@ The Gridded Plume Analysis Tool requires three sets of user-defined input parame
 The flight parameters give information on the flights taking place in the simulation. This includes the start time, duration and time step of the flight data to be generated, the aircraft types, speed, heading and initial coordinates of the first aircraft. For formation flight scenarios, it also contains the longitudinal (dx), lateral (dy) and vertical (dz) separation minima between the leader and follower aircraft, as well as the number of aircraft in the simulation. It is assumed that follower aircraft are travelling at the same speed and along the same heading. Table \ref{tab_fl_params} shows these parameters as they are read by the software, along with a description of their use, units and an example value.
 
 \begin{table}[H]
+\caption{}
 \label{tab_fl_params}
 \centering
 \begin{tabular}{lll}
@@ -26,6 +27,7 @@ n\_ac        & Number of aircraft         & 5                   \\ \hline
 These are the parameters that determine how the exhaust plumes, and emissions contained within them, disperse and advect spatially over time. This includes the integration time step, max age of each plume, initial dimensions, wind shear, horizontal and vertical resolution of the plume simulation, as well as the number of Gaussian slices for the plume aggregation step (for more on this, see section \ref{plume_to_grid_model}). Table \ref{tab_plume_params} shows these parameters as they are read by the software, along with a description of their use, units and an example value.
 
 \begin{table}[H]
+\caption{}
 \label{tab_plume_params}
 \centering
 \begin{tabular}{lll}
@@ -46,6 +48,7 @@ n\_slices       & Number of Gaussian slices to aggregate to grid  & 10	\\ \hline
 This set of parameters defines the spatial and temporal domain of the simulation run, specifying the geographical bounds of the region of interest, the time frame over which the atmospheric chemistry and physics is simulated, the spatial and temporal resolution of the domain, wind effects, and species in and out of the model. Table \ref{tab_sim_params} shows these parameters as they are read by the software, along with a description of their use, units and an example value.
 
 \begin{table}[H]
+\caption{}
 \label{tab_sim_params}
 \centering
 \begin{tabular}{@{}lll@{}}

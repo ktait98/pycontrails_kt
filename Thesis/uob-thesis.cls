@@ -113,12 +113,14 @@
   doi=true,
   backref=true,
   sortcites=true,
-  style={\the\@uobbiblio},
+  style=numeric,
+  sorting=none,
   maxnames=1000,
   mincrossrefs=99,
-  sorting=nyt,
   sortcites
 ]{biblatex}
+
+%style={\the\@uobbiblio},
 
 % this is necessary to use ACM references in a non-ACM class
 \newcommand{\bibliofont}{\normalsize}
