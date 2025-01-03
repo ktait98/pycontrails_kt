@@ -25,22 +25,24 @@ To further confirm the \ce{NO_x} threshold, termed ${[\ce{NO2}]_{\mathrm{equiv}}
 		\label{NOxt_iagos}
 \end{figure}
 
-Assessing how well \ce{NO_x} is sequestered by OH radicals to form \ce{HNO3}, terminating ozone production, will depend on $k_6$ (function of pressure and temperature) and this itself will change with altitude, latitude, and time of year. As altitude increases for a given location, temperature decreases and so $k6$ will increase. However, at the same time pressure is decreasing and so $k_6$ will decrease, determining which process wins and whether $k6$ ultimately decreases or increases with altitude requires high fidelity kinetic information. An increasing $k_6$ with altitude may mean that this termination reaction is more effective at high altitudes for a given [\ce{NO2}]. These reactions are hard to study at low temperature and as a function of pressure and so uncertainties increase. The rate coefficients ($k_1$, $k_6$,and $k_7$) were perturbed upwards and downwards by considering the uncertainties of the rate coefficients and used to calculate global annual average ${[\ce{NO2}]_{\mathrm{equiv}}}$ (see Supplementary information Figure S1 \url{https://onlinelibrary.wiley.com/doi/full/10.1002/kin.21644}). The uncertainty analysis shows that ${[\ce{NO2}]_{\mathrm{equiv}}}$ can be decreased and increased by up to 2.5\% and 5\% in the northern mid-latitudes due to the using lower limit and higher limit rate coefficients, respectively.
+Assessing how well \ce{NO_x} is sequestered by OH radicals to form \ce{HNO3}, terminating ozone production, will depend on $k_6$ (function of pressure and temperature) and this itself will change with altitude, latitude, and time of year. As altitude increases for a given location, temperature decreases and so $k_6$ will increase. However, at the same time pressure is decreasing and so $k_6$ will decrease, determining which process wins and whether $k_6$ ultimately decreases or increases with altitude requires high fidelity kinetic information. An increasing $k_6$ with altitude may mean that this termination reaction is more effective at high altitudes for a given [\ce{NO2}]. These reactions are hard to study at low temperature and as a function of pressure and so uncertainties increase. The rate coefficients ($k_1$, $k_6$,and $k_7$) were perturbed upwards and downwards by considering the uncertainties of the rate coefficients and used to calculate global annual average ${[\ce{NO2}]_{\mathrm{equiv}}}$ (see Supporting Information figure S1 \url{https://onlinelibrary.wiley.com/doi/full/10.1002/kin.21644}). The uncertainty analysis shows that ${[\ce{NO2}]_{\mathrm{equiv}}}$ can be decreased and increased by up to 2.5\% and 5\% in the northern midlatitudes due to the using lower limit and higher limit rate coefficients, respectively.
 
 The calculation of ${[\ce{NO2}]_{\mathrm{equiv}}}$ did not consider VOCs contributions in the study. The methane mixing ratios have been rising in the troposphere since ca. 2010 but most VOCs are decreasing. For ethane and propane \cite{Li2022}, two of the longest lived VOCs, and species that will have elevated concentrations in the upper troposphere, current measured concentrations are indeed decreasing \cite{Li2022}, and suggest that these VOCs would contribute less than 5\% of the OH loss compared with \ce{CH4}. Given that loss of OH with \ce{CH4} is typically 30\% of that for CO, VOCs other than CO and \ce{CH4} can be ignored in any initial analysis such as carried out here. Even for acetone, another long-lived species with elevated levels in the upper troposphere higher levels are seen in the summer months (800~ppt) but drop to around 200~ppt in winter\cite{DuFour2016}. So, for short periods of time in a year, levels approach that required to be around 5\% of that for \ce{CH4} but for the Northern Hemisphere, where it is expected the formation flying to be most effective, levels are much lower.
 
 \subsection{Aircraft Plume and its Chemistry Study using a 1D Dispersion Model}
-In a first box model experiment, an aircraft emits a pulse of \ce{NO_x} into the centre box of the model grid at 12:00~z. The pulse size was set based on a global aircraft cruise \ce{NO_x} emission of 3.9~Tg \ce{NO_x} per year and a distance travelled \cite{Wasiuk2016} of 36.4~billion~km that is 107~g \ce{NO_x} $\mathrm{km}^-1$. This \ce{NO_x} was instantaneously mixed into the centre box volume and the time development of the model species was then followed. After several seconds, the NO-\ce{NO2}-\ce{O3} chemistry was rapidly established, a strong depletion in ozone formed and then \ce{NO_x} began to disperse horizontally into the neighbouring boxes over the period of hours and days. After 1~h the horizontal distribution of \ce{NO_x} showed an aircraft plume with a width of 3~km, as shown in Figure \ref{Disp1}, which expanded to 6.8~km after 6~h and 13.1~km after 24~h. Plume width expanded with the square root of lapsed time, see Figure \ref{Disp2}, exactly as predicted by the Einstein-Smoluchowski equation.
+In a first box model experiment, an aircraft emits a pulse of \ce{NO_x} into the centre box of the model grid at 12:00~z. The pulse size was set based on a global aircraft cruise \ce{NO_x} emission of 3.9~Tg \ce{NO_x} per year and a distance travelled \cite{Wasiuk2016} of 36.4~billion~km that is 107~g \ce{NO_x}/km. This \ce{NO_x} was instantaneously mixed into the centre box volume and the time development of the model species was then followed. After several seconds, the NO-\ce{NO2}-\ce{O3} chemistry was rapidly established, a strong depletion in ozone formed and then \ce{NO_x} began to disperse horizontally into the neighbouring boxes over the period of hours and days. After 1~h the horizontal distribution of \ce{NO_x} showed an aircraft plume with a width of 3~km, as shown in Figure \ref{Disp1}, which expanded to 6.8~km after 6~h and 13.1~km after 24~h. Plume width expanded with the square root of lapsed time, see Figure \ref{Disp2}, exactly as predicted by the Einstein-Smoluchowski equation.
 
-\begin{figure}[H]
-		\includegraphics[width=\textwidth]{4/Disp1.jpg}
+\begin{figure}[h!]
+		\centering
+		\includegraphics[width=0.7\textwidth]{4/Disp1.jpg}
 		%\vspace{-.1cm}
 		\caption{\ce{NO_x} mixing ratios as a function of distance from the flight path at increasing times after the passage of an aircraft, each offset by 3~ppb.}
 		\label{Disp1}
 \end{figure}
 
-\begin{figure}[H]
-		\includegraphics[width=\textwidth]{4/Disp2.jpg}
+\begin{figure}[h!]
+		\centering
+		\includegraphics[width=0.7\textwidth]{4/Disp2.jpg}
 		%\vspace{-.1cm}
 		\caption{Aircraft plume width as a function of travel time.}
 		\label{Disp2}
@@ -54,8 +56,9 @@ However, during daytime, the product \ce{NO2} is rapidly photolysed to form ozon
 
 The distribution of ozone perpendicular to the flight path is shown in Figure \ref{Disp3} for various times after the passage of the aircraft. One hour after the aircraft passage, ozone levels show the presence of a slight dip close to the centre of the aircraft plume demonstrating that the stationary state in the NO-\ce{NO2}-\ce{O3} system has been re-established. After 3~h, the central dip is still evident, but photochemical ozone production is starting to appear in the wings of the aircraft plume. As time passes, the production in the wings becomes more evident and the central dip is filled in. After 24~h, photochemical ozone production is well on its way and an ozone plume becomes apparent with a width of about 16~km and a height of just over 0.4~ppb at its centre. At this stage, the ozone plume is about 3~km wider than the \ce{NO_x} plume as horizontal dispersion moves the photochemically produced ozone into the background atmosphere. After 4~days, see Figure \ref{Disp3}, the plume is about 30~km wide and has a height of about 2.7~ppb.
 
-\begin{figure}[H]
-		\includegraphics[width=\textwidth]{4/Disp3.jpg}
+\begin{figure}[h!]
+		\centering
+		\includegraphics[width=0.8\textwidth]{4/Disp3.jpg}
 		%\vspace{-.1cm}
 		\caption{\ce{O3} mixing ratios as a function of distance from the flight path at increasing times after the passage of an aircraft, each offset by 3~ppb.}
 		\label{Disp3}
@@ -65,8 +68,9 @@ In the next application of the aircraft plume dispersion model, the case of five
 
 In each plot, the grid average \ce{O3} perpendicular to the flight path shows a steady increase over the 5~days. This increase has small depressions during nighttime when the NO-\ce{NO2}-\ce{O3} system adjusts to the lack of sunlight. The steady increase is driven by photochemical ozone production because the chosen initial conditions for these experiments have NO levels above the local \ce{NO_x} compensation point. Initially the plots for the five aircraft lie below the one aircraft case because of the more intense \ce{O3} depletion found with more aircraft. However, the situation reverses after 1~day and \ce{O3} levels in the five aircraft cases then lie above the one aircraft case. After further time has elapsed, the five aircraft cases begin to diverge with the cases with wider separations diverging the greatest.
 
-\begin{figure}[H]
-		\includegraphics[width=\textwidth]{4/Disp4.jpg}
+\begin{figure}[h!]
+		\centering
+		\includegraphics[width=0.7\textwidth]{4/Disp4.jpg}
 		%\vspace{-.1cm}
 		\caption{Time development of the average \ce{O3} mixing ratios across the 99.9~km grid for a base case with one aircraft, five aircraft flying together and flying with horizontal separations increasing from 100~m to 10~km.}
 		\label{Disp4}

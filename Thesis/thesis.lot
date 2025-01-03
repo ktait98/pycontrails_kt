@@ -1,0 +1,28 @@
+\contentsline {chapteratlist}{\numberline {1}Introduction}{1}{chapter.1}%
+\contentsline {chapteratlist}{\numberline {2}Aircraft Emissions, their Plume-Scale Effects, and the Spatio-Temporal Sensitivity of the Atmospheric Response}{10}{chapter.2}%
+\contentsline {table}{\numberline {2.1}{\ignorespaces Emission indices estimates for \ce {CO_2}, \ce {H_2O} and \ce {SO_2}, averaged from a range of existing studies testing various aviation fuel types \blx@tocontentsinit {0}\cite {EUROCONTROL2001}.}}{14}{table.caption.6}%
+\contentsline {table}{\numberline {2.2}{\ignorespaces Example ICAO engine emissions data for Rolls-Royce Trent 970-84 engine \blx@tocontentsinit {0}\cite {ICAOEEDB}.}}{19}{table.caption.13}%
+\contentsline {chapteratlist}{\numberline {3}Investigating the Real-World Feasibility of Aircraft Exhaust Plume Intersections using Open Source Air Traffic Data}{90}{chapter.3}%
+\contentsline {table}{\numberline {3.1}{\ignorespaces \relax }}{102}{table.caption.115}%
+\contentsline {chapteratlist}{\numberline {4}Potential to Offset Aviation \ce {NO_x}-induced Warming Through Formation Flight and Chemical Saturation}{105}{chapter.4}%
+\contentsline {chapteratlist}{\numberline {5}Development of a Novel Aircraft Plume Modelling Framework}{127}{chapter.5}%
+\contentsline {table}{\numberline {5.1}{\ignorespaces GPAT Flight Parameters with example values.}}{132}{table.caption.133}%
+\contentsline {table}{\numberline {5.2}{\ignorespaces GPAT Plume Parameters with example values.}}{133}{table.caption.134}%
+\contentsline {table}{\numberline {5.3}{\ignorespaces GPAT Simulation Parameters with example values.}}{134}{table.caption.135}%
+\contentsline {table}{\numberline {5.4}{\ignorespaces Model output levels from Collins et al.~\blx@tocontentsinit {0}\cite {Collins1997} used throughout the GPAT model architecture.}}{137}{table.caption.136}%
+\contentsline {table}{\numberline {5.5}{\ignorespaces Emission speciation for primary and secondary combustion products, as well as a breakdown of the hydrocarbon speciation.}}{146}{table.caption.142}%
+\contentsline {table}{\numberline {5.6}{\ignorespaces Mass conservation study outputs.}}{160}{table.caption.199}%
+\contentsline {table}{\numberline {5.7}{\ignorespaces Average $R^2$ results for all runs}}{165}{table.caption.206}%
+\contentsline {chapteratlist}{\numberline {6}Investigating Plume Overlap as A Climate Solution}{166}{chapter.6}%
+\contentsline {chapteratlist}{\numberline {7}Conclusions and Further Work}{177}{chapter.7}%
+\contentsline {chapteratlist}{\nonumberline Appendix}{216}{chapter*.222}%
+\contentsline {table}{\numberline {5}{\ignorespaces Example background chemistry concentrations generated from Background Chemistry Model, for NAFC at 13~km altitude in January.}}{216}{table.Alph0.5}%
+\contentsline {table}{\numberline {1}{\ignorespaces Flight Dataset Example (1/3)}}{218}{table.caption.223}%
+\contentsline {table}{\numberline {2}{\ignorespaces Flight Dataset Example (2/3)}}{219}{table.caption.224}%
+\contentsline {table}{\numberline {3}{\ignorespaces Flight Dataset Example (3/3)}}{220}{table.caption.225}%
+\contentsline {table}{\numberline {4}{\ignorespaces Example MET dataset generated from gen\_met model, for North Atlantic Flight Corridor (NAFC) at 13~km altitude in January.}}{221}{table.caption.226}%
+\contentsline {table}{\numberline {6}{\ignorespaces Plume Dataset Example (1/4)}}{222}{table.caption.227}%
+\contentsline {table}{\numberline {7}{\ignorespaces Plume Dataset Example (2/4)}}{223}{table.caption.228}%
+\contentsline {table}{\numberline {8}{\ignorespaces Plume Dataset Example (3/4)}}{224}{table.caption.229}%
+\contentsline {table}{\numberline {9}{\ignorespaces Plume Dataset Example (4/4)}}{225}{table.caption.230}%
+\providecommand \tocbasic@end@toc@file {}\tocbasic@end@toc@file 
