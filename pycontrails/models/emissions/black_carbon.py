@@ -14,29 +14,29 @@ from pycontrails.utils.types import ArrayScalarLike
 
 
 def mass_emissions_index_fox(
-    air_pressure: npt.NDArray[np.float64],
-    air_temperature: npt.NDArray[np.float64],
-    true_airspeed: npt.NDArray[np.float64],
-    fuel_flow_per_engine: npt.NDArray[np.float64],
-    thrust_setting: npt.NDArray[np.float64],
+    air_pressure: npt.NDArray[np.floating],
+    air_temperature: npt.NDArray[np.floating],
+    true_airspeed: npt.NDArray[np.floating],
+    fuel_flow_per_engine: npt.NDArray[np.floating],
+    thrust_setting: npt.NDArray[np.floating],
     pressure_ratio: float,
     *,
     comp_efficiency: float = 0.9,
-) -> npt.NDArray[np.float64]:
+) -> npt.NDArray[np.floating]:
     r"""
     Calculate the black carbon mass emissions index using the Formation and Oxidation Method (FOX).
 
     Parameters
     ----------
-    air_pressure: npt.NDArray[np.float64]
+    air_pressure: npt.NDArray[np.floating]
         Pressure altitude at each waypoint, [:math:`Pa`]
-    air_temperature: npt.NDArray[np.float64]
+    air_temperature: npt.NDArray[np.floating]
         Ambient temperature for each waypoint, [:math:`K`]
-    true_airspeed: npt.NDArray[np.float64]
+    true_airspeed: npt.NDArray[np.floating]
         True airspeed for each waypoint, [:math:`m s^{-1}`]
-    fuel_flow_per_engine: npt.NDArray[np.float64]
+    fuel_flow_per_engine: npt.NDArray[np.floating]
         Fuel mass flow rate per engine, [:math:`kg s^{-1}`]
-    thrust_setting: npt.NDArray[np.float64]
+    thrust_setting: npt.NDArray[np.floating]
         Engine thrust setting, which is the fuel mass flow rate divided by
         the maximum fuel mass flow rate
     pressure_ratio: float
@@ -46,7 +46,7 @@ def mass_emissions_index_fox(
 
     Returns
     -------
-    npt.NDArray[np.float64]
+    npt.NDArray[np.floating]
         Black carbon mass emissions index, [:math:`mg \ kg_{fuel}^{-1}`]
 
     References
@@ -98,14 +98,14 @@ def flame_temperature(t_3: ArrayScalarLike) -> ArrayScalarLike:
     ArrayScalarLike
         Flame temperature at the combustion chamber, [:math:`K`]
     """
-    return 0.9 * t_3 + 2120
+    return 0.9 * t_3 + 2120.0
 
 
 def bc_mass_concentration_fox(
-    fuel_flow: npt.NDArray[np.float64],
-    t_fl: npt.NDArray[np.float64] | float,
-    afr: npt.NDArray[np.float64] | float,
-) -> npt.NDArray[np.float64]:
+    fuel_flow: npt.NDArray[np.floating],
+    t_fl: npt.NDArray[np.floating] | float,
+    afr: npt.NDArray[np.floating] | float,
+) -> npt.NDArray[np.floating]:
     """Calculate the black carbon mass concentration for ground conditions (``c_bc_ref``).
 
     This quantity is computed at the instrument sampling point without correcting
@@ -113,30 +113,34 @@ def bc_mass_concentration_fox(
 
     Parameters
     ----------
-    fuel_flow: npt.NDArray[np.float64]
+    fuel_flow: npt.NDArray[np.floating]
         Fuel mass flow rate, [:math:`kg s^{-1}`]
-    t_fl: npt.NDArray[np.float64] | float
+    t_fl: npt.NDArray[np.floating] | float
         Flame temperature at the combustion chamber, [:math:`K`]
-    afr: npt.NDArray[np.float64] | float
+    afr: npt.NDArray[np.floating] | float
         Air-to-fuel ratio
 
     Returns
     -------
-    npt.NDArray[np.float64]:
+    npt.NDArray[np.floating]:
         Black carbon mass concentration for ground conditions, [:math:`mg m^{-3}`]
     """
-    return fuel_flow * (356 * np.exp(-6390 / t_fl) - 608 * afr * np.exp(-19778 / t_fl))
+    # avoid float32 -> float64 promotion
+    coeff = 356.0 * np.exp(np.float32(-6390.0) / t_fl) - 608.0 * afr * np.exp(
+        np.float32(-19778.0) / t_fl
+    )
+    return fuel_flow * coeff
 
 
 def bc_mass_concentration_cruise_fox(
-    c_bc_ref: npt.NDArray[np.float64],
-    t_fl_cru: npt.NDArray[np.float64],
-    t_fl_ref: npt.NDArray[np.float64] | float,
-    p_3_cru: npt.NDArray[np.float64],
-    p_3_ref: npt.NDArray[np.float64] | float,
-    afr_cru: npt.NDArray[np.float64],
-    afr_ref: npt.NDArray[np.float64] | float,
-) -> npt.NDArray[np.float64]:
+    c_bc_ref: npt.NDArray[np.floating],
+    t_fl_cru: npt.NDArray[np.floating],
+    t_fl_ref: npt.NDArray[np.floating] | float,
+    p_3_cru: npt.NDArray[np.floating],
+    p_3_ref: npt.NDArray[np.floating] | float,
+    afr_cru: npt.NDArray[np.floating],
+    afr_ref: npt.NDArray[np.floating] | float,
+) -> npt.NDArray[np.floating]:
     """Calculate the black carbon mass concentration for cruise conditions (``c_bc_cru``).
 
     This quantity is computed at the instrument sampling point without correcting
@@ -144,24 +148,24 @@ def bc_mass_concentration_cruise_fox(
 
     Parameters
     ----------
-    c_bc_ref: npt.NDArray[np.float64]
+    c_bc_ref: npt.NDArray[np.floating]
         Black carbon mass concentration at reference conditions, [:math:`mg m^{-3}`]
-    t_fl_cru: npt.NDArray[np.float64]
+    t_fl_cru: npt.NDArray[np.floating]
         Flame temperature at cruise conditions, [:math:`K`]
-    t_fl_ref: npt.NDArray[np.float64] | float
+    t_fl_ref: npt.NDArray[np.floating] | float
         Flame temperature at reference conditions, [:math:`K`]
-    p_3_cru: npt.NDArray[np.float64]
+    p_3_cru: npt.NDArray[np.floating]
         Combustor inlet pressure at cruise conditions, [:math:`Pa`]
-    p_3_ref: npt.NDArray[np.float64] | float
+    p_3_ref: npt.NDArray[np.floating] | float
         Combustor inlet pressure at reference conditions, [:math:`Pa`]
-    afr_cru: npt.NDArray[np.float64]
+    afr_cru: npt.NDArray[np.floating]
         Air-to-fuel ratio at cruise conditions
-    afr_ref: npt.NDArray[np.float64] | float
+    afr_ref: npt.NDArray[np.floating] | float
         Air-to-fuel ratio at reference conditions
 
     Returns
     -------
-    npt.NDArray[np.float64]:
+    npt.NDArray[np.floating]:
         Black carbon mass concentration for cruise conditions, [:math:`mg m^{-3}`]
     """
     scaling_factor = dopelheuer_lecht_scaling_factor(
@@ -176,40 +180,40 @@ def bc_mass_concentration_cruise_fox(
 
 
 def dopelheuer_lecht_scaling_factor(
-    t_fl_cru: npt.NDArray[np.float64],
-    t_fl_ref: npt.NDArray[np.float64] | float,
-    p_3_cru: npt.NDArray[np.float64],
-    p_3_ref: npt.NDArray[np.float64] | float,
-    afr_cru: npt.NDArray[np.float64],
-    afr_ref: npt.NDArray[np.float64] | float,
-) -> npt.NDArray[np.float64]:
+    t_fl_cru: npt.NDArray[np.floating],
+    t_fl_ref: npt.NDArray[np.floating] | float,
+    p_3_cru: npt.NDArray[np.floating],
+    p_3_ref: npt.NDArray[np.floating] | float,
+    afr_cru: npt.NDArray[np.floating],
+    afr_ref: npt.NDArray[np.floating] | float,
+) -> npt.NDArray[np.floating]:
     """Estimate scaling factor to convert the reference BC mass concentration from ground to cruise.
 
     Parameters
     ----------
-    t_fl_cru: npt.NDArray[np.float64]
+    t_fl_cru: npt.NDArray[np.floating]
         Flame temperature at cruise conditions, [:math:`K`]
-    t_fl_ref: npt.NDArray[np.float64] | float
+    t_fl_ref: npt.NDArray[np.floating] | float
         Flame temperature at reference conditions, [:math:`K`]
-    p_3_cru: npt.NDArray[np.float64]
+    p_3_cru: npt.NDArray[np.floating]
         Combustor inlet pressure at cruise conditions, [:math:`Pa`]
-    p_3_ref: npt.NDArray[np.float64] | float
+    p_3_ref: npt.NDArray[np.floating] | float
         Combustor inlet pressure at reference conditions, [:math:`Pa`]
-    afr_cru: npt.NDArray[np.float64]
+    afr_cru: npt.NDArray[np.floating]
         Air-to-fuel ratio at cruise conditions
-    afr_ref: npt.NDArray[np.float64] | float
+    afr_ref: npt.NDArray[np.floating] | float
         Air-to-fuel ratio at reference conditions
 
     Returns
     -------
-    npt.NDArray[np.float64]
+    npt.NDArray[np.floating]
         Dopelheuer & Lecht scaling factor
 
     References
     ----------
     - :cite:`dopelheuerInfluenceEnginePerformance1998`
     """
-    exp_term = np.exp(20000 / t_fl_cru) / np.exp(20000 / t_fl_ref)
+    exp_term = np.exp(20000.0 / t_fl_cru - 20000.0 / t_fl_ref)
     return (afr_ref / afr_cru) ** 2.5 * (p_3_cru / p_3_ref) ** 1.35 * exp_term
 
 
@@ -219,17 +223,17 @@ def dopelheuer_lecht_scaling_factor(
 
 
 def mass_emissions_index_imfox(
-    fuel_flow_per_engine: npt.NDArray[np.float64],
-    thrust_setting: npt.NDArray[np.float64],
+    fuel_flow_per_engine: npt.NDArray[np.floating],
+    thrust_setting: npt.NDArray[np.floating],
     fuel_hydrogen: float,
-) -> npt.NDArray[np.float64]:
+) -> npt.NDArray[np.floating]:
     r"""Calculate the BC mass EI using the "Improved" Formation and Oxidation Method (ImFOX).
 
     Parameters
     ----------
-    fuel_flow_per_engine: npt.NDArray[np.float64]
+    fuel_flow_per_engine: npt.NDArray[np.floating]
         Fuel mass flow rate per engine, [:math:`kg s^{-1}`]
-    thrust_setting: npt.NDArray[np.float64]
+    thrust_setting: npt.NDArray[np.floating]
         Engine thrust setting, which is the fuel mass flow rate divided by the
         maximum fuel mass flow rate
     fuel_hydrogen: float
@@ -237,7 +241,7 @@ def mass_emissions_index_imfox(
 
     Returns
     -------
-    npt.NDArray[np.float64]
+    npt.NDArray[np.floating]
         Black carbon mass emissions index, [:math:`mg \ kg_{fuel}^{-1}`]
 
     References
@@ -253,20 +257,20 @@ def mass_emissions_index_imfox(
     return bc_mass_emissions_index(c_bc_cru, q_exhaust_cru)
 
 
-def air_to_fuel_ratio_imfox(thrust_setting: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+def air_to_fuel_ratio_imfox(thrust_setting: npt.NDArray[np.floating]) -> npt.NDArray[np.floating]:
     """Calculate the air-to-fuel ratio at cruise conditions via Abrahamson's method.
 
     See Eq. (11) in :cite:`abrahamsonPredictiveModelDevelopment2016`.
 
     Parameters
     ----------
-    thrust_setting: npt.NDArray[np.float64]
+    thrust_setting: npt.NDArray[np.floating]
         Engine thrust setting, which is the fuel mass flow rate divided by
         the maximum fuel mass flow rate
 
     Returns
     -------
-    npt.NDArray[np.float64]
+    npt.NDArray[np.floating]
         Air-to-fuel ratio at cruise conditions
 
     References
@@ -276,34 +280,34 @@ def air_to_fuel_ratio_imfox(thrust_setting: npt.NDArray[np.float64]) -> npt.NDAr
     return 55.4 - 30.8 * thrust_setting
 
 
-def turbine_inlet_temperature_imfox(afr: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+def turbine_inlet_temperature_imfox(afr: npt.NDArray[np.floating]) -> npt.NDArray[np.floating]:
     """Calculate the turbine inlet temperature using Abrahamson's method.
 
     See Eq. (13) in :cite:`abrahamsonPredictiveModelDevelopment2016`.
 
     Parameters
     ----------
-    afr: npt.NDArray[np.float64]
+    afr: npt.NDArray[np.floating]
         air-to-fuel ratio at cruise conditions
 
     Returns
     -------
-    npt.NDArray[np.float64]
+    npt.NDArray[np.floating]
         turbine inlet temperature, [:math:`K`]
 
     References
     ----------
     - :cite:`abrahamsonPredictiveModelDevelopment2016`
     """
-    return 490 + 42266 / afr
+    return 490.0 + 42266.0 / afr
 
 
 def bc_mass_concentration_imfox(
-    fuel_flow_per_engine: npt.NDArray[np.float64],
-    afr: npt.NDArray[np.float64],
-    t_4: npt.NDArray[np.float64],
+    fuel_flow_per_engine: npt.NDArray[np.floating],
+    afr: npt.NDArray[np.floating],
+    t_4: npt.NDArray[np.floating],
     fuel_hydrogen: float,
-) -> npt.NDArray[np.float64]:
+) -> npt.NDArray[np.floating]:
     """Calculate the BC mass concentration for ground and cruise conditions with ImFOX methodology.
 
     This quantity is computed at the instrument sampling point without
@@ -311,23 +315,24 @@ def bc_mass_concentration_imfox(
 
     Parameters
     ----------
-    fuel_flow_per_engine: npt.NDArray[np.float64]
+    fuel_flow_per_engine: npt.NDArray[np.floating]
         fuel mass flow rate per engine, [:math:`kg s^{-1}`]
-    afr: npt.NDArray[np.float64]
+    afr: npt.NDArray[np.floating]
         air-to-fuel ratio
-    t_4: npt.NDArray[np.float64]
+    t_4: npt.NDArray[np.floating]
         turbine inlet temperature, [:math:`K`]
     fuel_hydrogen: float
         percentage of hydrogen mass content in the fuel (13.8% for conventional Jet A-1 fuel)
 
     Returns
     -------
-    npt.NDArray[np.float64]
+    npt.NDArray[np.floating]
         Black carbon mass concentration, [:math:`mg m^{-3}`]
     """
-    exp_term = np.exp(13.6 - fuel_hydrogen)
-    formation_term = 295 * np.exp(-6390 / t_4)
-    oxidation_term = 608 * afr * np.exp(-19778 / t_4)
+    # avoid float32 -> float64 promotion
+    exp_term = np.exp(np.float32(13.6) - fuel_hydrogen)
+    formation_term = 295.0 * np.exp(np.float32(-6390.0) / t_4)
+    oxidation_term = 608.0 * afr * np.exp(np.float32(-19778.0) / t_4)
     return fuel_flow_per_engine * exp_term * (formation_term - oxidation_term)
 
 
@@ -336,18 +341,18 @@ def bc_mass_concentration_imfox(
 # ---------------------------------------------------------
 
 
-def exhaust_gas_volume_per_kg_fuel(afr: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+def exhaust_gas_volume_per_kg_fuel(afr: npt.NDArray[np.floating]) -> npt.NDArray[np.floating]:
     """
     Calculate the volume of exhaust gas per mass of fuel burnt.
 
     Parameters
     ----------
-    afr: npt.NDArray[np.float64]
+    afr: npt.NDArray[np.floating]
         Air-to-fuel ratio
 
     Returns
     -------
-    npt.NDArray[np.float64]
+    npt.NDArray[np.floating]
         Volume of exhaust gas per mass of fuel burnt, [:math:`m^{3}/kg_{fuel}`]
 
     References
@@ -358,21 +363,21 @@ def exhaust_gas_volume_per_kg_fuel(afr: npt.NDArray[np.float64]) -> npt.NDArray[
 
 
 def bc_mass_emissions_index(
-    c_bc: npt.NDArray[np.float64], q_exhaust: npt.NDArray[np.float64]
-) -> npt.NDArray[np.float64]:
+    c_bc: npt.NDArray[np.floating], q_exhaust: npt.NDArray[np.floating]
+) -> npt.NDArray[np.floating]:
     """
     Calculate the black carbon mass emissions index.
 
     Parameters
     ----------
-    c_bc: npt.NDArray[np.float64]
+    c_bc: npt.NDArray[np.floating]
         Black carbon mass concentration, [:math:`mg m^{-3}`]
-    q_exhaust: npt.NDArray[np.float64]
+    q_exhaust: npt.NDArray[np.floating]
         Volume of exhaust gas per mass of fuel burnt, [:math:`m^{3}/kg_{fuel}`]
 
     Returns
     -------
-    npt.NDArray[np.float64]
+    npt.NDArray[np.floating]
         Black carbon mass emissions index, [:math:`mg/kg_{fuel}`]
 
     References
@@ -388,17 +393,17 @@ def bc_mass_emissions_index(
 
 
 def geometric_mean_diameter_sac(
-    air_pressure: npt.NDArray[np.float64],
-    air_temperature: npt.NDArray[np.float64],
-    true_airspeed: npt.NDArray[np.float64],
-    thrust_setting: npt.NDArray[np.float64],
+    air_pressure: npt.NDArray[np.floating],
+    air_temperature: npt.NDArray[np.floating],
+    true_airspeed: npt.NDArray[np.floating],
+    thrust_setting: npt.NDArray[np.floating],
     pressure_ratio: float,
     q_fuel: float,
     *,
     comp_efficiency: float = 0.9,
     delta_loss: float = 5.75,
     cruise: bool = True,
-) -> npt.NDArray[np.float64]:
+) -> npt.NDArray[np.floating]:
     r"""Calculate the BC GMD for singular annular combustor (SAC) engines.
 
     The BC (black carbon) GMD (geometric mean diameter) is estimated using
@@ -407,13 +412,13 @@ def geometric_mean_diameter_sac(
 
     Parameters
     ----------
-    air_pressure: npt.NDArray[np.float64]
+    air_pressure: npt.NDArray[np.floating]
         Pressure altitude at each waypoint, [:math:`Pa`]
-    air_temperature: npt.NDArray[np.float64]
+    air_temperature: npt.NDArray[np.floating]
         Ambient temperature for each waypoint, [:math:`K`]
-    true_airspeed: npt.NDArray[np.float64]
+    true_airspeed: npt.NDArray[np.floating]
         True airspeed for each waypoint, [:math:`m s^{-1}`]
-    thrust_setting: npt.NDArray[np.float64]
+    thrust_setting: npt.NDArray[np.floating]
         Engine thrust setting, which is the fuel mass flow rate divided by the
         maximum fuel mass flow rate
     pressure_ratio: float
@@ -429,7 +434,7 @@ def geometric_mean_diameter_sac(
 
     Returns
     -------
-    npt.NDArray[np.float64]
+    npt.NDArray[np.floating]
         black carbon geometric mean diameter, [:math:`nm`]
 
     References
@@ -450,15 +455,15 @@ def geometric_mean_diameter_sac(
 
 
 def number_emissions_index_fractal_aggregates(
-    nvpm_ei_m: npt.NDArray[np.float64],
-    gmd: npt.NDArray[np.float64],
+    nvpm_ei_m: npt.NDArray[np.floating],
+    gmd: npt.NDArray[np.floating],
     *,
-    gsd: float | npt.NDArray[np.float64] = 1.80,
-    rho_bc: float = 1770,
-    k_tem: float = 1.621e-5,
-    d_tem: float = 0.39,
-    d_fm: float = 2.76,
-) -> npt.NDArray[np.float64]:
+    gsd: float | np.floating | npt.NDArray[np.floating] = np.float32(1.80),  # avoid promotion
+    rho_bc: float | np.floating = np.float32(1770.0),
+    k_tem: float | np.floating = np.float32(1.621e-5),
+    d_tem: float | np.floating = np.float32(0.39),
+    d_fm: float | np.floating = np.float32(2.76),
+) -> npt.NDArray[np.floating]:
     """
     Estimate the black carbon number emission index using the fractal aggregates (FA) model.
 
@@ -467,9 +472,9 @@ def number_emissions_index_fractal_aggregates(
 
     Parameters
     ----------
-    nvpm_ei_m: npt.NDArray[np.float64]
+    nvpm_ei_m: npt.NDArray[np.floating]
         Black carbon mass emissions index, [:math:`kg/kg_{fuel}`]
-    gmd: npt.NDArray[np.float64]
+    gmd: npt.NDArray[np.floating]
         Black carbon geometric mean diameter, [:math:`m`]
     gsd: float
         Black carbon geometric standard deviation (assumed to be 1.80)
@@ -484,7 +489,7 @@ def number_emissions_index_fractal_aggregates(
 
     Returns
     -------
-    npt.NDArray[np.float64]
+    npt.NDArray[np.floating]
         Black carbon number emissions index, [:math:`kg_{fuel}^{-1}`]
 
     References
@@ -494,9 +499,9 @@ def number_emissions_index_fractal_aggregates(
     - ``rho_bc``: :cite:`parkMeasurementInherentMaterial2004`
     - ``k_tem``, ``d_tem``: :cite:`dastanpourObservationsCorrelationPrimary2014`
     """
-    phi = 3 * d_tem + (1 - d_tem) * d_fm
+    phi = 3.0 * d_tem + (1.0 - d_tem) * d_fm
     exponential_term = np.exp(0.5 * phi**2 * np.log(gsd) ** 2)
-    denom = rho_bc * (np.pi / 6) * k_tem ** (3 - d_fm) * gmd**phi * exponential_term
+    denom = rho_bc * (np.pi / 6.0) * k_tem ** (3.0 - d_fm) * gmd**phi * exponential_term
     return nvpm_ei_m / denom
 
 
@@ -506,9 +511,9 @@ def number_emissions_index_fractal_aggregates(
 
 
 def nvpm_number_ei_pct_reduction_due_to_saf(
-    hydrogen_content: float | npt.NDArray[np.float64],
-    thrust_setting: npt.NDArray[np.float64],
-) -> npt.NDArray[np.float64]:
+    hydrogen_content: float | npt.NDArray[np.floating],
+    thrust_setting: npt.NDArray[np.floating],
+) -> npt.NDArray[np.floating]:
     """
     Adjust nvPM number emissions index to account for the effects of sustainable aviation fuels.
 
@@ -516,13 +521,13 @@ def nvpm_number_ei_pct_reduction_due_to_saf(
     ----------
     hydrogen_content: float
         The percentage of hydrogen mass content in the fuel.
-    thrust_setting: npt.NDArray[np.float64]
+    thrust_setting: npt.NDArray[np.floating]
         Engine thrust setting, where the equivalent fuel mass flow rate per engine at
         sea level, :math:`[0 - 1]`.
 
     Returns
     -------
-    npt.NDArray[np.float64]
+    npt.NDArray[np.floating]
         Percentage reduction in nvPM number emissions index
 
     References
@@ -537,9 +542,9 @@ def nvpm_number_ei_pct_reduction_due_to_saf(
 
 
 def nvpm_mass_ei_pct_reduction_due_to_saf(
-    hydrogen_content: float | npt.NDArray[np.float64],
-    thrust_setting: npt.NDArray[np.float64],
-) -> npt.NDArray[np.float64]:
+    hydrogen_content: float | npt.NDArray[np.floating],
+    thrust_setting: npt.NDArray[np.floating],
+) -> npt.NDArray[np.floating]:
     """
     Adjust nvPM mass emissions index to account for the effects of sustainable aviation fuels.
 
@@ -550,13 +555,13 @@ def nvpm_mass_ei_pct_reduction_due_to_saf(
     ----------
     hydrogen_content: float
         The percentage of hydrogen mass content in the fuel.
-    thrust_setting: npt.NDArray[np.float64]
+    thrust_setting: npt.NDArray[np.floating]
         Engine thrust setting, where the equivalent fuel mass flow rate per engine at
         sea level, :math:`[0 - 1]`.
 
     Returns
     -------
-    npt.NDArray[np.float64]
+    npt.NDArray[np.floating]
         Percentage reduction in nvPM number emissions index
 
     References
@@ -571,12 +576,12 @@ def nvpm_mass_ei_pct_reduction_due_to_saf(
 
 
 def _template_saf_reduction(
-    hydrogen_content: float | npt.NDArray[np.float64],
-    thrust_setting: npt.NDArray[np.float64],
+    hydrogen_content: float | npt.NDArray[np.floating],
+    thrust_setting: npt.NDArray[np.floating],
     a0: float,
     a1: float,
     a2: float,
-) -> npt.NDArray[np.float64]:
+) -> npt.NDArray[np.floating]:
     # Thrust setting cannot be computed when engine data is not provided in
     # the ICAO EDB, so set default to 45% thrust.
     thrust_setting = np.nan_to_num(thrust_setting, nan=0.45)

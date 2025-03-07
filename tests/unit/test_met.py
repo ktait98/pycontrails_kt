@@ -128,7 +128,8 @@ def test_metdataarray_constructor(
     # Cannot instantiate MetDataArray without time or level coord
     # This hacked DataArray only contains latitude and longitude
     insufficient_da = da["latitude"] + da["longitude"]
-    with pytest.raises(ValueError, match="Meteorology data must contain dimension 'level'"):
+    match = r"Meteorology data must contain dimension\(s\): \['level', 'time'\]."
+    with pytest.raises(ValueError, match=match):
         MetDataArray(insufficient_da)
 
 
@@ -1386,3 +1387,19 @@ def test_vertical_coord(met_ecmwf_pl_path: str, coord: str) -> None:
     mds = MetDataset(ds)
     assert np.all(mds.data.coords[coord] == fake_coord)
     assert mds.data.coords[coord].values.dtype == np.float64
+
+
+@pytest.mark.parametrize("copy", [True, False])
+def test_float32_level(met_ecmwf_pl_path: str, copy: bool) -> None:
+    """Confirm that the level coordinate is cast to float64 or an error is raised."""
+    ds = MetDataset(xr.open_dataset(met_ecmwf_pl_path)).data
+
+    ds["level"] = ds["level"].astype(np.float32)
+
+    if copy:
+        mds = MetDataset(ds, copy=copy)
+        assert mds.data["level"].dtype == np.float64
+        return
+
+    with pytest.raises(ValueError, match="Level values must have dtype <class 'numpy.float64'>"):
+        MetDataset(ds, copy=copy)

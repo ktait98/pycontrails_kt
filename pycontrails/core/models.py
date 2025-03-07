@@ -22,8 +22,10 @@ import xarray as xr
 from pycontrails.core.fleet import Fleet
 from pycontrails.core.flight import Flight
 from pycontrails.core.met import MetDataArray, MetDataset, MetVariable, originates_from_ecmwf
-from pycontrails.core.met_var import SpecificHumidity
+from pycontrails.core.met_var import MET_VARIABLES, SpecificHumidity
 from pycontrails.core.vector import GeoVectorDataset
+from pycontrails.datalib.ecmwf import ECMWF_VARIABLES
+from pycontrails.datalib.gfs import GFS_VARIABLES
 from pycontrails.utils.json import NumpyEncoder
 from pycontrails.utils.types import type_guard
 
@@ -135,6 +137,20 @@ class ModelParams:
         return {(name := field.name): getattr(self, name) for field in fields(self)}
 
 
+@dataclass
+class AdvectionBuffers(ModelParams):
+    """Override buffers in :class:`ModelParams` for advection models."""
+
+    #: Met longitude [WGS84] buffer for evolution by advection.
+    met_longitude_buffer: tuple[float, float] = (10.0, 10.0)
+
+    #: Met latitude buffer [WGS84] for evolution by advection.
+    met_latitude_buffer: tuple[float, float] = (10.0, 10.0)
+
+    #: Met level buffer [:math:`hPa`] for evolution by advection.
+    met_level_buffer: tuple[float, float] = (40.0, 40.0)
+
+
 # ------
 # Models
 # ------
@@ -146,7 +162,7 @@ class Model(ABC):
     Implementing classes must implement the :meth:`eval` method
     """
 
-    __slots__ = ("params", "met", "source")
+    __slots__ = ("met", "params", "source")
 
     #: Default model parameter dataclass
     default_params: type[ModelParams] = ModelParams
@@ -165,8 +181,10 @@ class Model(ABC):
 
     #: Required meteorology pressure level variables.
     #: Each element in the list is a :class:`MetVariable` or a ``tuple[MetVariable]``.
-    #: If element is a ``tuple[MetVariable]``, the variable depends on the data source.
-    #: Only one variable in the tuple is required.
+    #: If element is a ``tuple[MetVariable]``, the variable depends on the data source
+    #: and the tuple must include entries for a model-agnostic variable,
+    #: an ECMWF-specific variable, and a GFS-specific variable.
+    #: Only one of the three variable in the tuple is required for model evaluation.
     met_variables: tuple[MetVariable | tuple[MetVariable, ...], ...]
 
     #: Set of required parameters if processing already complete on ``met`` input.
@@ -261,6 +279,42 @@ class Model(ABC):
             _hash += self.source.hash
 
         return hashlib.sha1(bytes(_hash, "utf-8")).hexdigest()
+
+    @classmethod
+    def generic_met_variables(cls) -> tuple[MetVariable, ...]:
+        """Return a model-agnostic list of required meteorology variables.
+
+        Returns
+        -------
+        tuple[MetVariable]
+            List of model-agnostic variants of required variables
+        """
+        available = set(MET_VARIABLES)
+        return tuple(_find_match(required, available) for required in cls.met_variables)
+
+    @classmethod
+    def ecmwf_met_variables(cls) -> tuple[MetVariable, ...]:
+        """Return an ECMWF-specific list of required meteorology variables.
+
+        Returns
+        -------
+        tuple[MetVariable]
+            List of ECMWF-specific variants of required variables
+        """
+        available = set(ECMWF_VARIABLES)
+        return tuple(_find_match(required, available) for required in cls.met_variables)
+
+    @classmethod
+    def gfs_met_variables(cls) -> tuple[MetVariable, ...]:
+        """Return a GFS-specific list of required meteorology variables.
+
+        Returns
+        -------
+        tuple[MetVariable]
+            List of GFS-specific variants of required variables
+        """
+        available = set(GFS_VARIABLES)
+        return tuple(_find_match(required, available) for required in cls.met_variables)
 
     def _verify_met(self) -> None:
         """Verify integrity of :attr:`met`.
@@ -441,7 +495,7 @@ class Model(ABC):
             self.met = self.require_met()
 
             # Return dataset with the same coords as self.met, but empty data_vars
-            return MetDataset(xr.Dataset(coords=self.met.data.coords))
+            return MetDataset._from_fastpath(xr.Dataset(coords=self.met.data.coords))
 
         copy_source = self.params["copy_source"]
 
@@ -554,7 +608,7 @@ class Model(ABC):
         }
         kwargs = {k: v for k, v in buffers.items() if v is not None}
 
-        self.met = source.downselect_met(self.met, **kwargs, copy=False)
+        self.met = source.downselect_met(self.met, **kwargs)
 
     def set_source_met(
         self,
@@ -791,6 +845,42 @@ def _interp_grid_to_grid(
     raise NotImplementedError(msg)
 
 
+def _find_match(
+    required: MetVariable | Sequence[MetVariable], available: set[MetVariable]
+) -> MetVariable:
+    """Find match for required met variable in list of data-source-specific met variables.
+
+    Parameters
+    ----------
+    required : MetVariable | Sequence[MetVariable]
+        Required met variable
+
+    available : Sequence[MetVariable]
+        Collection of data-source-specific met variables
+
+    Returns
+    -------
+    MetVariable
+        Match for required met variable in collection of data-source-specific met variables
+
+    Raises
+    ------
+    KeyError
+        Raised if not match is found
+    """
+    if isinstance(required, MetVariable):
+        return required
+
+    for var in required:
+        if var in available:
+            return var
+
+    required_keys = [v.standard_name for v in required]
+    available_keys = [v.standard_name for v in available]
+    msg = f"None of {required_keys} match variable in {available_keys}"
+    raise KeyError(msg)
+
+
 def _raise_missing_met_var(var: MetVariable | Sequence[MetVariable]) -> NoReturn:
     """Raise KeyError on missing met variable.
 
@@ -825,7 +915,7 @@ def interpolate_met(
     *,
     q_method: str | None = None,
     **interp_kwargs: Any,
-) -> npt.NDArray[np.float64]:
+) -> npt.NDArray[np.floating]:
     """Interpolate ``vector`` against ``met`` gridded data.
 
     If ``vector_key`` (=``met_key`` by default) already exists,
@@ -854,7 +944,7 @@ def interpolate_met(
 
     Returns
     -------
-    npt.NDArray[np.float64]
+    npt.NDArray[np.floating]
         Interpolated values.
 
     Raises
@@ -933,15 +1023,15 @@ def _extract_q(met: MetDataset, met_key: str, q_method: str) -> tuple[MetDataArr
 
 
 def _prepare_q(
-    mda: MetDataArray, level: npt.NDArray[np.float64], q_method: str, log_applied: bool
-) -> tuple[MetDataArray, npt.NDArray[np.float64]]:
+    mda: MetDataArray, level: npt.NDArray[np.floating], q_method: str, log_applied: bool
+) -> tuple[MetDataArray, npt.NDArray[np.floating]]:
     """Prepare specific humidity for interpolation with experimental ``q_method``.
 
     Parameters
     ----------
     mda : MetDataArray
         MetDataArray of specific humidity.
-    level : npt.NDArray[np.float64]
+    level : npt.NDArray[np.floating]
         Levels to interpolate to, [:math:`hPa`].
     q_method : str
         One of ``"log-q-log-p"`` or ``"cubic-spline"``.
@@ -952,7 +1042,7 @@ def _prepare_q(
     -------
     mda : MetDataArray
         MetDataArray of specific humidity transformed for interpolation.
-    level : npt.NDArray[np.float64]
+    level : npt.NDArray[np.floating]
         Transformed levels for interpolation.
     """
     da = mda.data
@@ -972,11 +1062,12 @@ def _prepare_q(
         return _prepare_q_cubic_spline(da, level)
 
     raise_invalid_q_method_error(q_method)
+    return None
 
 
 def _prepare_q_log_q_log_p(
-    da: xr.DataArray, level: npt.NDArray[np.float64], log_applied: bool
-) -> tuple[MetDataArray, npt.NDArray[np.float64]]:
+    da: xr.DataArray, level: npt.NDArray[np.floating], log_applied: bool
+) -> tuple[MetDataArray, npt.NDArray[np.floating]]:
     da = da.assign_coords(level=np.log(da["level"]))
 
     if not log_applied:
@@ -994,8 +1085,8 @@ def _prepare_q_log_q_log_p(
 
 
 def _prepare_q_cubic_spline(
-    da: xr.DataArray, level: npt.NDArray[np.float64]
-) -> tuple[MetDataArray, npt.NDArray[np.float64]]:
+    da: xr.DataArray, level: npt.NDArray[np.floating]
+) -> tuple[MetDataArray, npt.NDArray[np.floating]]:
     if da["level"][0] < 50.0 or da["level"][-1] > 1000.0:
         msg = "Cubic spline interpolation requires data to span 50-1000 hPa."
         raise ValueError(msg)

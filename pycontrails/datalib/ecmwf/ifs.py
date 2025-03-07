@@ -4,16 +4,21 @@ from __future__ import annotations
 
 import logging
 import pathlib
+import sys
 import warnings
 from datetime import datetime
 from typing import Any
+
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    from typing_extensions import override
 
 LOG = logging.getLogger(__name__)
 
 import numpy as np
 import pandas as pd
 import xarray as xr
-from overrides import overrides
 
 from pycontrails.core import met
 from pycontrails.datalib._met_utils import metsource
@@ -119,7 +124,7 @@ class IFS(metsource.MetDataSource):
         """
         return None
 
-    @overrides
+    @override
     def open_metdataset(
         self,
         dataset: xr.Dataset | None = None,
@@ -144,7 +149,7 @@ class IFS(metsource.MetDataSource):
         else:
             # set timesteps from dataset "time" coordinates
             # np.datetime64 doesn't covert to list[datetime] unless its unit is us
-            self.timesteps = ds["time"].values.astype("datetime64[us]").tolist()
+            self.timesteps = ds["time"].values.astype("datetime64[us]").tolist()  # type: ignore[assignment]
 
         # downselect hyam/hybm coefficients by the "lev" coordinate
         # (this is a 1-indexed verison of nhym)
@@ -190,7 +195,7 @@ class IFS(metsource.MetDataSource):
         self.set_metadata(ds)
         return met.MetDataset(ds, **kwargs)
 
-    @overrides
+    @override
     def set_metadata(self, ds: xr.Dataset | met.MetDataset) -> None:
         ds.attrs.update(
             provider="ECMWF",
@@ -198,15 +203,15 @@ class IFS(metsource.MetDataSource):
             product="forecast",
         )
 
-    @overrides
+    @override
     def download_dataset(self, times: list[datetime]) -> None:
         raise NotImplementedError("IFS download is not supported")
 
-    @overrides
+    @override
     def cache_dataset(self, dataset: xr.Dataset) -> None:
         raise NotImplementedError("IFS dataset caching not supported")
 
-    @overrides
+    @override
     def create_cachepath(self, t: datetime) -> str:
         raise NotImplementedError("IFS download is not supported")
 
@@ -242,9 +247,7 @@ class IFS(metsource.MetDataSource):
         ds_fl = ds_fl.drop_vars(names=["hyai", "hybi", "hyam", "hybm"])
 
         # merge all datasets using the "ds_fl" dimensions as the join keys
-        ds = xr.merge([ds_fl, ds_full, ds_surface, ds_rad], join="left")  # order matters!
-
-        return ds
+        return xr.merge([ds_fl, ds_full, ds_surface, ds_rad], join="left")  # order matters!
 
     def _calc_geopotential(self, ds: xr.Dataset) -> xr.DataArray:
         warnings.warn(

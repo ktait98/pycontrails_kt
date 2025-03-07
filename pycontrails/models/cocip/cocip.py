@@ -3,21 +3,27 @@
 from __future__ import annotations
 
 import logging
+import sys
 import warnings
 from collections.abc import Sequence
 from typing import Any, Literal, NoReturn, overload
+
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    from typing_extensions import override
 
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import xarray as xr
-from overrides import overrides
 
-from pycontrails.core import met_var
+from pycontrails.core import met_var, models
 from pycontrails.core.aircraft_performance import AircraftPerformance
 from pycontrails.core.fleet import Fleet
 from pycontrails.core.flight import Flight
 from pycontrails.core.met import MetDataset
+from pycontrails.core.met_var import MetVariable
 from pycontrails.core.models import Model, interpolate_met
 from pycontrails.core.vector import GeoVectorDataset, VectorDataDict
 from pycontrails.datalib import ecmwf, gfs
@@ -63,11 +69,25 @@ class Cocip(Model):
     -----
     **Inputs**
 
-    The required meteorology variables depend on the data source (e.g. ECMWF, GFS).
+    The required meteorology variables depend on the data source. :class:`Cocip`
+    supports data-source-specific variables from ECMWF models (HRES, ERA5) and the NCEP GFS, plus
+    a generic set of model-agnostic variables.
 
     See :attr:`met_variables` and :attr:`rad_variables` for the list of required variables
     to the ``met`` and ``rad`` parameters, respectively.
     When an item in one of these arrays is a :class:`tuple`, variable keys depend on data source.
+
+    A warning will be raised if meteorology data is from a source not currently supported by
+    a pycontrails datalib. In this case it is the responsibility of the user to ensure that
+    meteorology data is formatted correctly. The warning can be suppressed with a context manager:
+
+    .. code-block:: python
+        :emphasize-lines: 2,3
+
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning, message="Unknown provider")
+            cocip = Cocip(met, rad, ...)
 
     The current list of required variables (labelled by ``"standard_name"``):
 
@@ -77,24 +97,31 @@ class Cocip(Model):
         * - Parameter
           - ECMWF
           - GFS
+          - Generic
         * - Air Temperature
+          - ``air_temperature``
           - ``air_temperature``
           - ``air_temperature``
         * - Specific Humidity
           - ``specific_humidity``
           - ``specific_humidity``
+          - ``specific_humidity``
         * - Eastward wind
+          - ``eastward_wind``
           - ``eastward_wind``
           - ``eastward_wind``
         * - Northward wind
           - ``northward_wind``
           - ``northward_wind``
+          - ``northward_wind``
         * - Vertical velocity
+          - ``lagrangian_tendency_of_air_pressure``
           - ``lagrangian_tendency_of_air_pressure``
           - ``lagrangian_tendency_of_air_pressure``
         * - Ice water content
           - ``specific_cloud_ice_water_content``
           - ``ice_water_mixing_ratio``
+          - ``mass_fraction_of_cloud_ice_in_air``
 
     .. list-table:: Variable keys for single-level radiation data
         :header-rows: 1
@@ -102,12 +129,15 @@ class Cocip(Model):
         * - Parameter
           - ECMWF
           - GFS
+          - Generic
         * - Top solar radiation
           - ``top_net_solar_radiation``
           - ``toa_upward_shortwave_flux``
+          - ``toa_net_downward_shortwave_flux``
         * - Top thermal radiation
           - ``top_net_thermal_radiation``
           - ``toa_upward_longwave_flux``
+          - ``toa_outgoing_longwave_flux``
 
     **Modifications**
 
@@ -190,14 +220,14 @@ class Cocip(Model):
     """
 
     __slots__ = (
-        "rad",
+        "_downwash_contrail",
+        "_downwash_flight",
+        "_sac_flight",
         "contrail",
         "contrail_dataset",
         "contrail_list",
+        "rad",
         "timesteps",
-        "_sac_flight",
-        "_downwash_flight",
-        "_downwash_contrail",
     )
 
     name = "cocip"
@@ -209,14 +239,26 @@ class Cocip(Model):
         met_var.EastwardWind,
         met_var.NorthwardWind,
         met_var.VerticalVelocity,
-        (ecmwf.SpecificCloudIceWaterContent, gfs.CloudIceWaterMixingRatio),
+        (
+            met_var.MassFractionOfCloudIceInAir,
+            ecmwf.SpecificCloudIceWaterContent,
+            gfs.CloudIceWaterMixingRatio,
+        ),
     )
 
     #: Required single-level top of atmosphere radiation variables.
     #: Variable keys depend on data source (e.g. ECMWF, GFS).
     rad_variables = (
-        (ecmwf.TopNetSolarRadiation, gfs.TOAUpwardShortwaveRadiation),
-        (ecmwf.TopNetThermalRadiation, gfs.TOAUpwardLongwaveRadiation),
+        (
+            met_var.TOANetDownwardShortwaveFlux,
+            ecmwf.TopNetSolarRadiation,
+            gfs.TOAUpwardShortwaveRadiation,
+        ),
+        (
+            met_var.TOAOutgoingLongwaveFlux,
+            ecmwf.TopNetThermalRadiation,
+            gfs.TOAUpwardLongwaveRadiation,
+        ),
     )
 
     #: Minimal set of met variables needed to run the model after pre-processing.
@@ -237,7 +279,11 @@ class Cocip(Model):
     #:   Moved Geopotential from :attr:`met_variables` to :attr:`optional_met_variables`
     optional_met_variables = (
         (met_var.Geopotential, met_var.GeopotentialHeight),
-        (ecmwf.CloudAreaFractionInLayer, gfs.TotalCloudCoverIsobaric),
+        (
+            met_var.CloudAreaFractionInAtmosphereLayer,
+            ecmwf.CloudAreaFractionInLayer,
+            gfs.TotalCloudCoverIsobaric,
+        ),
     )
 
     #: Met data is not optional
@@ -386,7 +432,7 @@ class Cocip(Model):
         # which is the positive direction for level
         logger.debug("Downselect met for Cocip initialization")
         level_buffer = 0, self.params["met_level_buffer"][1]
-        met = self.source.downselect_met(self.met, level_buffer=level_buffer, copy=False)
+        met = self.source.downselect_met(self.met, level_buffer=level_buffer)
         met = add_tau_cirrus(met)
 
         # Prepare flight for model
@@ -436,6 +482,42 @@ class Cocip(Model):
             return self.source.to_flight_list()  # type: ignore[attr-defined]
 
         return self.source
+
+    @classmethod
+    def generic_rad_variables(cls) -> tuple[MetVariable, ...]:
+        """Return a model-agnostic list of required radiation variables.
+
+        Returns
+        -------
+        tuple[MetVariable]
+            List of model-agnostic variants of required variables
+        """
+        available = set(met_var.MET_VARIABLES)
+        return tuple(models._find_match(required, available) for required in cls.rad_variables)
+
+    @classmethod
+    def ecmwf_rad_variables(cls) -> tuple[MetVariable, ...]:
+        """Return an ECMWF-specific list of required radiation variables.
+
+        Returns
+        -------
+        tuple[MetVariable]
+            List of ECMWF-specific variants of required variables
+        """
+        available = set(ecmwf.ECMWF_VARIABLES)
+        return tuple(models._find_match(required, available) for required in cls.rad_variables)
+
+    @classmethod
+    def gfs_rad_variables(cls) -> tuple[MetVariable, ...]:
+        """Return a GFS-specific list of required radiation variables.
+
+        Returns
+        -------
+        tuple[MetVariable]
+            List of GFS-specific variants of required variables
+        """
+        available = set(gfs.GFS_VARIABLES)
+        return tuple(models._find_match(required, available) for required in cls.rad_variables)
 
     def _set_timesteps(self) -> None:
         """Set the :attr:`timesteps` based on the ``source`` time range.
@@ -570,10 +652,12 @@ class Cocip(Model):
         if verbose_outputs:
             interpolate_met(met, self.source, "tau_cirrus", **interp_kwargs)
 
-            # handle ECMWF/GFS ciwc variables
+            # handle ECMWF/GFS/generic ciwc variables
             if (key := "specific_cloud_ice_water_content") in met:  # noqa: SIM114
                 interpolate_met(met, self.source, key, **interp_kwargs)
-            elif (key := "ice_water_mixing_ratio") in met:
+            elif (key := "ice_water_mixing_ratio") in met:  # noqa: SIM114
+                interpolate_met(met, self.source, key, **interp_kwargs)
+            elif (key := "mass_fraction_of_cloud_ice_in_air") in met:
                 interpolate_met(met, self.source, key, **interp_kwargs)
 
             self.source["rho_air"] = thermo.rho_d(
@@ -655,7 +739,7 @@ class Cocip(Model):
             attrs = self.source.attrs
             attrs.pop("fl_attrs", None)
             attrs.pop("data_keys", None)
-            self.source = Fleet.from_seq(fls, broadcast_numeric=False, copy=False, attrs=attrs)
+            self.source = Fleet.from_seq(fls, broadcast_numeric=False, attrs=attrs)
 
         # Single flight
         else:
@@ -913,14 +997,14 @@ class Cocip(Model):
         else:
             f_surv = contrail_properties.ice_particle_survival_fraction(iwc, iwc_1)
 
-        n_ice_per_m_1 = contrail_properties.ice_particle_number(
+        n_ice_per_m_0 = contrail_properties.initial_ice_particle_number(
             nvpm_ei_n=nvpm_ei_n,
             fuel_dist=fuel_dist,
-            f_surv=f_surv,
             air_temperature=air_temperature,
             T_crit_sac=T_critical_sac,
             min_ice_particle_number_nvpm_ei_n=self.params["min_ice_particle_number_nvpm_ei_n"],
         )
+        n_ice_per_m_1 = n_ice_per_m_0 * f_surv
 
         # Check for persistent initial_contrails
         persistent_1 = contrail_properties.initial_persistent(iwc_1, rhi_1)
@@ -934,6 +1018,8 @@ class Cocip(Model):
         self._sac_flight["rho_air_1"] = rho_air_1
         self._sac_flight["rhi_1"] = rhi_1
         self._sac_flight["iwc_1"] = iwc_1
+        self._sac_flight["f_surv"] = f_surv
+        self._sac_flight["n_ice_per_m_0"] = n_ice_per_m_0
         self._sac_flight["n_ice_per_m_1"] = n_ice_per_m_1
         self._sac_flight["persistent_1"] = persistent_1
 
@@ -971,9 +1057,9 @@ class Cocip(Model):
             for coord in ("longitude", "latitude", "level")
         }
         logger.debug("Downselect met for start of Cocip evolution")
-        met = self._downwash_contrail.downselect_met(self.met, **buffers, copy=False)
+        met = self._downwash_contrail.downselect_met(self.met, **buffers)
         met = add_tau_cirrus(met)
-        rad = self._downwash_contrail.downselect_met(self.rad, **buffers, copy=False)
+        rad = self._downwash_contrail.downselect_met(self.rad, **buffers)
 
         calc_continuous(self._downwash_contrail)
         calc_timestep_geometry(self._downwash_contrail)
@@ -1130,11 +1216,11 @@ class Cocip(Model):
             & (self._downwash_flight["time"] <= lookahead),
             copy=False,
         )
-        vector = GeoVectorDataset(
+        vector = GeoVectorDataset._from_fastpath(
             {
                 key: np.concatenate((latest_contrail[key], future_contrails[key]))
                 for key in ("longitude", "latitude", "level", "time")
-            }
+            },
         )
 
         # compute time buffer to ensure downselection extends to time_end
@@ -1147,7 +1233,7 @@ class Cocip(Model):
             max(np.timedelta64(0, "ns"), time_end - vector["time"].max()),
         )
 
-        return vector.downselect_met(met, **buffers, copy=False)
+        return vector.downselect_met(met, **buffers)
 
     def _create_downwash_contrail(self) -> GeoVectorDataset:
         """Get Contrail representation of downwash flight."""
@@ -1175,7 +1261,7 @@ class Cocip(Model):
             "persistent": self._downwash_flight["persistent_1"],
         }
 
-        contrail = GeoVectorDataset(downwash_contrail_data, copy=True)
+        contrail = GeoVectorDataset._from_fastpath(downwash_contrail_data).copy()
         contrail["formation_time"] = contrail["time"].copy()
         contrail["age"] = contrail["formation_time"] - contrail["time"]
 
@@ -1218,7 +1304,7 @@ class Cocip(Model):
 
         return self._downwash_contrail.filter(filt)
 
-    @overrides
+    @override
     def _cleanup_indices(self) -> None:
         """Cleanup interpolation artifacts."""
 
@@ -1300,7 +1386,13 @@ class Cocip(Model):
         if verbose_outputs:
             sac_cols += ["dT_dz", "ds_dz", "dz_max"]
 
-        downwash_cols = ["rho_air_1", "iwc_1", "n_ice_per_m_1"]
+        downwash_cols = [
+            "rho_air_1",
+            "iwc_1",
+            "f_surv",
+            "n_ice_per_m_0",
+            "n_ice_per_m_1",
+        ]
         df = pd.concat(
             [
                 self.source.dataframe.set_index(col_idx),
@@ -1582,8 +1674,7 @@ def _process_rad(rad: MetDataset) -> MetDataset:
                 rad.data["time"].attrs["shift_radiation_time"] = "variable"
             return rad
 
-        else:
-            shift_radiation_time = -np.timedelta64(30, "m")
+        shift_radiation_time = -np.timedelta64(30, "m")
 
     elif dataset == "ERA5" and product == "ensemble":
         shift_radiation_time = -np.timedelta64(90, "m")
@@ -1888,8 +1979,8 @@ def calc_shortwave_radiation(
     Raises
     ------
     ValueError
-        If ``rad`` does not contain ``"toa_upward_shortwave_flux"`` or
-        ``"top_net_solar_radiation"`` variable.
+        If ``rad`` does not contain ``"toa_net_downward_shortwave_flux"``,
+        ``"toa_upward_shortwave_flux"`` or ``"top_net_solar_radiation"`` variable.
 
     Notes
     -----
@@ -1913,6 +2004,13 @@ def calc_shortwave_radiation(
         sdr = geo.solar_direct_radiation(longitude, latitude, time, threshold_cos_sza=0.01)
         vector["sdr"] = sdr
 
+    # Generic contains net downward shortwave flux at TOA (SDR - RSR) in W/m2
+    generic_key = "toa_net_downward_shortwave_flux"
+    if generic_key in rad:
+        tnsr = interpolate_met(rad, vector, generic_key, **interp_kwargs)
+        vector["rsr"] = np.maximum(sdr - tnsr, 0.0)
+        return
+
     # GFS contains RSR (toa_upward_shortwave_flux) variable directly
     gfs_key = "toa_upward_shortwave_flux"
     if gfs_key in rad:
@@ -1921,10 +2019,13 @@ def calc_shortwave_radiation(
 
     ecmwf_key = "top_net_solar_radiation"
     if ecmwf_key not in rad:
-        msg = f"'rad' data must contain either '{gfs_key}' or '{ecmwf_key}' (ECMWF) variable."
+        msg = (
+            f"'rad' data must contain either '{generic_key}' (generic), "
+            f"'{gfs_key}' (GFS), or '{ecmwf_key}' (ECMWF) variable."
+        )
         raise ValueError(msg)
 
-    # ECMWF contains "top_net_solar_radiation" which is SDR - RSR
+    # ECMWF also contains net downward shortwave flux at TOA, but possibly as an accumulation
     tnsr = interpolate_met(rad, vector, ecmwf_key, **interp_kwargs)
     tnsr = _rad_accumulation_to_average_instantaneous(rad, ecmwf_key, tnsr)
     vector.update({ecmwf_key: tnsr})
@@ -1953,14 +2054,20 @@ def calc_outgoing_longwave_radiation(
     Raises
     ------
     ValueError
-        If ``rad`` does not contain a ``"toa_upward_longwave_flux"``
-        or ``"top_net_thermal_radiation"`` variable.
+        If ``rad`` does not contain a ``"toa_outgoing_longwave_flux"``,
+        ``"toa_upward_longwave_flux"`` or ``"top_net_thermal_radiation"`` variable.
     """
 
     if "olr" in vector:
-        return None
+        return
 
-    # GFS contains OLR (toa_upward_longwave_flux) variable directly
+    # Generic contains OLR (toa_outgoing_longwave_flux) directly
+    generic_key = "toa_outgoing_longwave_flux"
+    if generic_key in rad:
+        interpolate_met(rad, vector, generic_key, "olr", **interp_kwargs)
+        return
+
+    # GFS contains OLR (toa_upward_longwave_flux) directly
     gfs_key = "toa_upward_longwave_flux"
     if gfs_key in rad:
         interpolate_met(rad, vector, gfs_key, "olr", **interp_kwargs)
@@ -1969,7 +2076,10 @@ def calc_outgoing_longwave_radiation(
     # ECMWF contains "top_net_thermal_radiation" which is -1 * OLR
     ecmwf_key = "top_net_thermal_radiation"
     if ecmwf_key not in rad:
-        msg = f"'rad' data must contain either '{gfs_key}' or '{ecmwf_key}' (ECMWF) variable."
+        msg = (
+            f"'rad' data must contain either '{generic_key}' (generic), "
+            f"'{gfs_key}' (GFS), or '{ecmwf_key}' (ECMWF) variable."
+        )
         raise ValueError(msg)
 
     tntr = interpolate_met(rad, vector, ecmwf_key, **interp_kwargs)
@@ -2050,9 +2160,9 @@ def calc_radiative_properties(contrail: GeoVectorDataset, params: dict[str, Any]
 
 def calc_contrail_properties(
     contrail: GeoVectorDataset,
-    effective_vertical_resolution: float | npt.NDArray[np.float64],
-    wind_shear_enhancement_exponent: float | npt.NDArray[np.float64],
-    sedimentation_impact_factor: float | npt.NDArray[np.float64],
+    effective_vertical_resolution: float | npt.NDArray[np.floating],
+    wind_shear_enhancement_exponent: float | npt.NDArray[np.floating],
+    sedimentation_impact_factor: float | npt.NDArray[np.floating],
     radiative_heating_effects: bool,
 ) -> None:
     """Calculate geometric and ice-related properties of contrail.
@@ -2079,11 +2189,11 @@ def calc_contrail_properties(
     ----------
     contrail : GeoVectorDataset
         Grid points with many precomputed keys.
-    effective_vertical_resolution : float | npt.NDArray[np.float64]
+    effective_vertical_resolution : float | npt.NDArray[np.floating]
         Passed into :func:`wind_shear.wind_shear_enhancement_factor`.
-    wind_shear_enhancement_exponent : float | npt.NDArray[np.float64]
+    wind_shear_enhancement_exponent : float | npt.NDArray[np.floating]
         Passed into :func:`wind_shear.wind_shear_enhancement_factor`.
-    sedimentation_impact_factor: float | npt.NDArray[np.float64]
+    sedimentation_impact_factor: float | npt.NDArray[np.floating]
         Passed into `contrail_properties.vertical_diffusivity`.
     radiative_heating_effects: bool
         Include radiative heating effects on contrail cirrus properties.
@@ -2109,8 +2219,6 @@ def calc_contrail_properties(
         air_temperature += contrail["cumul_heat"]
 
     # get required radiation
-    theta_rad = geo.orbital_position(time)
-    sd0 = geo.solar_constant(theta_rad)
     sdr = contrail["sdr"]
     rsr = contrail["rsr"]
     olr = contrail["olr"]
@@ -2145,6 +2253,9 @@ def calc_contrail_properties(
     diffuse_h = contrail_properties.horizontal_diffusivity(ds_dz, depth)
 
     if radiative_heating_effects:
+        # theta_rad has float64 dtype, convert back to float32 if needed
+        theta_rad = geo.orbital_position(time).astype(sdr.dtype, copy=False)
+        sd0 = geo.solar_constant(theta_rad)
         heat_rate = radiative_heating.heating_rate(
             air_temperature=air_temperature,
             rhi=rhi,
@@ -2291,12 +2402,11 @@ def calc_timestep_contrail_evolution(
     dt = time_2_array - time_1
 
     # get new contrail location & segment properties after t_step
-    longitude_2 = geo.advect_longitude(longitude_1, latitude_1, u_wind_1, dt)
-    latitude_2 = geo.advect_latitude(latitude_1, v_wind_1, dt)
+    longitude_2, latitude_2 = geo.advect_horizontal(longitude_1, latitude_1, u_wind_1, v_wind_1, dt)
     level_2 = geo.advect_level(level_1, vertical_velocity_1, rho_air_1, terminal_fall_speed_1, dt)
     altitude_2 = units.pl_to_m(level_2)
 
-    contrail_2 = GeoVectorDataset(
+    contrail_2 = GeoVectorDataset._from_fastpath(
         {
             "waypoint": waypoint_2,
             "flight_id": contrail_1["flight_id"],
@@ -2308,7 +2418,6 @@ def calc_timestep_contrail_evolution(
             "altitude": altitude_2,
             "level": level_2,
         },
-        copy=False,
     )
     intersection = contrail_2.coords_intersect_met(met)
     if not np.any(intersection):
@@ -2521,8 +2630,8 @@ def calc_timestep_contrail_evolution(
 def _rad_accumulation_to_average_instantaneous(
     rad: MetDataset,
     name: str,
-    arr: npt.NDArray[np.float64],
-) -> npt.NDArray[np.float64]:
+    arr: npt.NDArray[np.floating],
+) -> npt.NDArray[np.floating]:
     """Convert from radiation accumulation to average instantaneous values.
 
     .. versionadded:: 0.48.0
@@ -2533,12 +2642,12 @@ def _rad_accumulation_to_average_instantaneous(
         Radiation data
     name : str
         Variable name
-    arr : npt.NDArray[np.float64]
+    arr : npt.NDArray[np.floating]
         Array of values already interpolated from ``rad``
 
     Returns
     -------
-    npt.NDArray[np.float64]
+    npt.NDArray[np.floating]
         Array of values converted from accumulation to average instantaneous values
 
     Raises

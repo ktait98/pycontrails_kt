@@ -2,14 +2,24 @@
 
 from __future__ import annotations
 
+import sys
 import warnings
 from collections.abc import Iterable
 from typing import Any, NoReturn
 
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
+
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    from typing_extensions import override
+
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-from overrides import overrides
 
 from pycontrails.core.flight import Flight
 from pycontrails.core.fuel import Fuel, JetA
@@ -22,7 +32,7 @@ class Fleet(Flight):
     Flight waypoints are merged into a single :class:`Flight`-like object.
     """
 
-    __slots__ = ("fl_attrs", "final_waypoints")
+    __slots__ = ("final_waypoints", "fl_attrs")
 
     def __init__(
         self,
@@ -121,23 +131,24 @@ class Fleet(Flight):
 
         return final_waypoints, fl_attrs
 
-    @overrides
-    def copy(self, **kwargs: Any) -> Fleet:
-        kwargs.setdefault("fuel", self.fuel)
+    @override
+    def copy(self, **kwargs: Any) -> Self:
         kwargs.setdefault("fl_attrs", self.fl_attrs)
+        kwargs.setdefault("final_waypoints", self.final_waypoints)
         return super().copy(**kwargs)
 
-    @overrides
-    def filter(self, mask: npt.NDArray[np.bool_], copy: bool = True, **kwargs: Any) -> Fleet:
-        kwargs.setdefault("fuel", self.fuel)
-
+    @override
+    def filter(self, mask: npt.NDArray[np.bool_], copy: bool = True, **kwargs: Any) -> Self:
         flight_ids = set(np.unique(self["flight_id"][mask]))
         fl_attrs = {k: v for k, v in self.fl_attrs.items() if k in flight_ids}
         kwargs.setdefault("fl_attrs", fl_attrs)
 
+        final_waypoints = np.array(self.final_waypoints[mask], copy=copy)
+        kwargs.setdefault("final_waypoints", final_waypoints)
+
         return super().filter(mask, copy=copy, **kwargs)
 
-    @overrides
+    @override
     def sort(self, by: str | list[str]) -> NoReturn:
         msg = (
             "Fleet.sort is not implemented. A Fleet instance must be sorted "
@@ -152,9 +163,8 @@ class Fleet(Flight):
         cls,
         seq: Iterable[Flight],
         broadcast_numeric: bool = True,
-        copy: bool = True,
         attrs: dict[str, Any] | None = None,
-    ) -> Fleet:
+    ) -> Self:
         """Instantiate a :class:`Fleet` instance from an iterable of :class:`Flight`.
 
         .. versionchanged:: 0.49.3
@@ -167,8 +177,6 @@ class Fleet(Flight):
             An iterable of :class:`Flight` instances.
         broadcast_numeric : bool, optional
             If True, broadcast numeric attributes to data variables.
-        copy : bool, optional
-            If True, make copy of each flight instance in ``seq``.
         attrs : dict[str, Any] | None, optional
             Global attribute to attach to instance.
 
@@ -180,15 +188,16 @@ class Fleet(Flight):
             in ``seq``.
         """
 
-        def _maybe_copy(fl: Flight) -> Flight:
-            return fl.copy() if copy else fl
+        # Create a shallow copy because we add additional keys in _validate_fl
+        def _shallow_copy(fl: Flight) -> Flight:
+            return Flight._from_fastpath(fl.data, fl.attrs, fuel=fl.fuel)
 
         def _maybe_warn(fl: Flight) -> Flight:
             if not fl:
                 warnings.warn("Empty flight found in sequence. It will be filtered out.")
             return fl
 
-        seq = tuple(_maybe_copy(fl) for fl in seq if _maybe_warn(fl))
+        seq = tuple(_shallow_copy(fl) for fl in seq if _maybe_warn(fl))
 
         if not seq:
             msg = "Cannot create Fleet from empty sequence."
@@ -196,23 +205,32 @@ class Fleet(Flight):
 
         fl_attrs: dict[str, Any] = {}
 
-        # Pluck from the first flight to get fuel, data_keys, and crs
+        # Pluck from the first flight to get fuel and data_keys
         fuel = seq[0].fuel
         data_keys = set(seq[0])  # convert to a new instance to because we mutate seq[0]
-        crs = seq[0].attrs["crs"]
 
         for fl in seq:
             _validate_fl(
                 fl,
                 fl_attrs=fl_attrs,
                 data_keys=data_keys,
-                crs=crs,
                 fuel=fuel,
                 broadcast_numeric=broadcast_numeric,
             )
 
         data = {var: np.concatenate([fl[var] for fl in seq]) for var in seq[0]}
-        return cls(data=data, attrs=attrs, copy=False, fuel=fuel, fl_attrs=fl_attrs)
+
+        final_waypoints = np.zeros(data["time"].size, dtype=bool)
+        final_waypoint_indices = np.cumsum([fl.size for fl in seq]) - 1
+        final_waypoints[final_waypoint_indices] = True
+
+        return cls._from_fastpath(
+            data,
+            attrs,
+            fuel=fuel,
+            fl_attrs=fl_attrs,
+            final_waypoints=final_waypoints,
+        )
 
     @property
     def n_flights(self) -> int:
@@ -241,11 +259,19 @@ class Fleet(Flight):
             List of Flights in the same order as was passed into the ``Fleet`` instance.
         """
         indices = self.dataframe.groupby("flight_id", sort=False).indices
+        if copy:
+            return [
+                Flight._from_fastpath(
+                    {k: v[idx] for k, v in self.data.items()},
+                    self.fl_attrs[flight_id],
+                    fuel=self.fuel,
+                ).copy()
+                for flight_id, idx in indices.items()
+            ]
         return [
-            Flight(
-                data=VectorDataDict({k: v[idx] for k, v in self.data.items()}),
-                attrs=self.fl_attrs[flight_id],
-                copy=copy,
+            Flight._from_fastpath(
+                {k: v[idx] for k, v in self.data.items()},
+                self.fl_attrs[flight_id],
                 fuel=self.fuel,
             )
             for flight_id, idx in indices.items()
@@ -257,12 +283,12 @@ class Fleet(Flight):
 
     def segment_true_airspeed(
         self,
-        u_wind: npt.NDArray[np.float64] | float = 0.0,
-        v_wind: npt.NDArray[np.float64] | float = 0.0,
+        u_wind: npt.NDArray[np.floating] | float = 0.0,
+        v_wind: npt.NDArray[np.floating] | float = 0.0,
         smooth: bool = True,
         window_length: int = 7,
         polyorder: int = 1,
-    ) -> npt.NDArray[np.float64]:
+    ) -> npt.NDArray[np.floating]:
         """Calculate the true airspeed [:math:`m / s`] from the ground speed and horizontal winds.
 
         Because Flight.segment_true_airspeed uses a smoothing pattern, waypoints in :attr:`data`
@@ -294,7 +320,7 @@ class Fleet(Flight):
             self[key] = v_wind
 
         # Calculate TAS on each flight individually
-        def calc_tas(fl: Flight) -> npt.NDArray[np.float64]:
+        def calc_tas(fl: Flight) -> npt.NDArray[np.floating]:
             u = fl.get("__u_wind", u_wind)
             v = fl.get("__v_wind", v_wind)
 
@@ -316,44 +342,47 @@ class Fleet(Flight):
         # use case isn't seen.
         return np.concatenate(tas)
 
-    @overrides
-    def segment_groundspeed(self, *args: Any, **kwargs: Any) -> npt.NDArray[np.float64]:
-        # Implement if we have a usecase for this.
-        # Because the super() method uses a smoothing pattern, it will not reliably
-        # work on Fleet.
-        raise NotImplementedError
+    @override
+    def segment_groundspeed(self, *args: Any, **kwargs: Any) -> npt.NDArray[np.floating]:
+        fls = self.to_flight_list(copy=False)
+        gs = [fl.segment_groundspeed(*args, **kwargs) for fl in fls]
+        return np.concatenate(gs)
 
-    @overrides
-    def resample_and_fill(self, *args: Any, **kwargs: Any) -> Fleet:
+    @override
+    def resample_and_fill(self, *args: Any, **kwargs: Any) -> Self:
         flights = self.to_flight_list(copy=False)
-        flights = [fl.resample_and_fill(*args, **kwargs) for fl in flights]
-        return type(self).from_seq(flights, copy=False, broadcast_numeric=False, attrs=self.attrs)
 
-    @overrides
-    def segment_length(self) -> npt.NDArray[np.float64]:
+        # We need to ensure that each flight has an flight_id attrs field
+        # When we call fl.resample_and_fill, any flight_id data field
+        # will be lost, so the call to Fleet.from_seq will fail.
+        for fl in flights:
+            if "flight_id" not in fl.attrs:
+                fl.attrs["flight_id"] = _extract_flight_id(fl)
+
+        flights = [fl.resample_and_fill(*args, **kwargs) for fl in flights]
+        return type(self).from_seq(flights, broadcast_numeric=False, attrs=self.attrs)
+
+    @override
+    def segment_length(self) -> npt.NDArray[np.floating]:
         return np.where(self.final_waypoints, np.nan, super().segment_length())
 
     @property
-    @overrides
+    @override
     def max_distance_gap(self) -> float:
-        if self.attrs["crs"] != "EPSG:4326":
-            msg = "Only implemented for EPSG:4326 CRS."
-            raise NotImplementedError(msg)
-
         return np.nanmax(self.segment_length()).item()
 
-    @overrides
-    def segment_azimuth(self) -> npt.NDArray[np.float64]:
+    @override
+    def segment_azimuth(self) -> npt.NDArray[np.floating]:
         return np.where(self.final_waypoints, np.nan, super().segment_azimuth())
 
-    @overrides
-    def segment_angle(self) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    @override
+    def segment_angle(self) -> tuple[npt.NDArray[np.floating], npt.NDArray[np.floating]]:
         sin_a, cos_a = super().segment_angle()
         sin_a[self.final_waypoints] = np.nan
         cos_a[self.final_waypoints] = np.nan
         return sin_a, cos_a
 
-    @overrides
+    @override
     def clean_and_resample(
         self,
         freq: str = "1min",
@@ -365,8 +394,7 @@ class Fleet(Flight):
         force_filter: bool = False,
         drop: bool = True,
         keep_original_index: bool = False,
-        climb_descend_at_end: bool = False,
-    ) -> Flight:
+    ) -> NoReturn:
         msg = "Only implemented for Flight instances"
         raise NotImplementedError(msg)
 
@@ -400,7 +428,6 @@ def _validate_fl(
     *,
     fl_attrs: dict[str, Any],
     data_keys: set[str],
-    crs: str,
     fuel: Fuel,
     broadcast_numeric: bool,
 ) -> None:
@@ -419,8 +446,6 @@ def _validate_fl(
         Set of data keys expected in each flight.
     fuel : Fuel
         Fuel used all flights
-    crs : str
-        CRS to use all flights
     broadcast_numeric : bool
         If True, broadcast numeric attributes to data variables.
 
@@ -429,7 +454,7 @@ def _validate_fl(
     KeyError
         ``fl`` does not have a ``flight_id`` key in :attr:`attrs`.
     ValueError
-        If ``flight_id`` is duplicated or incompatible CRS found.
+        If ``flight_id`` is duplicated or if ``fuel`` or ``data_keys`` are inconsistent.
     """
     flight_id = _extract_flight_id(fl)
 
@@ -444,13 +469,6 @@ def _validate_fl(
             f"Fuel type on Flight {flight_id} ({fl.fuel.fuel_name}) "
             f"is not inconsistent with previous flights ({fuel.fuel_name}). "
             "The 'fuel' attributes must be consistent between flights in a Fleet."
-        )
-        raise ValueError(msg)
-    if fl.attrs["crs"] != crs:
-        msg = (
-            f"CRS on Flight {flight_id} ({fl.attrs['crs']}) "
-            f"is not inconsistent with previous flights ({crs}). "
-            "The 'crs' attributes must be consistent between flights in a Fleet."
         )
         raise ValueError(msg)
     if fl.data.keys() != data_keys:

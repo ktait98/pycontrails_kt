@@ -15,9 +15,11 @@ import pycontrails
 # -- Project information -----------------------------------------------------
 
 project = "pycontrails"
-copyright = f"2021-{datetime.datetime.now().year}, Breakthrough Energy"
+copyright = (
+    f"2021-{datetime.datetime.now().year}, Contrails.org and the Breakthrough Energy Foundation"
+)
 
-author = "Breakthrough Energy"
+author = "Contrails.org"
 version = pycontrails.__version__
 release = pycontrails.__version__
 
@@ -78,6 +80,7 @@ suppress_warnings = ["myst.header"]
 # Set up mapping for other projects' docs
 intersphinx_mapping = {
     "numpy": ("https://numpy.org/doc/stable/", None),
+    "open3d": ("https://www.open3d.org/docs/release/", None),
     "pandas": ("https://pandas.pydata.org/pandas-docs/dev/", None),
     "pyproj": ("https://pyproj4.github.io/pyproj/stable/", None),
     "python": ("https://docs.python.org/3/", None),
@@ -170,11 +173,13 @@ autodoc_typehints = "none"
 
 # autodoc options
 autoclass_content = "class"  # only include docstring from Class (not __init__ method)
-autodoc_inherit_docstrings = False
+autodoc_inherit_docstrings = True
+# https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#confval-autodoc_default_options
 autodoc_default_options = {
     "members": None,  # means yes/true/on
     "undoc-members": None,
     "show-inheritance": None,
+    "inherited-members": None,
 }
 
 # Add references in bibtex format here

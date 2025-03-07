@@ -11,7 +11,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from pycontrails.core.aircraft_performance import AircraftPerformanceParams
 from pycontrails.physics import constants as c
+from pycontrails.utils.types import ArrayOrFloat
 
 #: Path to the Poll-Schumann aircraft parameters CSV file.
 PS_FILE_PATH = pathlib.Path(__file__).parent / "static" / "ps-aircraft-params-20240524.csv"
@@ -193,7 +195,7 @@ def _row_to_aircraft_engine_params(tup: Any) -> tuple[str, PSAircraftEngineParam
 
 @functools.cache
 def load_aircraft_engine_params(
-    engine_deterioration_factor: float = 0.025,
+    engine_deterioration_factor: float = AircraftPerformanceParams.engine_deterioration_factor,
 ) -> Mapping[str, PSAircraftEngineParams]:
     """
     Extract aircraft-engine parameters for each aircraft type supported by the PS model.
@@ -254,23 +256,23 @@ def load_aircraft_engine_params(
     }
 
     df = pd.read_csv(PS_FILE_PATH, dtype=dtypes)
-    df["eta_1"] = df["eta_1"] * (1.0 - engine_deterioration_factor)
+    df["eta_1"] *= 1.0 - engine_deterioration_factor
 
     return dict(_row_to_aircraft_engine_params(tup) for tup in df.itertuples(index=False))
 
 
-def turbine_entry_temperature_at_max_take_off(first_flight: float) -> float:
+def turbine_entry_temperature_at_max_take_off(first_flight: ArrayOrFloat) -> ArrayOrFloat:
     """
     Calculate turbine entry temperature at maximum take-off rating.
 
     Parameters
     ----------
-    first_flight: float
+    first_flight: ArrayOrFloat
         Year of first flight
 
     Returns
     -------
-    float
+    ArrayOrFloat
         Turbine entry temperature at maximum take-off rating, ``tet_mto``, [:math:`K`]
 
     Notes
@@ -283,7 +285,10 @@ def turbine_entry_temperature_at_max_take_off(first_flight: float) -> float:
     ----------
     - :cite:`cumpstyJetPropulsion2015`
     """
-    return 2000.0 * (1 - np.exp(62.8 - 0.0325 * first_flight))
+    out = 2000.0 * (1.0 - np.exp(62.8 - 0.0325 * first_flight))
+    if isinstance(first_flight, np.ndarray):
+        return out
+    return out.item()
 
 
 def turbine_entry_temperature_at_max_continuous_climb(tet_mto: float) -> float:

@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from pycontrails import GeoVectorDataset, MetDataset
+from pycontrails import GeoVectorDataset, MetDataset, MetVariable
 from pycontrails.core.aircraft_performance import AircraftPerformance, AircraftPerformanceGrid
 from pycontrails.models.cocip import Cocip
 from pycontrails.models.cocipgrid import CocipGrid
@@ -46,6 +46,31 @@ def instance_params(met_cocip1: MetDataset, rad_cocip1: MetDataset) -> dict[str,
     return {
         "met": met_cocip1,
         "rad": rad_cocip1,
+        "dt_integration": np.timedelta64(5, "m"),
+        # need to keep this super small to avoid advecting out of bounds
+        "max_age": np.timedelta64(90, "m"),
+        # explicitly raise error if we advect too far
+        "interpolation_bounds_error": True,
+        "target_split_size": 1000,
+        "target_split_size_pre_SAC_boost": 1,
+        "humidity_scaling": ExponentialBoostHumidityScaling(rhi_adj=0.9),
+    }
+
+
+@pytest.fixture()
+def instance_params_generic_met(
+    met_generic_cocip1: MetDataset, rad_generic_cocip1: MetDataset
+) -> dict[str, Any]:
+    """Return common parameters for `CocipGrid` model instances with generic meteorology.
+
+    Note the fixture is scoped "function".
+    """
+    # met_cocip1 has levels [200, 225, 250, 300]
+    np.testing.assert_array_equal(met_generic_cocip1.data["level"], [200, 225, 250, 300])
+
+    return {
+        "met": met_generic_cocip1,
+        "rad": rad_generic_cocip1,
         "dt_integration": np.timedelta64(5, "m"),
         # need to keep this super small to avoid advecting out of bounds
         "max_age": np.timedelta64(90, "m"),
@@ -135,23 +160,12 @@ def test_met_too_short(
         gc._check_met_covers_source()
 
 
-def test_create_bad_latitude() -> None:
-    """Check that an error is raised when latitude values are too close to the poles."""
-    with pytest.raises(ValueError, match="latitude"):
-        CocipGrid.create_source(
-            level=[220, 230, 240, 250],
-            time=np.datetime64("2019-01-01"),
-            longitude=np.linspace(-35, -25, 40),
-            latitude=np.asarray([83, 85, 86]),
-        )
-
-
 def test_create_lon_lat_unspecified() -> None:
     """Ensure `CocipGrid` uses `lon_step` and `lat_step` of 1."""
     source = CocipGrid.create_source(level=[220, 250], time=np.datetime64("2019-01-01"))
     assert source.data["longitude"].size == 360
-    assert source.data["latitude"].size == 161  # -80 to 80
-    assert source.shape == (360, 161, 2, 1)
+    assert source.data["latitude"].size == 181  # -90 to 90
+    assert source.shape == (360, 181, 2, 1)
 
 
 def test_create_lon_lat_step_args() -> None:
@@ -163,8 +177,8 @@ def test_create_lon_lat_step_args() -> None:
         lat_step=5,
     )
     assert source.data["longitude"].size == 72
-    assert source.data["latitude"].size == 33
-    assert source.shape == (72, 33, 4, 1)
+    assert source.data["latitude"].size == 37
+    assert source.shape == (72, 37, 4, 1)
 
 
 def test_init_avoid_double_process(instance_params: dict[str, Any]) -> None:
@@ -335,7 +349,7 @@ def test_grid_survival_fraction(instance_params: dict[str, Any], source: MetData
         ),
         (
             np.datetime64("2019-01-01T12:00"),
-            [np.datetime64("2019-01-01T11:00"), np.datetime64("2019-01-01T12:00")],
+            [np.datetime64("2019-01-01T12:00")],
             [np.datetime64("2019-01-01T11:30")],
         ),
         (
@@ -353,7 +367,7 @@ def test_initial_maybe_downselect_met_rad(
 ) -> None:
     """Test initial selection of bracketing met and rad time steps"""
     model = CocipGrid(**instance_params)
-    met, rad = model._maybe_downselect_met_rad(None, None, time)
+    met, rad = model._maybe_downselect_met_rad(None, None, time, time)
     np.testing.assert_array_equal(met["time"].values, expected_met)
     np.testing.assert_array_equal(rad["time"].values, expected_rad)
 
@@ -364,63 +378,77 @@ def test_maybe_downselect_met_rad(instance_params: dict[str, Any]):
 
     # initial selection
     time = np.datetime64("2018-12-31T23:00")
-    met, rad = model._maybe_downselect_met_rad(None, None, time)
-    np.testing.assert_array_equal(met["time"].values, [np.datetime64("2019-01-01T00:00")])
-    np.testing.assert_array_equal(rad["time"].values, [np.datetime64("2018-12-31T23:30")])
+    met, rad = model._maybe_downselect_met_rad(None, None, time, time)
+    np.testing.assert_array_equal(met.data["time"], [np.datetime64("2019-01-01T00:00")])
+    np.testing.assert_array_equal(rad.data["time"], [np.datetime64("2018-12-31T23:30")])
 
     # advance to after first forecast step
     time = np.datetime64("2019-01-01T00:15")
-    met, rad = model._maybe_downselect_met_rad(met, rad, time)
+    met, rad = model._maybe_downselect_met_rad(met, rad, time, time)
     np.testing.assert_array_equal(
-        met["time"].values,
-        [
-            np.datetime64("2019-01-01T00:00"),
-            np.datetime64("2019-01-01T01:00"),
-        ],
+        met.data["time"],
+        [np.datetime64("2019-01-01T00:00"), np.datetime64("2019-01-01T01:00")],
     )
     np.testing.assert_array_equal(
-        rad["time"].values, [np.datetime64("2018-12-31T23:30"), np.datetime64("2019-01-01T00:30")]
+        rad.data["time"], [np.datetime64("2018-12-31T23:30"), np.datetime64("2019-01-01T00:30")]
     )
 
     # no update required
     time = np.datetime64("2019-01-01T00:20")
-    met, rad = model._maybe_downselect_met_rad(met, rad, time)
+    met, rad = model._maybe_downselect_met_rad(met, rad, time, time)
     np.testing.assert_array_equal(
-        met["time"].values,
-        [
-            np.datetime64("2019-01-01T00:00"),
-            np.datetime64("2019-01-01T01:00"),
-        ],
+        met.data["time"],
+        [np.datetime64("2019-01-01T00:00"), np.datetime64("2019-01-01T01:00")],
     )
     np.testing.assert_array_equal(
-        rad["time"].values, [np.datetime64("2018-12-31T23:30"), np.datetime64("2019-01-01T00:30")]
+        rad.data["time"], [np.datetime64("2018-12-31T23:30"), np.datetime64("2019-01-01T00:30")]
     )
 
-    # advance one forecast step
+    # advance forward one forecast step
     time = np.datetime64("2019-01-01T01:15")
-    met, rad = model._maybe_downselect_met_rad(met, rad, time)
+    met, rad = model._maybe_downselect_met_rad(met, rad, time, time)
     np.testing.assert_array_equal(
-        met["time"].values, [np.datetime64("2019-01-01T01:00"), np.datetime64("2019-01-01T02:00")]
+        met.data["time"], [np.datetime64("2019-01-01T01:00"), np.datetime64("2019-01-01T02:00")]
     )
     np.testing.assert_array_equal(
-        rad["time"].values, [np.datetime64("2019-01-01T00:30"), np.datetime64("2019-01-01T01:30")]
+        rad.data["time"], [np.datetime64("2019-01-01T00:30"), np.datetime64("2019-01-01T01:30")]
     )
 
-    # advance multiple forecast steps
+    # advance forward multiple forecast steps
     time = np.datetime64("2019-01-01T08:15")
-    met, rad = model._maybe_downselect_met_rad(met, rad, time)
+    met, rad = model._maybe_downselect_met_rad(met, rad, time, time)
     np.testing.assert_array_equal(
-        met["time"].values, [np.datetime64("2019-01-01T08:00"), np.datetime64("2019-01-01T09:00")]
+        met.data["time"], [np.datetime64("2019-01-01T08:00"), np.datetime64("2019-01-01T09:00")]
     )
     np.testing.assert_array_equal(
-        rad["time"].values, [np.datetime64("2019-01-01T07:30"), np.datetime64("2019-01-01T08:30")]
+        rad.data["time"], [np.datetime64("2019-01-01T07:30"), np.datetime64("2019-01-01T08:30")]
+    )
+
+    # advance backwards one forecast step
+    time = np.datetime64("2019-01-01T07:25")
+    met, rad = model._maybe_downselect_met_rad(met, rad, time, time)
+    np.testing.assert_array_equal(
+        met.data["time"], [np.datetime64("2019-01-01T07:00"), np.datetime64("2019-01-01T08:00")]
+    )
+    np.testing.assert_array_equal(
+        rad.data["time"], [np.datetime64("2019-01-01T06:30"), np.datetime64("2019-01-01T07:30")]
+    )
+
+    # advance backwards multiple forecast steps
+    time = np.datetime64("2019-01-01T02:40")
+    met, rad = model._maybe_downselect_met_rad(met, rad, time, time)
+    np.testing.assert_array_equal(
+        met.data["time"], [np.datetime64("2019-01-01T02:00"), np.datetime64("2019-01-01T03:00")]
+    )
+    np.testing.assert_array_equal(
+        rad.data["time"], [np.datetime64("2019-01-01T02:30"), np.datetime64("2019-01-01T03:30")]
     )
 
     # advance past end of forecast
     time = np.datetime64("2019-01-01T13:00")
-    met, rad = model._maybe_downselect_met_rad(met, rad, time)
-    np.testing.assert_array_equal(met["time"].values, [np.datetime64("2019-01-01T12:00")])
-    np.testing.assert_array_equal(rad["time"].values, [np.datetime64("2019-01-01T11:30")])
+    met, rad = model._maybe_downselect_met_rad(met, rad, time, time)
+    np.testing.assert_array_equal(met.data["time"], [np.datetime64("2019-01-01T12:00")])
+    np.testing.assert_array_equal(rad.data["time"], [np.datetime64("2019-01-01T11:30")])
 
 
 ##############################################################
@@ -445,6 +473,26 @@ def grid_results(
 
     gc = CocipGrid(**instance_params)
     return gc.eval(source=source, aircraft_performance=bada_grid_model)
+
+
+@pytest.fixture()
+def grid_results_generic_met(
+    instance_params_generic_met: dict[str, Any],
+    bada_grid_model: AircraftPerformanceGrid,
+) -> MetDataset:
+    """Run `CocipGrid` on three distinct times."""
+    t_step = np.timedelta64(20, "m")
+    start_time = np.datetime64("2019-01-01")
+    source = CocipGrid.create_source(
+        level=[220, 230, 240, 250],
+        time=np.arange(start_time, start_time + np.timedelta64(1, "h"), t_step),
+        longitude=np.linspace(-35, -25, 40),
+        latitude=np.linspace(51, 57, 20),
+    )
+
+    with pytest.warns(UserWarning, match="Unknown provider 'Generic'"):
+        gc = CocipGrid(**instance_params_generic_met)
+        return gc.eval(source=source, aircraft_performance=bada_grid_model)
 
 
 def test_atr20_outputs(
@@ -675,6 +723,13 @@ def test_grid_results(grid_results: MetDataset) -> None:
     assert point["ef_per_m"].item() == pytest.approx(43664804, rel=1e-3)
 
 
+def test_grid_results_generic_met(
+    grid_results: MetDataset, grid_results_generic_met: MetDataset
+) -> None:
+    """Test output from gridded CoCiP with generic meteorology."""
+    xr.testing.assert_equal(grid_results.data, grid_results_generic_met.data)
+
+
 @pytest.fixture()
 def grid_results_segment_free(
     instance_params: dict[str, Any],
@@ -774,15 +829,17 @@ def test_geovector_source(
     assert "ef_per_m" in out
 
     persistent = out["contrail_age"] > np.timedelta64(0, "ns")
-    assert persistent.sum() == 75
+    assert persistent.sum() == 94
+
+    ef_per_m = out["ef_per_m"]
 
     # Contrail age and positive EF are 1-1
-    assert np.all(out["ef_per_m"][persistent] > 0)
-    assert np.all(out["ef_per_m"][~persistent] == 0)
+    assert np.all(ef_per_m[persistent] > 0)
+    assert np.all(ef_per_m[~persistent] == 0)
 
     # Pin the mean EF
-    assert out["ef_per_m"].mean().item() == pytest.approx(832396, rel=1e-3)
-    assert out["ef_per_m"][persistent].mean().item() == pytest.approx(28944911, rel=1e-3)
+    assert ef_per_m.mean().item() == pytest.approx(828481, rel=1e-3)
+    assert ef_per_m[persistent].mean().item() == pytest.approx(22985963, rel=1e-3)
 
 
 @pytest.mark.filterwarnings("ignore:invalid value encountered in remainder")
@@ -931,3 +988,44 @@ def test_verbose_outputs_formation(
     assert ds["fuel_flow"].mean() == pytest.approx(0.6037, rel=rel)
     assert ds["rhi"].mean() == pytest.approx(0.6273, rel=rel)
     assert ds["iwc"].mean() == pytest.approx(4.4621e-06, rel=rel)
+
+
+def test_cocip_grid_one_hour_dt_integration(
+    source: MetDataset, instance_params: dict[str, Any]
+) -> None:
+    """Test CocipGrid with a dt_integration of one hour."""
+    instance_params["dt_integration"] = "1 hour"
+    instance_params["interpolation_bounds_error"] = False
+    instance_params["max_age"] = "2 hours"
+    gc = CocipGrid(**instance_params, aircraft_performance=PSGrid())
+
+    source = CocipGrid.create_source(
+        level=[230, 240, 250, 260],
+        time=np.datetime64("2019-01-01"),
+        longitude=np.linspace(-35, -25, 40),
+        latitude=np.linspace(51, 57, 20),
+    )
+
+    out = gc.eval(source)
+
+    # Sum the number of grid cells producing persistent contrails
+    # Prior to v0.54.4, this was 0
+    assert out.data["ef_per_m"].fillna(0.0).astype(bool).sum() == 526
+
+
+@pytest.mark.parametrize(
+    ("grid_mvs", "traj_mvs"),
+    [
+        (CocipGrid.generic_met_variables(), Cocip.generic_met_variables()),
+        (CocipGrid.generic_rad_variables(), Cocip.generic_rad_variables()),
+        (CocipGrid.ecmwf_met_variables(), Cocip.ecmwf_met_variables()),
+        (CocipGrid.ecmwf_rad_variables(), Cocip.ecmwf_rad_variables()),
+        (CocipGrid.gfs_met_variables(), Cocip.gfs_met_variables()),
+        (CocipGrid.gfs_rad_variables(), Cocip.gfs_rad_variables()),
+    ],
+)
+def test_cocip_grid_met_rad_variables_helper(
+    grid_mvs: tuple[MetVariable, ...], traj_mvs: tuple[MetVariable, ...]
+) -> None:
+    """Test met and rad variable helper properties."""
+    assert grid_mvs == traj_mvs

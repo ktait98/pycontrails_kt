@@ -11,11 +11,10 @@ from typing import TYPE_CHECKING, Any, NoReturn, TypeVar, overload
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-import xarray as xr
 
 import pycontrails
 from pycontrails.core import models
-from pycontrails.core.met import MetDataset
+from pycontrails.core.met import MetDataset, maybe_downselect_mds
 from pycontrails.core.vector import GeoVectorDataset, VectorDataset
 from pycontrails.models import humidity_scaling, sac
 from pycontrails.models.cocip import cocip, contrail_properties, wake_vortex, wind_shear
@@ -74,11 +73,11 @@ class CocipGrid(models.Model):
     """
 
     __slots__ = (
-        "rad",
-        "timesteps",
+        "_target_dtype",
         "contrail",
         "contrail_list",
-        "_target_dtype",
+        "rad",
+        "timesteps",
     )
 
     name = "contrail_grid"
@@ -89,6 +88,9 @@ class CocipGrid(models.Model):
     met_variables = cocip.Cocip.met_variables
     rad_variables = cocip.Cocip.rad_variables
     processed_met_variables = cocip.Cocip.processed_met_variables
+    generic_rad_variables = cocip.Cocip.generic_rad_variables
+    ecmwf_rad_variables = cocip.Cocip.ecmwf_rad_variables
+    gfs_rad_variables = cocip.Cocip.gfs_rad_variables
 
     #: Met data is not optional
     met: MetDataset
@@ -241,12 +243,12 @@ class CocipGrid(models.Model):
         existing_vectors: Iterator[GeoVectorDataset] = iter(())
 
         for time_idx, time_end in enumerate(self.timesteps):
-            met, rad = self._maybe_downselect_met_rad(met, rad, time_end)
-
             evolved_this_step = []
             ef_summary_this_step = []
             downwash_vectors_this_step = []
             for vector in self._generate_new_vectors(time_idx):
+                t0 = vector["time"].min()
+                met, rad = self._maybe_downselect_met_rad(met, rad, t0, time_end)
                 downwash, verbose_dict = _run_downwash(vector, met, rad, self.params)
 
                 if downwash:
@@ -264,6 +266,8 @@ class CocipGrid(models.Model):
                     pbar.update()
 
             for vector in itertools.chain(existing_vectors, downwash_vectors_this_step):
+                t0 = vector["time"].min()
+                met, rad = self._maybe_downselect_met_rad(met, rad, t0, time_end)
                 contrail, ef = _evolve_vector(
                     vector,
                     met=met,
@@ -304,83 +308,25 @@ class CocipGrid(models.Model):
         self,
         met: MetDataset | None,
         rad: MetDataset | None,
-        time_end: np.datetime64,
+        t0: np.datetime64,
+        t1: np.datetime64,
     ) -> tuple[MetDataset, MetDataset]:
-        """Downselect ``self.met`` and ``self.rad`` if necessary to cover ``time_end``.
+        """Downselect ``self.met`` and ``self.rad`` if necessary to cover ``[t0, t1]``.
+
+        This implementation assumes ``t0 <= t1``, but does not enforce this.
 
         If the currently used ``met`` and ``rad`` slices do not include the time
-        ``time_end``, new slices are selected from the larger ``self.met`` and
-        ``self.rad`` data. The slicing only occurs in the time domain.
+        interval ``[t0, t1]``, new slices are selected from the larger ``self.met``
+        and ``self.rad`` data. The slicing only occurs in the time domain.
 
-        The end of currently-used ``met`` and ``rad`` will be used as the start
-        of newly-selected met slices when possible to avoid losing and re-loading
-        already-loaded met data.
+        Existing slices from ``met`` and ``rad`` will be used when possible to avoid
+        losing and re-loading already-loaded met data.
 
-        If ``self.params["downselect_met"]`` is True, :func:`_downselect_met` has
+        If ``self.params["downselect_met"]`` is True, the :func:`_downselect_met` has
         already performed a spatial downselection of the met data.
         """
-
-        if met is None:
-            # idx is the first index at which self.met.variables["time"].to_numpy() >= time_end
-            idx = np.searchsorted(self.met.indexes["time"].to_numpy(), time_end).item()
-            sl = slice(max(0, idx - 1), idx + 1)
-            logger.debug("Select met slice %s", sl)
-            met = MetDataset(self.met.data.isel(time=sl), copy=False)
-
-        elif time_end > met.indexes["time"].to_numpy()[-1]:
-            current_times = met.indexes["time"].to_numpy()
-            all_times = self.met.indexes["time"].to_numpy()
-            # idx is the first index at which all_times >= time_end
-            idx = np.searchsorted(all_times, time_end).item()
-            sl = slice(max(0, idx - 1), idx + 1)
-
-            # case 1: cannot re-use end of current met as start of new met
-            if current_times[-1] != all_times[sl.start]:
-                logger.debug("Select met slice %s", sl)
-                met = MetDataset(self.met.data.isel(time=sl), copy=False)
-            # case 2: can re-use end of current met plus one step of new met
-            elif sl.start < all_times.size - 1:
-                sl = slice(sl.start + 1, sl.stop)
-                logger.debug("Reuse end of met and select met slice %s", sl)
-                met = MetDataset(
-                    xr.concat((met.data.isel(time=[-1]), self.met.data.isel(time=sl)), dim="time"),
-                    copy=False,
-                )
-            # case 3: can re-use end of current met and nothing else
-            else:
-                logger.debug("Reuse end of met")
-                met = MetDataset(met.data.isel(time=[-1]), copy=False)
-
-        if rad is None:
-            # idx is the first index at which self.rad.variables["time"].to_numpy() >= time_end
-            idx = np.searchsorted(self.rad.indexes["time"].to_numpy(), time_end).item()
-            sl = slice(max(0, idx - 1), idx + 1)
-            logger.debug("Select rad slice %s", sl)
-            rad = MetDataset(self.rad.data.isel(time=sl), copy=False)
-
-        elif time_end > rad.indexes["time"].to_numpy()[-1]:
-            current_times = rad.indexes["time"].to_numpy()
-            all_times = self.rad.indexes["time"].to_numpy()
-            # idx is the first index at which all_times >= time_end
-            idx = np.searchsorted(all_times, time_end).item()
-            sl = slice(max(0, idx - 1), idx + 1)
-
-            # case 1: cannot re-use end of current rad as start of new rad
-            if current_times[-1] != all_times[sl.start]:
-                logger.debug("Select rad slice %s", sl)
-                rad = MetDataset(self.rad.data.isel(time=sl), copy=False)
-            # case 2: can re-use end of current rad plus one step of new rad
-            elif sl.start < all_times.size - 1:
-                sl = slice(sl.start + 1, sl.stop)
-                logger.debug("Reuse end of rad and select rad slice %s", sl)
-                rad = MetDataset(
-                    xr.concat((rad.data.isel(time=[-1]), self.rad.data.isel(time=sl)), dim="time"),
-                    copy=False,
-                )
-            # case 3: can re-use end of current rad and nothing else
-            else:
-                logger.debug("Reuse end of rad")
-                rad = MetDataset(rad.data.isel(time=[-1]), copy=False)
+        met = maybe_downselect_mds(self.met, met, t0, t1)
+        rad = maybe_downselect_mds(self.rad, rad, t0, t1)
 
         return met, rad
 
@@ -671,7 +617,7 @@ class CocipGrid(models.Model):
             for idx, time in enumerate(times_in_filt):
                 # For now, sticking with the convention that every vector should
                 # have a constant time value.
-                source_slice = MetDataset(self.source.data.sel(time=[time]))
+                source_slice = MetDataset._from_fastpath(self.source.data.sel(time=[time]))
 
                 # Convert the 4D grid to a vector
                 vector = source_slice.to_vector()
@@ -806,19 +752,22 @@ class CocipGrid(models.Model):
 
     @staticmethod
     def create_source(
-        level: npt.NDArray[np.float64] | list[float] | float,
+        level: npt.NDArray[np.floating] | list[float] | float,
         time: npt.NDArray[np.datetime64] | list[np.datetime64] | np.datetime64,
-        longitude: npt.NDArray[np.float64] | list[float] | None = None,
-        latitude: npt.NDArray[np.float64] | list[float] | None = None,
+        longitude: npt.NDArray[np.floating] | list[float] | None = None,
+        latitude: npt.NDArray[np.floating] | list[float] | None = None,
         lon_step: float = 1.0,
         lat_step: float = 1.0,
     ) -> MetDataset:
         """
         Shortcut to create a :class:`MetDataset` source from coordinate arrays.
 
+        .. versionchanged:: 0.54.3
+            By default, the returned latitude values now extend to the poles.
+
         Parameters
         ----------
-        level : level: npt.NDArray[np.float64] | list[float] | float
+        level : level: npt.NDArray[np.floating] | list[float] | float
             Pressure levels for gridded cocip.
             To avoid interpolating outside of the passed ``met`` and ``rad`` data, this
             parameter should avoid the extreme values of the ``met`` and `rad` levels.
@@ -826,11 +775,9 @@ class CocipGrid(models.Model):
             ``met.data['level'].values[1: -1]``.
         time: npt.NDArray[np.datetime64 | list[np.datetime64] | np.datetime64,
             One or more time values for gridded cocip.
-        longitude, latitude : npt.NDArray[np.float64] | list[float], optional
+        longitude, latitude : npt.NDArray[np.floating] | list[float], optional
             Longitude and latitude arrays, by default None. If not specified, values of
             ``lon_step`` and ``lat_step`` are used to define ``longitude`` and ``latitude``.
-            To avoid model degradation at the poles, latitude values are expected to be
-            between -80 and 80 degrees.
         lon_step, lat_step : float, optional
             Longitude and latitude resolution, by default 1.0.
             Only used if parameter ``longitude`` (respective ``latitude``) not specified.
@@ -847,15 +794,11 @@ class CocipGrid(models.Model):
         if longitude is None:
             longitude = np.arange(-180, 180, lon_step, dtype=float)
         if latitude is None:
-            latitude = np.arange(-80, 80.000001, lat_step, dtype=float)
+            latitude = np.arange(-90, 90.000001, lat_step, dtype=float)
 
-        out = MetDataset.from_coords(longitude=longitude, latitude=latitude, level=level, time=time)
-
-        if np.any(out.data.latitude > 80.0001) or np.any(out.data.latitude < -80.0001):
-            msg = "Model only supports latitude between -80 and 80."
-            raise ValueError(msg)
-
-        return out
+        return MetDataset.from_coords(
+            longitude=longitude, latitude=latitude, level=level, time=time
+        )
 
 
 ################################
@@ -1461,7 +1404,7 @@ def simulate_wake_vortex_downwash(
 
     # Experimental segment-free model
     if _is_segment_free_mode(vector):
-        return GeoVectorDataset(data, attrs=vector.attrs, copy=True)
+        return GeoVectorDataset._from_fastpath(data, attrs=vector.attrs).copy()
 
     # Stored in `_generate_new_grid_vectors`
     data["longitude_head"] = vector["longitude_head"]
@@ -1480,7 +1423,7 @@ def simulate_wake_vortex_downwash(
         # segment_length variable.
         data["segment_length"] = np.full_like(data["longitude"], segment_length)
 
-    return GeoVectorDataset(data, attrs=vector.attrs, copy=True)
+    return GeoVectorDataset._from_fastpath(data, attrs=vector.attrs).copy()
 
 
 def find_initial_persistent_contrails(
@@ -1545,18 +1488,18 @@ def find_initial_persistent_contrails(
     )
     iwc_1 = contrail_properties.iwc_post_wake_vortex(iwc, iwc_ad)
     f_surv = contrail_properties.ice_particle_survival_fraction(iwc, iwc_1)
-    n_ice_per_m = contrail_properties.ice_particle_number(
+    n_ice_per_m_0 = contrail_properties.initial_ice_particle_number(
         nvpm_ei_n=nvpm_ei_n,
         fuel_dist=fuel_dist,
-        f_surv=f_surv,
         air_temperature=air_temperature,
         T_crit_sac=T_crit_sac,
         min_ice_particle_number_nvpm_ei_n=params["min_ice_particle_number_nvpm_ei_n"],
     )
+    n_ice_per_m_1 = n_ice_per_m_0 * f_surv
 
     # The logic below corresponds to Cocip._create_downwash_contrail (roughly)
     contrail["iwc"] = iwc_1
-    contrail["n_ice_per_m"] = n_ice_per_m
+    contrail["n_ice_per_m"] = n_ice_per_m_1
 
     # Check for persistent initial_contrails
     rhi_1 = contrail["rhi"]
@@ -1671,6 +1614,8 @@ def calc_evolve_one_step(
             segment_length_t1, segment_length_t2
         )
 
+    dt = next_contrail["time"] - curr_contrail["time"]
+
     sigma_yy_t2, sigma_zz_t2, sigma_yz_t2 = contrail_properties.plume_temporal_evolution(
         width_t1=width_t1,
         depth_t1=depth_t1,
@@ -1679,7 +1624,7 @@ def calc_evolve_one_step(
         diffuse_h_t1=diffuse_h_t1,
         diffuse_v_t1=diffuse_v_t1,
         seg_ratio=seg_ratio_t12,
-        dt=params["dt_integration"],
+        dt=dt,
         max_depth=params["max_depth"],
     )
 
@@ -1716,7 +1661,7 @@ def calc_evolve_one_step(
         dn_dt_agg=dn_dt_agg,
         dn_dt_turb=dn_dt_turb,
         seg_ratio=seg_ratio_t12,
-        dt=params["dt_integration"],
+        dt=dt,
     )
     next_contrail["n_ice_per_m"] = n_ice_per_m_t2
 
@@ -1737,7 +1682,7 @@ def calc_evolve_one_step(
         width_t1=width_t1,
         width_t2=width_t2,
         seg_length_t2=segment_length_t2,
-        dt=params["dt_integration"],
+        dt=dt,
     )
     # NOTE: This will get masked below if `persistent` is False
     # That is, we are taking a right Riemann sum of a decreasing function, so we are
@@ -2052,10 +1997,13 @@ def advect(
     time_t2 = time + dt
     age_t2 = age + dt
 
-    longitude_t2 = geo.advect_longitude(
-        longitude=longitude, latitude=latitude, u_wind=u_wind, dt=dt
+    longitude_t2, latitude_t2 = geo.advect_horizontal(
+        longitude=longitude,
+        latitude=latitude,
+        u_wind=u_wind,
+        v_wind=v_wind,
+        dt=dt,
     )
-    latitude_t2 = geo.advect_latitude(latitude=latitude, v_wind=v_wind, dt=dt)
     level_t2 = geo.advect_level(level, vertical_velocity, rho_air, terminal_fall_speed, dt)
     altitude_t2 = units.pl_to_m(level_t2)
 
@@ -2076,7 +2024,7 @@ def advect(
         assert _is_segment_free_mode(contrail)
         assert dt_tail is None
         assert dt_head is None
-        return GeoVectorDataset(data, attrs=contrail.attrs, copy=True)
+        return GeoVectorDataset._from_fastpath(data, attrs=contrail.attrs).copy()
 
     longitude_head = contrail["longitude_head"]
     latitude_head = contrail["latitude_head"]
@@ -2087,15 +2035,20 @@ def advect(
     u_wind_tail = contrail["eastward_wind_tail"]
     v_wind_tail = contrail["northward_wind_tail"]
 
-    longitude_head_t2 = geo.advect_longitude(
-        longitude=longitude_head, latitude=latitude_head, u_wind=u_wind_head, dt=dt_head
+    longitude_head_t2, latitude_head_t2 = geo.advect_horizontal(
+        longitude=longitude_head,
+        latitude=latitude_head,
+        u_wind=u_wind_head,
+        v_wind=v_wind_head,
+        dt=dt_head,
     )
-    latitude_head_t2 = geo.advect_latitude(latitude=latitude_head, v_wind=v_wind_head, dt=dt_head)
-
-    longitude_tail_t2 = geo.advect_longitude(
-        longitude=longitude_tail, latitude=latitude_tail, u_wind=u_wind_tail, dt=dt_tail
+    longitude_tail_t2, latitude_tail_t2 = geo.advect_horizontal(
+        longitude=longitude_tail,
+        latitude=latitude_tail,
+        u_wind=u_wind_tail,
+        v_wind=v_wind_tail,
+        dt=dt_tail,
     )
-    latitude_tail_t2 = geo.advect_latitude(latitude=latitude_tail, v_wind=v_wind_tail, dt=dt_tail)
 
     segment_length_t2 = geo.haversine(
         lons0=longitude_head_t2,
@@ -2113,7 +2066,7 @@ def advect(
     data["segment_length"] = segment_length_t2
     data["head_tail_dt"] = head_tail_dt_t2
 
-    return GeoVectorDataset(data, attrs=contrail.attrs, copy=True)
+    return GeoVectorDataset._from_fastpath(data, attrs=contrail.attrs).copy()
 
 
 def _aggregate_ef_summary(vector_list: list[VectorDataset]) -> VectorDataset | None:
@@ -2166,7 +2119,7 @@ def _aggregate_ef_summary(vector_list: list[VectorDataset]) -> VectorDataset | N
 
 def result_to_metdataset(
     result: VectorDataset | None,
-    verbose_dict: dict[str, npt.NDArray[np.float64]],
+    verbose_dict: dict[str, npt.NDArray[np.floating]],
     source: MetDataset,
     nominal_segment_length: float,
     attrs: dict[str, str],
@@ -2178,7 +2131,7 @@ def result_to_metdataset(
     result : VectorDataset | None
         Aggregated data arising from contrail evolution. Expected to contain keys:
         ``index``, ``age``, ``ef``.
-    verbose_dict : dict[str, npt.NDArray[np.float64]]:
+    verbose_dict : dict[str, npt.NDArray[np.floating]]:
         Verbose outputs to attach to results.
     source : MetDataset
         :attr:`CocipGrid.`source` data on which to attach results.
@@ -2237,9 +2190,9 @@ def result_to_metdataset(
 
 def result_merge_source(
     result: VectorDataset | None,
-    verbose_dict: dict[str, npt.NDArray[np.float64]],
+    verbose_dict: dict[str, npt.NDArray[np.floating]],
     source: GeoVectorDataset,
-    nominal_segment_length: float | npt.NDArray[np.float64],
+    nominal_segment_length: float | npt.NDArray[np.floating],
     attrs: dict[str, str],
 ) -> GeoVectorDataset:
     """Merge ``results`` and ``verbose_dict`` onto ``source``."""
@@ -2275,7 +2228,7 @@ def _concat_verbose_dicts(
     verbose_dicts: list[dict[str, pd.Series]],
     source_size: int,
     verbose_outputs_formation: set[str],
-) -> dict[str, npt.NDArray[np.float64]]:
+) -> dict[str, npt.NDArray[np.floating]]:
     # Concatenate the values and return
     ret: dict[str, np.ndarray] = {}
     for key in verbose_outputs_formation:
@@ -2368,7 +2321,7 @@ def _warn_not_wrap(met: MetDataset) -> None:
         )
 
 
-def _get_uncertainty_params(contrail: VectorDataset) -> dict[str, npt.NDArray[np.float64]]:
+def _get_uncertainty_params(contrail: VectorDataset) -> dict[str, npt.NDArray[np.floating]]:
     """Return uncertainty parameters in ``contrail``.
 
     This function assumes the underlying humidity scaling model is
@@ -2391,7 +2344,7 @@ def _get_uncertainty_params(contrail: VectorDataset) -> dict[str, npt.NDArray[np
 
     Returns
     -------
-    dict[str, npt.NDArray[np.float64]]
+    dict[str, npt.NDArray[np.floating]]
         Dictionary of uncertainty parameters.
     """
     keys = (
@@ -2487,7 +2440,6 @@ def _downselect_met(
         longitude_buffer=longitude_buffer,
         level_buffer=level_buffer,
         time_buffer=(t0, t1),
-        copy=False,
     )
 
     rad = source.downselect_met(
@@ -2495,7 +2447,6 @@ def _downselect_met(
         latitude_buffer=latitude_buffer,
         longitude_buffer=longitude_buffer,
         time_buffer=(t0, t1),
-        copy=False,
     )
 
     return met, rad

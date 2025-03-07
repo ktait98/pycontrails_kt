@@ -11,8 +11,7 @@ import pytest
 
 from pycontrails import GeoVectorDataset, MetDataset, VectorDataset
 from pycontrails.core.vector import AttrDict, VectorDataDict
-
-from .conftest import get_static_path
+from tests.unit import get_static_path
 
 
 @pytest.fixture(scope="module")
@@ -99,10 +98,6 @@ def test_vector_init_dictlike() -> None:
     vds = VectorDataset(data, attrs=attrs)
     assert vds.data is not data
     assert vds.attrs is not attrs
-
-    vds = VectorDataset(data, attrs=attrs, copy=False)
-    assert vds.data is data
-    assert vds.attrs is attrs
 
 
 def test_bad_size_pass_data() -> None:
@@ -871,6 +866,6 @@ def test_vector_slots(random_path: VectorDataset) -> None:
     """Ensure slots are respected."""
 
     assert "__dict__" not in dir(random_path)
-    assert random_path.__slots__ == ("data", "attrs")
+    assert random_path.__slots__ == ("attrs", "data")
     with pytest.raises(AttributeError, match="'VectorDataset' object has no attribute 'foo'"):
         random_path.foo = "bar"

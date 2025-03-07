@@ -38,8 +38,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        # TODO(Fall 2024): Add 3.13 once all dependencies are available
-        pyversion: ['3.10', '3.11', '3.12']
+        pyversion: ['3.10', '3.11', '3.12', '3.13']
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -50,11 +49,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.pyversion }}
-          cache: 'pip'
+          cache: pip
           cache-dependency-path: pyproject.toml
 
       - name: Cache mypy and pytest
-        id: cache-test
         uses: actions/cache@v4
         with:
           # Note the caches are specific to branches, so we don't need to specify here
@@ -64,13 +62,13 @@ jobs:
             ${{ github.workspace }}/.mypy_cache
             ${{ github.workspace }}/.pytest_cache
 
-      - name: 'Authenticate to Google Cloud'
-        uses: 'google-github-actions/auth@v2'
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          credentials_json: '${{ secrets.GCP_SERVICE_ACCOUNT }}'
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v2'
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
 
       # download BADA files for testing
       - name: BADA files
@@ -82,33 +80,16 @@ jobs:
 
       - name: Install make - windows
         if: ${{ matrix.os == 'windows-latest' }}
-        run: |
-          choco install make
+        run: choco install make
 
       - name: Install pycontrails (dev)
-        run: |
-          make dev-install
+        run: make dev-install
 
-      # In latest-windows, redirecting stdout to a file uses utf-16 encoding
-      # This gives an error when ssh tries to read the key
-      # Instead don't pre-create the known_hosts file
-      - name: Install pycontrails-bada - windows
-        if: ${{ matrix.os == 'windows-latest' }}
+      # https://cloud.google.com/artifact-registry/docs/python/authentication
+      - name: Install pycontrails-bada
         run: |
-          mkdir -p $HOME/.ssh/
-          gcloud secrets versions access latest --secret="contrails-301217-github-ssh-key" --out-file="$HOME/.ssh/id_rsa"
-          pip install "pycontrails-bada @ git+ssh://git@github.com/contrailcirrus/pycontrails-bada.git"
-        env:
-          GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no"
-
-      - name: Install pycontrails-bada - linux
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: |
-          mkdir -p $HOME/.ssh/
-          ssh-keyscan github.com > $HOME/.ssh/known_hosts
-          gcloud secrets versions access latest --secret="contrails-301217-github-ssh-key" > $HOME/.ssh/id_rsa
-          chmod 600 $HOME/.ssh/id_rsa
-          pip install "pycontrails-bada @ git+ssh://git@github.com/contrailcirrus/pycontrails-bada.git"
+          pip install keyring keyrings.google-artifactregistry-auth
+          pip install -U -i https://us-central1-python.pkg.dev/contrails-301217/pycontrails/simple pycontrails-bada
 
       - name: Show environment
         run: |

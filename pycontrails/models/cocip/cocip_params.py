@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 
 from pycontrails.core.aircraft_performance import AircraftPerformance
-from pycontrails.core.models import ModelParams
+from pycontrails.core.models import AdvectionBuffers
 from pycontrails.models.emissions.emissions import EmissionsParams
 from pycontrails.models.humidity_scaling import HumidityScaling
 
@@ -50,7 +50,7 @@ def _habits() -> npt.NDArray[np.str_]:
 
 
 @dataclasses.dataclass
-class CocipParams(ModelParams):
+class CocipParams(AdvectionBuffers):
     """Model parameters required by the CoCiP models."""
 
     # -------------------------
@@ -103,6 +103,8 @@ class CocipParams(ModelParams):
     #:   Cocip output with ``preprocess_lowmem=True`` is only guaranteed to match output
     #:   with ``preprocess_lowmem=False`` when run with ``interpolation_bounds_error=True``
     #:   to ensure no out-of-bounds interpolation occurs.
+    #:
+    #: .. versionadded:: 0.52.3
     preprocess_lowmem: bool = False
 
     # --------------
@@ -114,16 +116,9 @@ class CocipParams(ModelParams):
     #: ``"auto"``, ``"tau_cirrus"`` will be computed during model initialization
     #: iff the met data is dask-backed. Otherwise, it will be computed during model
     #: evaluation after the met data is downselected.
+    #:
+    #: .. versionadded:: 0.47.1
     compute_tau_cirrus_in_model_init: bool | str = "auto"
-
-    #: Met longitude [WGS84] buffer for Cocip evolution.
-    met_longitude_buffer: tuple[float, float] = (10.0, 10.0)
-
-    #: Met latitude buffer [WGS84] for Cocip evolution.
-    met_latitude_buffer: tuple[float, float] = (10.0, 10.0)
-
-    #: Met level buffer [:math:`hPa`] for Cocip initialization and evolution.
-    met_level_buffer: tuple[float, float] = (40.0, 40.0)
 
     # ---------
     # Filtering
@@ -161,10 +156,14 @@ class CocipParams(ModelParams):
     #: These are not standard CoCiP outputs but based on the derivation used
     #: in the first supplement to :cite:`yinPredictingClimateImpact2023`. ATR20 is defined
     #: as the average temperature response over a 20 year horizon.
+    #:
+    #: .. versionadded:: 0.50.0
     compute_atr20: bool = False
 
     #: Constant factor used to convert global- and year-mean RF, [:math:`W m^{-2}`],
     #: to ATR20, [:math:`K`], given by :cite:`yinPredictingClimateImpact2023`.
+    #:
+    #: .. versionadded:: 0.50.0
     global_rf_to_atr20_factor: float = 0.0151
 
     # ----------------
@@ -206,12 +205,13 @@ class CocipParams(ModelParams):
     max_depth: float = 1500.0
 
     #: Experimental. Improved ice crystal number survival fraction in the wake vortex phase.
-    #: Implement :cite:`unterstrasserPropertiesYoungContrails2016`, who developed a
+    #: Implement :cite:`lottermoserHighResolutionEarlyContrails2025`, who developed a
     #: parametric model that estimates the survival fraction of the contrail ice crystal
     #: number after the wake vortex phase based on the results from large eddy simulations.
     #: This replicates Fig. 4 of :cite:`karcherFormationRadiativeForcing2018`.
     #:
     #:  .. versionadded:: 0.50.1
+    #:  .. versionchanged:: 0.54.7
     unterstrasser_ice_survival_fraction: bool = False
 
     #: Experimental. Radiative heating effects on contrail cirrus properties.

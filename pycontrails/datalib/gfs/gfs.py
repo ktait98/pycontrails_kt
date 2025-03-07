@@ -9,18 +9,24 @@ References
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import logging
 import pathlib
+import sys
 import warnings
 from collections.abc import Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    from typing_extensions import override
+
 import numpy as np
 import pandas as pd
 import xarray as xr
-from overrides import overrides
 
 import pycontrails
 from pycontrails.core import cache, met
@@ -82,6 +88,9 @@ class GFSForecast(metsource.MetDataSource):
     show_progress : bool, optional
         Show progress when downloading files from GFS AWS Bucket.
         Defaults to False
+    cache_download: bool, optional
+        If True, cache downloaded grib files rather than storing them in a temporary file.
+        By default, False.
 
     Examples
     --------
@@ -116,7 +125,7 @@ class GFSForecast(metsource.MetDataSource):
     - `GFS Documentation <https://www.emc.ncep.noaa.gov/emc/pages/numerical_forecast_systems/gfs/documentation.php>`_
     """
 
-    __slots__ = ("client", "grid", "cachestore", "show_progress", "forecast_time")
+    __slots__ = ("cache_download", "cachestore", "client", "forecast_time", "grid", "show_progress")
 
     #: S3 client for accessing GFS bucket
     client: botocore.client.S3
@@ -142,7 +151,8 @@ class GFSForecast(metsource.MetDataSource):
         forecast_time: DatetimeLike | None = None,
         cachestore: cache.CacheStore | None = __marker,  # type: ignore[assignment]
         show_progress: bool = False,
-    ):
+        cache_download: bool = False,
+    ) -> None:
         try:
             import boto3
         except ModuleNotFoundError as e:
@@ -169,6 +179,7 @@ class GFSForecast(metsource.MetDataSource):
             cachestore = cache.DiskCacheStore()
         self.cachestore = cachestore
         self.show_progress = show_progress
+        self.cache_download = cache_download
 
         if time is None and paths is None:
             raise ValueError("Time input is required when paths is None")
@@ -349,7 +360,7 @@ class GFSForecast(metsource.MetDataSource):
         forecast_hour = str(self.forecast_time.hour).zfill(2)
         return f"gfs.t{forecast_hour}z.pgrb2.{self._grid_string}.f{step_hour}"
 
-    @overrides
+    @override
     def create_cachepath(self, t: datetime) -> str:
         if self.cachestore is None:
             raise ValueError("self.cachestore attribute must be defined to create cache path")
@@ -366,7 +377,7 @@ class GFSForecast(metsource.MetDataSource):
         # return cache path
         return self.cachestore.path(f"{datestr}-{step}-{suffix}.nc")
 
-    @overrides
+    @override
     def download_dataset(self, times: list[datetime]) -> None:
         # get step relative to forecast forecast_time
         logger.debug(
@@ -377,7 +388,7 @@ class GFSForecast(metsource.MetDataSource):
         for t in times:
             self._download_file(t)
 
-    @overrides
+    @override
     def cache_dataset(self, dataset: xr.Dataset) -> None:
         # if self.cachestore is None:
         #     LOG.debug("Cache is turned off, skipping")
@@ -385,7 +396,7 @@ class GFSForecast(metsource.MetDataSource):
 
         raise NotImplementedError("GFS caching only implemented with download")
 
-    @overrides
+    @override
     def open_metdataset(
         self,
         dataset: xr.Dataset | None = None,
@@ -429,7 +440,7 @@ class GFSForecast(metsource.MetDataSource):
         # run the same GFS-specific processing on the dataset
         return self._process_dataset(ds, **kwargs)
 
-    @overrides
+    @override
     def set_metadata(self, ds: xr.Dataset | met.MetDataset) -> None:
         ds.attrs.update(
             provider="NCEP",
@@ -462,23 +473,29 @@ class GFSForecast(metsource.MetDataSource):
         filename = self.filename(t)
         aws_key = f"{self.forecast_path}/{filename}"
 
-        # Hold downloaded file in named temp file
-        with temp.temp_file() as temp_grib_filename:
-            # retrieve data from AWS S3
-            logger.debug(f"Downloading GFS file {filename} from AWS bucket to {temp_grib_filename}")
-            if self.show_progress:
-                _download_with_progress(
-                    self.client, GFS_FORECAST_BUCKET, aws_key, temp_grib_filename, filename
-                )
-            else:
-                self.client.download_file(
-                    Bucket=GFS_FORECAST_BUCKET, Key=aws_key, Filename=temp_grib_filename
-                )
+        stack = contextlib.ExitStack()
+        if self.cache_download:
+            target = self.cachestore.path(aws_key.replace("/", "-"))
+        else:
+            target = stack.enter_context(temp.temp_file())
 
-            ds = self._open_gfs_dataset(temp_grib_filename, t)
+        # Hold downloaded file in named temp file
+        with stack:
+            # retrieve data from AWS S3
+            logger.debug(f"Downloading GFS file {filename} from AWS bucket to {target}")
+            if not self.cache_download or not self.cachestore.exists(target):
+                self._make_download(aws_key, target, filename)
+
+            ds = self._open_gfs_dataset(target, t)
 
             cache_path = self.create_cachepath(t)
             ds.to_netcdf(cache_path)
+
+    def _make_download(self, aws_key: str, target: str, filename: str) -> None:
+        if self.show_progress:
+            _download_with_progress(self.client, GFS_FORECAST_BUCKET, aws_key, target, filename)
+        else:
+            self.client.download_file(Bucket=GFS_FORECAST_BUCKET, Key=aws_key, Filename=target)
 
     def _open_gfs_dataset(self, filepath: str | pathlib.Path, t: datetime) -> xr.Dataset:
         """Open GFS grib file for one forecast timestep.
@@ -502,7 +519,7 @@ class GFSForecast(metsource.MetDataSource):
         step = pd.Timedelta(t - self.forecast_time) // pd.Timedelta(1, "h")
 
         # open file for each variable short name individually
-        ds: xr.Dataset | None = None
+        da_dict = {}
         for variable in self.variables:
             # Radiation data is not available in the 0th step
             is_radiation_step_zero = step == 0 and variable in (
@@ -519,23 +536,24 @@ class GFSForecast(metsource.MetDataSource):
             else:
                 v = variable
 
-            tmpds = xr.open_dataset(
-                filepath,
-                filter_by_keys={"typeOfLevel": v.level_type, "shortName": v.short_name},
-                engine="cfgrib",
-            )
+            try:
+                da = xr.open_dataarray(
+                    filepath,
+                    filter_by_keys={"typeOfLevel": v.level_type, "shortName": v.short_name},
+                    engine="cfgrib",
+                )
+            except ValueError as exc:
+                # To debug this situation, you can use:
+                # import cfgrib
+                # cfgrib.open_datasets(filepath)
+                msg = f"Variable {v.short_name} not found in {filepath}"
+                raise ValueError(msg) from exc
 
-            if ds is None:
-                ds = tmpds
-            else:
-                ds[v.short_name] = tmpds[v.short_name]
-
-            # set all radiation data to np.nan in the 0th step
             if is_radiation_step_zero:
-                ds = ds.rename({Visibility.short_name: variable.short_name})
-                ds[variable.short_name] = np.nan
+                da = xr.full_like(da, np.nan)  # set all radiation data to np.nan in the 0th step
+            da_dict[variable.short_name] = da
 
-        assert ds is not None, "No variables were loaded from grib file"
+        ds = xr.Dataset(da_dict)
 
         # for pressure levels, need to rename "level" field and downselect
         if self.pressure_levels != [-1]:
@@ -552,9 +570,7 @@ class GFSForecast(metsource.MetDataSource):
         ds = ds.expand_dims("time")
 
         # drop step/number
-        ds = ds.drop_vars(["step", "nominalTop", "surface"], errors="ignore")
-
-        return ds
+        return ds.drop_vars(["step", "nominalTop", "surface"], errors="ignore")
 
     def _process_dataset(self, ds: xr.Dataset, **kwargs: Any) -> met.MetDataset:
         """Process the :class:`xr.Dataset` opened from cache or local files.
@@ -579,7 +595,7 @@ class GFSForecast(metsource.MetDataSource):
         else:
             # set timesteps from dataset "time" coordinates
             # np.datetime64 doesn't covert to list[datetime] unless its unit is us
-            self.timesteps = ds["time"].values.astype("datetime64[us]").tolist()
+            self.timesteps = ds["time"].values.astype("datetime64[us]").tolist()  # type: ignore[assignment]
 
         # if "level" is not in dims and
         # length of the requested pressure levels is 1

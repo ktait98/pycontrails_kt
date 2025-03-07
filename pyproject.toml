@@ -1,17 +1,11 @@
 # https://setuptools.readthedocs.io/en/latest/
 [build-system]
-requires = [
-    "setuptools",
-    "setuptools_scm",
-    "wheel",
-    "cython",
-    "numpy>=2.0.0",
-]
+requires = ["cython>=3", "numpy>=2.0.0", "setuptools>=64", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pycontrails"
-authors = [{ name = "Breakthrough Energy", email = "py@contrails.org" }]
+authors = [{ name = "Contrails.org", email = "py@contrails.org" }]
 description = "Python library for modeling aviation climate impacts"
 keywords = ["contrails", "climate", "aviation", "geospatial"]
 # https://pypi.org/classifiers/
@@ -38,9 +32,9 @@ readme = { file = "README.md", content-type = "text/markdown" }
 dependencies = [
     "dask>=2022.3",
     "numpy>=1.22",
-    "overrides>=6.1",
-    "pandas>=2.2",
+    "pandas>=2.0",
     "scipy>=1.10",
+    "typing-extensions>=4.5; python_version < '3.12'",
     "xarray>=2022.3",
 ]
 dynamic = ["version"]
@@ -71,8 +65,7 @@ dev = [
     "pytest>=8.2",
     "pytest-cov>=2.11",
     "requests>=2.25",
-    "ruff==0.6.2",
-    "setuptools",
+    "ruff>=0.9.0",
 ]
 
 # Documentation / Sphinx dependencies
@@ -95,12 +88,11 @@ docs = [
 ecmwf = [
     "cdsapi>=0.4",
     "cfgrib>=0.9",
-    "eccodes>=1.4",
+    "eccodes>=2.38",
     "ecmwf-api-client>=1.6",
     "netcdf4>=1.6.1",
     "platformdirs>=3.0",
     "requests>=2.25",
-    "lxml>=5.1.0",
 ]
 
 # Google Cloud Platform caching interface
@@ -110,7 +102,8 @@ gcp = ["google-cloud-storage>=2.1", "platformdirs>=3.0", "tqdm>=4.61"]
 gfs = [
     "boto3>=1.20",
     "cfgrib>=0.9",
-    "eccodes>=1.4",
+    "eccodes>=2.38",
+    "netcdf4>=1.6.1",
     "platformdirs>=3.0",
     "tqdm>=4.61",
 ]
@@ -173,6 +166,7 @@ exclude = ["docs*", "tests*"]
 "pycontrails.models.humidity_scaling" = ["quantiles/*.pq"]
 "pycontrails.models.apcemm" = ["static/*.yaml"]
 "pycontrails.models.ps_model" = ["static/*.csv"]
+"pycontrails.physics" = ["static/*.csv"]
 
 # https://github.com/pypa/setuptools_scm/
 [tool.setuptools_scm]
@@ -241,9 +235,11 @@ ignore-path = [
 # https://docs.astral.sh/ruff/settings/#select
 # https://www.pydocstyle.org/en/6.3.0/error_codes.html
 [tool.ruff]
-lint.select = ["B", "D", "E", "F", "I", "NPY", "PL", "PT", "SIM", "UP"]
 line-length = 100
-lint.ignore = [
+
+[tool.ruff.lint]
+select = ["B", "D", "E", "F", "I", "NPY", "PL", "PT", "RET", "RUF", "SIM", "UP"]
+ignore = [
     "B028",
     "E402",
     "D105",
@@ -264,8 +260,12 @@ lint.ignore = [
 # https://docs.astral.sh/ruff/settings/#pydocstyle
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
-ignore-decorators = ["overrides.overrides"]
 
 # https://docs.astral.sh/ruff/settings/#flake8-pytest-style
 [tool.ruff.lint.flake8-pytest-style]
 fixture-parentheses = true
+
+# Relevant for RUF009
+# https://docs.astral.sh/ruff/settings/#lint_flake8-bugbear_extend-immutable-calls
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["numpy.timedelta64", "numpy.float32", "os.path.join"]

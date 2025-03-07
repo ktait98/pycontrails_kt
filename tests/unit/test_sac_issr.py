@@ -121,8 +121,7 @@ def test_SAC_met_source(met_issr: MetDataset) -> None:
 
 def test_SAC_with_nan(met_issr: MetDataset) -> None:
     """Check that NaN values persist after SAC calculation."""
-    met = met_issr.copy()
-    met.data.load()
+    met = MetDataset(met_issr.data.copy(deep=True))
     met.data["specific_humidity"][4, 3, 2, 1] = np.nan
 
     model = SAC(met, humidity_scaling=ExponentialBoostHumidityScaling())
@@ -230,14 +229,10 @@ def test_ISSR_flight_high_altitude(met_era5_fake: MetDataset, flight_fake: Fligh
     fl = flight_fake.copy()
     fl["altitude"] *= 2.5
 
-    with (
-        pytest.warns(UserWarning, match="Flight altitude is high"),
-        pytest.raises(ValueError, match="One of the requested xi is out of bounds"),
-    ):
+    with pytest.raises(ValueError, match="One of the requested xi is out of bounds"):
         ISSR(met=met_era5_fake, interpolation_bounds_error=True).eval(source=fl)
 
-    with pytest.warns(UserWarning, match="Flight altitude is high"):
-        fl = ISSR(met=met_era5_fake).eval(source=fl)
+    fl = ISSR(met=met_era5_fake).eval(source=fl)
 
     # waypoints above highest-altitude level in era5 get filled with NaN
     assert isinstance(fl, Flight)
@@ -401,8 +396,7 @@ def test_ISSR_flight_missing_waypoint(met_era5_fake: MetDataset, flight_fake: Fl
     fl["latitude"][212] = np.nan
     fl["time"][217] = np.datetime64("NaT")
 
-    with pytest.warns(UserWarning, match="NaT times"):
-        out2 = ISSR(met_era5_fake).eval(source=fl)
+    out2 = ISSR(met_era5_fake).eval(source=fl)
 
     # expect issr column to have exactly at waypoints with NaN
     for idx in [200, 210, 212, 217]:

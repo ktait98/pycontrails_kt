@@ -18,6 +18,7 @@ from pycontrails.core import cache, met, met_var
 from pycontrails.core.aircraft_performance import AircraftPerformance, AircraftPerformanceGrid
 from pycontrails.datalib.ecmwf import ERA5
 from tests import BADA3_PATH, BADA4_PATH, BADA_AVAILABLE
+from tests.unit import get_static_path
 
 # find default cache dir for testing
 DISK_CACHE_DIR = cache._get_user_cache_dir()
@@ -38,22 +39,6 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 def regenerate_results(request: pytest.FixtureRequest) -> Any:
     """Regenerate static test results in tests that use them."""
     return request.config.getoption("--regenerate-results")
-
-
-def get_static_path(filename: str | pathlib.Path) -> pathlib.Path:
-    """Return a path to file in ``/tests/static/`` directory.
-
-    Parameters
-    ----------
-    filename : str | pathlib.Path
-        Filename to prefix
-
-    Returns
-    -------
-    pathlib.Path
-    """
-    parent = pathlib.Path(__file__).parent
-    return parent / "static" / filename
 
 
 @pytest.fixture(scope="session")
@@ -148,33 +133,6 @@ def met_pcc_sl(met_ecmwf_sl_path: str, override_cache: DiskCacheStore) -> MetDat
     return era5.open_metdataset()
 
 
-@pytest.fixture()
-def met_accf_pl() -> MetDataset:
-    """Met data (pressure levels) for ACCF algorithm testing.
-
-    Returns
-    -------
-    MetDataset
-    """
-    path = get_static_path("met-accf-pl.nc")
-    ds = xr.open_dataset(path)
-    return MetDataset(ds, provider="ECMWF", dataset="ERA5", product="reanalysis")
-
-
-@pytest.fixture()
-def met_accf_sl() -> MetDataset:
-    """Met data (single level) for ACCF algorithm testing.
-
-    Returns
-    -------
-    MetDataset
-    """
-    path = get_static_path("met-accf-sl.nc")
-    ds = xr.open_dataset(path)
-    ds = ds.expand_dims("level").assign_coords(level=("level", [-1]))
-    return MetDataset(ds, provider="ECMWF", dataset="ERA5", product="reanalysis")
-
-
 @pytest.fixture(scope="session")
 def met_ecmwf_pl_path() -> str:
     """Path to ERA5 data at pressure levels.
@@ -254,6 +212,38 @@ def rad_cocip1() -> MetDataset:
 
 
 @pytest.fixture()
+def met_generic_cocip1() -> MetDataset:
+    """Generic meteorology to run cocip with ``flight-cocip1``."""
+    path = get_static_path("met-era5-cocip1.nc")
+    ds = xr.open_dataset(path).astype("float32")
+    ds["air_pressure"] = ds["air_pressure"].astype("float32")
+    ds["altitude"] = ds["altitude"].astype("float32")
+    ds = ds.rename(
+        {
+            "specific_cloud_ice_water_content": "mass_fraction_of_cloud_ice_in_air",
+            "fraction_of_cloud_cover": "cloud_area_fraction_in_atmosphere_layer",
+        }
+    )
+    return MetDataset(ds, provider="Generic")
+
+
+@pytest.fixture()
+def rad_generic_cocip1() -> MetDataset:
+    """Generic radiation data to run cocip with ``flight-cocip1``."""
+    path = get_static_path("rad-era5-cocip1.nc")
+    ds = xr.open_dataset(path)
+    ds = ds.rename(
+        {
+            "top_net_solar_radiation": "toa_net_downward_shortwave_flux",
+            "top_net_thermal_radiation": "toa_outgoing_longwave_flux",
+        }
+    )
+    ds["toa_outgoing_longwave_flux"] *= -1
+    ds = ds.assign_coords({"time": ds["time"] - np.timedelta64(30, "m")})
+    return MetDataset(ds, provider="Generic")
+
+
+@pytest.fixture()
 def met_cocip_nonuniform_time(met_cocip1: MetDataset) -> MetDataset:
     """Return a MetDataset with nonuniform time."""
     ds = met_cocip1.data
@@ -294,6 +284,35 @@ def rad_cocip2() -> MetDataset:
     path = get_static_path("rad-era5-cocip2.nc")
     ds = xr.open_dataset(path)
     return MetDataset(ds, provider="ECMWF", dataset="ERA5", product="reanalysis")
+
+
+@pytest.fixture()
+def met_generic_cocip2() -> MetDataset:
+    """Generic meteorology to run cocip with ``flight-cocip2.csv``."""
+    path = get_static_path("met-era5-cocip2.nc")
+    ds = xr.open_dataset(path)
+    ds = ds.rename(
+        {
+            "specific_cloud_ice_water_content": "mass_fraction_of_cloud_ice_in_air",
+        }
+    )
+    return MetDataset(ds, provider="Generic")
+
+
+@pytest.fixture()
+def rad_generic_cocip2() -> MetDataset:
+    """Generic radiation data to run cocip with ``flight-cocip2.csv``."""
+    path = get_static_path("rad-era5-cocip2.nc")
+    ds = xr.open_dataset(path)
+    ds = ds.rename(
+        {
+            "top_net_solar_radiation": "toa_net_downward_shortwave_flux",
+            "top_net_thermal_radiation": "toa_outgoing_longwave_flux",
+        }
+    )
+    ds["toa_outgoing_longwave_flux"] *= -1
+    ds["time"].attrs = {}  # don't mark time as already shifted
+    return MetDataset(ds, provider="Generic")
 
 
 @pytest.fixture()
@@ -420,7 +439,7 @@ def bada_model() -> AircraftPerformance:
     if not BADA_AVAILABLE:
         pytest.skip("BADA data not available")
 
-    params = {"bada3_path": BADA3_PATH, "bada4_path": BADA4_PATH}
+    params = {"bada3_path": BADA3_PATH, "bada4_path": BADA4_PATH, "engine_deterioration_factor": 0}
     return BADAFlight(params=params)
 
 
@@ -433,7 +452,7 @@ def bada_grid_model() -> AircraftPerformanceGrid:
     if not BADA_AVAILABLE:
         pytest.skip("BADA data not available")
 
-    params = {"bada3_path": BADA3_PATH, "bada4_path": BADA4_PATH}
+    params = {"bada3_path": BADA3_PATH, "bada4_path": BADA4_PATH, "engine_deterioration_factor": 0}
     return BADAGrid(params=params)
 
 
@@ -455,3 +474,17 @@ def _dask_single_threaded():
     """
     with dask.config.set(scheduler="single-threaded"):
         yield
+
+
+@pytest.fixture()
+def lnsp() -> xr.DataArray:
+    """Load lnsp data for testing."""
+    path = get_static_path("met-ecmwf-lnsp.nc")
+    return xr.open_dataarray(path)
+
+
+@pytest.fixture()
+def era5_ml() -> xr.Dataset:
+    """Load ERA5 data at model levels."""
+    path = get_static_path("met-ecmwf-ml.nc")
+    return xr.open_dataset(path)

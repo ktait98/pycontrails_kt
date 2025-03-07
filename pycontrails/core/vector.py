@@ -5,15 +5,25 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import sys
 import warnings
 from collections.abc import Generator, Iterable, Iterator, Sequence
-from typing import Any, TypeVar, overload
+from typing import Any, overload
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
+
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    from typing_extensions import override
 
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import xarray as xr
-from overrides import overrides
 
 from pycontrails.core import coordinates, interpolation
 from pycontrails.core import met as met_module
@@ -23,13 +33,11 @@ from pycontrails.utils import json as json_utils
 
 logger = logging.getLogger(__name__)
 
-#: Vector types
-VectorDatasetType = TypeVar("VectorDatasetType", bound="VectorDataset")
-GeoVectorDatasetType = TypeVar("GeoVectorDatasetType", bound="GeoVectorDataset")
-
 
 class AttrDict(dict[str, Any]):
     """Thin wrapper around dict to warn when setting a key that already exists."""
+
+    __slots__ = ()
 
     def __setitem__(self, k: str, v: Any) -> None:
         """Warn when setting values that already contain values.
@@ -79,7 +87,7 @@ class VectorDataDict(dict[str, np.ndarray]):
     Parameters
     ----------
     data : dict[str, np.ndarray], optional
-        Dictionary input
+        Dictionary input. A shallow copy is always made.
     """
 
     __slots__ = ("_size",)
@@ -124,8 +132,8 @@ class VectorDataDict(dict[str, np.ndarray]):
     def __delitem__(self, k: str) -> None:
         super().__delitem__(k)
 
-        # if not data keys left, set size to 0
-        if not len(self):
+        # if no keys remain, delete _size attribute
+        if not self:
             del self._size
 
     def setdefault(self, k: str, default: npt.ArrayLike | None = None) -> np.ndarray:
@@ -185,9 +193,9 @@ class VectorDataDict(dict[str, np.ndarray]):
         super().update(kwargs_arr)
 
     def _validate_array(self, arr: np.ndarray) -> None:
-        """Ensure that `arr` is compatible with instance.
+        """Ensure that ``arr`` is compatible (1 dimensional of equal size) with instance.
 
-        Set attribute `_size` if it has not yet been defined.
+        Set attribute ``_size`` if it has not yet been defined.
 
         Parameters
         ----------
@@ -197,34 +205,34 @@ class VectorDataDict(dict[str, np.ndarray]):
         Raises
         ------
         ValueError
-            If `arr` is not compatible with instance.
+            If ``arr`` is not compatible with instance.
         """
         if arr.ndim != 1:
             raise ValueError("All np.arrays must have dimension 1.")
 
         size = getattr(self, "_size", 0)
-        if size != 0:
-            if arr.size != size:
-                raise ValueError(f"Incompatible array sizes: {arr.size} and {size}.")
-        else:
+        if not size:
             self._size = arr.size
+            return
+
+        if arr.size != size:
+            raise ValueError(f"Incompatible array sizes: {arr.size} and {size}.")
 
 
-def _empty_vector_dict(keys: Iterable[str]) -> VectorDataDict:
-    """Create instance of VectorDataDict with variables defined by `keys` and size 0.
+def _empty_vector_dict(keys: Iterable[str]) -> dict[str, np.ndarray]:
+    """Create a dictionary with keys defined by ``keys`` and empty arrays.
 
     Parameters
     ----------
     keys : Iterable[str]
-        Keys to include in empty VectorDataset instance.
+        Keys to include in dictionary.
 
     Returns
     -------
-    VectorDataDict
-        Empty :class:`VectorDataDict` instance.
+    dict[str, np.ndarray]
+        Dictionary with empty arrays.
     """
-    keys = keys or ()
-    data = VectorDataDict({key: np.array([]) for key in keys})
+    data = {key: np.array([]) for key in keys}
 
     # The default dtype is float64
     # Time is special and should have a non-default dtype of datetime64[ns]
@@ -239,14 +247,15 @@ class VectorDataset:
 
     Parameters
     ----------
-    data : dict[str, npt.ArrayLike] | pd.DataFrame | VectorDataDict | VectorDataset | None, optional
-        Initial data, by default None
-    attrs : dict[str, Any] | AttrDict, optional
-        Dictionary of attributes, by default None
+    data : dict[str, npt.ArrayLike] | pd.DataFrame | VectorDataset | None, optional
+        Initial data, by default None. A shallow copy is always made. Use the ``copy``
+        parameter to copy the underlying array data.
+    attrs : dict[str, Any] | None, optional
+        Dictionary of attributes, by default None. A shallow copy is always made.
     copy : bool, optional
-        Copy data on class creation, by default True
+        Copy individual arrays on instantiation, by default True.
     **attrs_kwargs : Any
-        Additional attributes passed as keyword arguments
+        Additional attributes passed as keyword arguments.
 
     Raises
     ------
@@ -254,26 +263,24 @@ class VectorDataset:
         If "time" variable cannot be converted to numpy array.
     """
 
-    __slots__ = ("data", "attrs")
-
-    #: Vector data with labels as keys and :class:`numpy.ndarray` as values
-    data: VectorDataDict
+    __slots__ = ("attrs", "data")
 
     #: Generic dataset attributes
     attrs: AttrDict
 
+    #: Vector data with labels as keys and :class:`numpy.ndarray` as values
+    data: VectorDataDict
+
     def __init__(
         self,
-        data: (
-            dict[str, npt.ArrayLike] | pd.DataFrame | VectorDataDict | VectorDataset | None
-        ) = None,
+        data: dict[str, npt.ArrayLike] | pd.DataFrame | VectorDataset | None = None,
         *,
-        attrs: dict[str, Any] | AttrDict | None = None,
+        attrs: dict[str, Any] | None = None,
         copy: bool = True,
         **attrs_kwargs: Any,
     ) -> None:
-        # Set data
-        # --------
+        # Set data: always shallow copy
+        # -----------------------------
 
         # Casting from one VectorDataset type to another
         # e.g., flight = Flight(...); vector = VectorDataset(flight)
@@ -282,7 +289,7 @@ class VectorDataset:
             if copy:
                 self.data = VectorDataDict({k: v.copy() for k, v in data.data.items()})
             else:
-                self.data = data.data
+                self.data = VectorDataDict(data.data)
 
         elif data is None:
             self.data = VectorDataDict()
@@ -301,31 +308,45 @@ class VectorDataset:
                 data["time"] = time.to_numpy(copy=copy)
                 self.data = VectorDataDict(data)
 
-        elif isinstance(data, VectorDataDict):
-            if copy:
-                self.data = VectorDataDict({k: v.copy() for k, v in data.items()})
-            else:
-                self.data = data
-
         # For anything else, we assume it is a dictionary of array-like and attach it
         else:
             self.data = VectorDataDict({k: np.array(v, copy=copy) for k, v in data.items()})
 
-        # Set attributes
-        # --------------
+        # Set attributes: always shallow copy
+        # -----------------------------------
 
-        if attrs is None:
-            self.attrs = AttrDict()
-
-        elif isinstance(attrs, AttrDict) and not copy:
-            self.attrs = attrs
-
-        #  shallow copy if dict
-        else:
-            self.attrs = AttrDict(attrs.copy())
-
-        # update with kwargs
+        self.attrs = AttrDict(attrs or {})  # type: ignore[arg-type]
         self.attrs.update(attrs_kwargs)
+
+    @classmethod
+    def _from_fastpath(
+        cls,
+        data: dict[str, np.ndarray],
+        attrs: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> Self:
+        """Create new instance from consistent data.
+
+        This is a low-level method that bypasses the standard constructor in certain
+        special cases. It is intended for internal use only.
+
+        In essence, this method skips any validation from __init__ and directly sets
+        ``data`` and ``attrs``. This is useful when creating a new instance from an existing
+        instance the data has already been validated.
+        """
+        obj = cls.__new__(cls)
+
+        obj.data = VectorDataDict(data)
+        obj.attrs = AttrDict(attrs or {})
+
+        for key, value in kwargs.items():
+            try:
+                setattr(obj, key, value)
+            # If key not present in __slots__ of class (or parents), it's intended for attrs
+            except AttributeError:
+                obj.attrs[key] = value
+
+        return obj
 
     # ------------
     # dict-like methods
@@ -486,6 +507,9 @@ class VectorDataset:
         >>> vector.get_data_or_attr("c", default=5)
         5
 
+        See Also
+        --------
+        get_constant
         """
         marker = self.__marker
 
@@ -574,7 +598,7 @@ class VectorDataset:
         """
         return self.size > 0
 
-    def __add__(self: VectorDatasetType, other: VectorDatasetType | None) -> VectorDatasetType:
+    def __add__(self, other: Self | None) -> Self:
         """Concatenate two compatible instances of VectorDataset.
 
         In this context, compatibility means that both have identical :attr:`data` keys.
@@ -586,12 +610,12 @@ class VectorDataset:
 
         Parameters
         ----------
-        other : VectorDatasetType
+        other : Self | None
             Other values to concatenate
 
         Returns
         -------
-        VectorDatasetType
+        Self
             Concatenated values.
 
         Raises
@@ -610,11 +634,11 @@ class VectorDataset:
 
     @classmethod
     def sum(
-        cls: type[VectorDatasetType],
+        cls,
         vectors: Sequence[VectorDataset],
         infer_attrs: bool = True,
         fill_value: float | None = None,
-    ) -> VectorDatasetType:
+    ) -> Self:
         """Sum a list of :class:`VectorDataset` instances.
 
         Parameters
@@ -657,6 +681,13 @@ class VectorDataset:
         8  15  18
 
         """
+        if cls not in (VectorDataset, GeoVectorDataset):
+            msg = (
+                "Method 'sum' is only available on 'VectorDataset' and 'GeoVectorDataset'. "
+                "To sum 'Flight' instances, use 'Fleet.from_seq'."
+            )
+            raise TypeError(msg)
+
         vectors = [v for v in vectors if v is not None]  # remove None values
 
         if not vectors:
@@ -687,12 +718,11 @@ class VectorDataset:
             return np.concatenate(values)
 
         data = {key: concat(key) for key in keys}
+        attrs = vectors[0].attrs if infer_attrs else None
 
-        if infer_attrs:
-            return cls(data, attrs=vectors[0].attrs, copy=False)
-        return cls(data, copy=False)
+        return cls._from_fastpath(data, attrs)
 
-    def __eq__(self: VectorDatasetType, other: object) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Determine if two instances are equal.
 
         NaN values are considered equal in this comparison.
@@ -700,7 +730,7 @@ class VectorDataset:
         Parameters
         ----------
         other : object
-            VectorDatasetType to compare with
+            VectorDataset to compare with
 
         Returns
         -------
@@ -784,8 +814,8 @@ class VectorDataset:
     # Utilities
     # ------------
 
-    def copy(self: VectorDatasetType, **kwargs: Any) -> VectorDatasetType:
-        """Return a copy of this VectorDatasetType class.
+    def copy(self, **kwargs: Any) -> Self:
+        """Return a copy of this instance.
 
         Parameters
         ----------
@@ -794,10 +824,11 @@ class VectorDataset:
 
         Returns
         -------
-        VectorDatasetType
+        Self
             Copy of class
         """
-        return type(self)(data=self.data, attrs=self.attrs, copy=True, **kwargs)
+        data = {key: value.copy() for key, value in self.data.items()}
+        return type(self)._from_fastpath(data, self.attrs, **kwargs)
 
     def select(self: VectorDataset, keys: Iterable[str], copy: bool = True) -> VectorDataset:
         """Return new class instance only containing specified keys.
@@ -817,12 +848,10 @@ class VectorDataset:
             Note that this method always returns a :class:`VectorDataset`, even if
             the calling class is a proper subclass of :class:`VectorDataset`.
         """
-        data = {key: self[key] for key in keys}
-        return VectorDataset(data=data, attrs=self.attrs, copy=copy)
+        data = {key: np.array(self[key], copy=copy) for key in keys}
+        return VectorDataset._from_fastpath(data, self.attrs)
 
-    def filter(
-        self: VectorDatasetType, mask: npt.NDArray[np.bool_], copy: bool = True, **kwargs: Any
-    ) -> VectorDatasetType:
+    def filter(self, mask: npt.NDArray[np.bool_], copy: bool = True, **kwargs: Any) -> Self:
         """Filter :attr:`data` according to a boolean array ``mask``.
 
         Entries corresponding to ``mask == True`` are kept.
@@ -840,7 +869,7 @@ class VectorDataset:
 
         Returns
         -------
-        VectorDatasetType
+        Self
             Containing filtered data
 
         Raises
@@ -852,10 +881,10 @@ class VectorDataset:
         if mask.dtype != bool:
             raise TypeError("Parameter `mask` must be a boolean array.")
 
-        data = {key: value[mask] for key, value in self.data.items()}
-        return type(self)(data=data, attrs=self.attrs, copy=copy, **kwargs)
+        data = {key: np.array(value[mask], copy=copy) for key, value in self.data.items()}
+        return type(self)._from_fastpath(data, self.attrs, **kwargs)
 
-    def sort(self: VectorDatasetType, by: str | list[str]) -> VectorDatasetType:
+    def sort(self, by: str | list[str]) -> Self:
         """Sort data by key(s).
 
         This method always creates a copy of the data by calling
@@ -868,7 +897,7 @@ class VectorDataset:
 
         Returns
         -------
-        VectorDatasetType
+        Self
             Instance with sorted data.
         """
         return type(self)(data=self.dataframe.sort_values(by=by), attrs=self.attrs, copy=False)
@@ -987,6 +1016,77 @@ class VectorDataset:
         )
         self.broadcast_attrs(numeric_attrs, overwrite)
 
+    def get_constant(self, key: str, default: Any = __marker) -> Any:
+        """Get a constant value from :attr:`attrs` or :attr:`data`.
+
+        - If ``key`` is found in :attr:`attrs`, the value is returned.
+        - If ``key`` is found in :attr:`data`, the common value is returned if all
+          values are equal.
+        - If ``key`` is not found in :attr:`attrs` or :attr:`data` and a ``default`` is provided,
+          the ``default`` is returned.
+        - Otherwise, a KeyError is raised.
+
+        Parameters
+        ----------
+        key : str
+            Key to look for.
+        default : Any, optional
+            Default value to return if ``key`` is not found in :attr:`attrs` or :attr:`data`.
+
+        Returns
+        -------
+        Any
+            The constant value for ``key``.
+
+        Raises
+        ------
+        KeyError
+            If ``key`` is not found in :attr:`attrs` or the values in :attr:`data` are not equal
+            and ``default`` is not provided.
+
+        Examples
+        --------
+        >>> vector = VectorDataset({"a": [1, 1, 1], "b": [2, 2, 3]})
+        >>> vector.get_constant("a")
+        np.int64(1)
+        >>> vector.get_constant("b")
+        Traceback (most recent call last):
+        ...
+        KeyError: "A constant key 'b' not found in attrs or data"
+        >>> vector.get_constant("b", 3)
+        3
+
+        See Also
+        --------
+        get_data_or_attr
+        GeoVectorDataset.constants
+        """
+        marker = self.__marker
+
+        out = self.attrs.get(key, marker)
+        if out is not marker:
+            return out
+
+        arr: np.ndarray = self.data.get(key, marker)  # type: ignore[arg-type]
+        if arr is not marker:
+            try:
+                vals = np.unique(arr)
+            except TypeError:
+                # A TypeError can occur if the arr has object dtype and contains None
+                # Handle this case by returning None
+                if arr.dtype == object and np.all(arr == None):  # noqa: E711
+                    return None
+                raise
+
+            if len(vals) == 1:
+                return vals[0]
+
+        if default is not marker:
+            return default
+
+        msg = f"A constant key '{key}' not found in attrs or data"
+        raise KeyError(msg)
+
     # ------------
     # I / O
     # ------------
@@ -1044,7 +1144,6 @@ class VectorDataset:
         >>> pprint.pprint(fl.to_dict())
         {'aircraft_type': 'B737',
          'altitude_ft': [38661.0, 38661.0, 38661.0, 38661.0, 38661.0, 38661.0, 38661.0],
-         'crs': 'EPSG:4326',
          'latitude': [40.0, 41.724, 43.428, 45.111, 46.769, 48.399, 50.0],
          'longitude': [-100.0,
                        -101.441,
@@ -1110,12 +1209,12 @@ class VectorDataset:
 
     @classmethod
     def create_empty(
-        cls: type[VectorDatasetType],
+        cls,
         keys: Iterable[str],
         attrs: dict[str, Any] | None = None,
-        **attrs_kwargs: Any,
-    ) -> VectorDatasetType:
-        """Create instance with variables defined by `keys` and size 0.
+        **kwargs: Any,
+    ) -> Self:
+        """Create instance with variables defined by ``keys`` and size 0.
 
         If instance requires additional variables to be defined, these keys will automatically
         be attached to returned instance.
@@ -1126,20 +1225,19 @@ class VectorDataset:
             Keys to include in empty VectorDataset instance.
         attrs : dict[str, Any] | None, optional
             Attributes to attach instance.
-        **attrs_kwargs : Any
-            Define attributes as keyword arguments.
+        **kwargs : Any
+            Additional keyword arguments passed into the constructor of the returned class.
 
         Returns
         -------
-        VectorDatasetType
+        Self
             Empty VectorDataset instance.
         """
-        return cls(data=_empty_vector_dict(keys or set()), attrs=attrs, copy=False, **attrs_kwargs)
+        data = _empty_vector_dict(keys)
+        return cls._from_fastpath(data, attrs, **kwargs)
 
     @classmethod
-    def from_dict(
-        cls: type[VectorDatasetType], obj: dict[str, Any], copy: bool = True, **obj_kwargs: Any
-    ) -> VectorDatasetType:
+    def from_dict(cls, obj: dict[str, Any], copy: bool = True, **obj_kwargs: Any) -> Self:
         """Create instance from dict representation containing data and attrs.
 
         Parameters
@@ -1154,7 +1252,7 @@ class VectorDataset:
 
         Returns
         -------
-        VectorDatasetType
+        Self
             VectorDataset instance.
 
         See Also
@@ -1172,9 +1270,7 @@ class VectorDataset:
 
         return cls(data=data, attrs=attrs, copy=copy)
 
-    def generate_splits(
-        self: VectorDatasetType, n_splits: int, copy: bool = True
-    ) -> Generator[VectorDatasetType, None, None]:
+    def generate_splits(self, n_splits: int, copy: bool = True) -> Generator[Self, None, None]:
         """Split instance into ``n_split`` sub-vectors.
 
         Parameters
@@ -1187,7 +1283,7 @@ class VectorDataset:
 
         Returns
         -------
-        Generator[VectorDatasetType, None, None]
+        Generator[Self, None, None]
             Generator of split vectors.
 
         See Also
@@ -1215,12 +1311,9 @@ class GeoVectorDataset(VectorDataset):
     Each spatial variable is expected to have "float32" or "float64" ``dtype``.
     The time variable is expected to have "datetime64[ns]" ``dtype``.
 
-    Use the attribute :attr:`attr["crs"]` to specify coordinate reference system
-    using `PROJ <https://proj.org/>`_ or `EPSG <https://epsg.org/home.html>`_ syntax.
-
     Parameters
     ----------
-    data : dict[str, npt.ArrayLike] | pd.DataFrame | VectorDataDict | VectorDataset | None, optional
+    data : dict[str, npt.ArrayLike] | pd.DataFrame | VectorDataset | None, optional
         Data dictionary or :class:`pandas.DataFrame` .
         Must include keys/columns ``time``, ``latitude``, ``longitude``, ``altitude`` or ``level``.
         Keyword arguments for ``time``, ``latitude``, ``longitude``, ``altitude`` or ``level``
@@ -1273,9 +1366,7 @@ class GeoVectorDataset(VectorDataset):
 
     def __init__(
         self,
-        data: (
-            dict[str, npt.ArrayLike] | pd.DataFrame | VectorDataDict | VectorDataset | None
-        ) = None,
+        data: dict[str, npt.ArrayLike] | pd.DataFrame | VectorDataset | None = None,
         *,
         longitude: npt.ArrayLike | None = None,
         latitude: npt.ArrayLike | None = None,
@@ -1283,7 +1374,7 @@ class GeoVectorDataset(VectorDataset):
         altitude_ft: npt.ArrayLike | None = None,
         level: npt.ArrayLike | None = None,
         time: npt.ArrayLike | None = None,
-        attrs: dict[str, Any] | AttrDict | None = None,
+        attrs: dict[str, Any] | None = None,
         copy: bool = True,
         **attrs_kwargs: Any,
     ) -> None:
@@ -1297,7 +1388,10 @@ class GeoVectorDataset(VectorDataset):
             and time is None
         ):
             keys = *self.required_keys, "altitude"
-            data = _empty_vector_dict(keys)
+            self.data = VectorDataDict(_empty_vector_dict(keys))
+            self.attrs = AttrDict(attrs or {})  # type: ignore[arg-type]
+            self.attrs.update(attrs_kwargs)
+            return
 
         super().__init__(data=data, attrs=attrs, copy=copy, **attrs_kwargs)
 
@@ -1364,18 +1458,14 @@ class GeoVectorDataset(VectorDataset):
             if arr.dtype not in float_dtype:
                 self.update({coord: arr.astype(np.float64)})
 
-        # set CRS to "EPSG:4326" by default
-        crs = self.attrs.setdefault("crs", "EPSG:4326")
+        longitude = self["longitude"]
+        if np.any(longitude > 180.0) or np.any(longitude < -180.0):
+            raise ValueError("EPSG:4326 longitude coordinates should lie between [-180, 180).")
+        latitude = self["latitude"]
+        if np.any(latitude > 90.0) or np.any(latitude < -90.0):
+            raise ValueError("EPSG:4326 latitude coordinates should lie between [-90, 90].")
 
-        if crs == "EPSG:4326":
-            longitude = self["longitude"]
-            if np.any(longitude > 180.0) or np.any(longitude < -180.0):
-                raise ValueError("EPSG:4326 longitude coordinates should lie between [-180, 180).")
-            latitude = self["latitude"]
-            if np.any(latitude > 90.0) or np.any(latitude < -90.0):
-                raise ValueError("EPSG:4326 latitude coordinates should lie between [-90, 90].")
-
-    @overrides
+    @override
     def _display_attrs(self) -> dict[str, str]:
         try:
             time0 = pd.Timestamp(np.nanmin(self["time"]))
@@ -1400,7 +1490,7 @@ class GeoVectorDataset(VectorDataset):
         return attrs
 
     @property
-    def level(self) -> npt.NDArray[np.float64]:
+    def level(self) -> npt.NDArray[np.floating]:
         """Get pressure ``level`` values for points.
 
         Automatically calculates pressure level using :func:`units.m_to_pl` using ``altitude`` key.
@@ -1411,7 +1501,7 @@ class GeoVectorDataset(VectorDataset):
 
         Returns
         -------
-        npt.NDArray[np.float64]
+        npt.NDArray[np.floating]
             Point pressure level values, [:math:`hPa`]
         """
         try:
@@ -1420,7 +1510,7 @@ class GeoVectorDataset(VectorDataset):
             return units.m_to_pl(self.altitude)
 
     @property
-    def altitude(self) -> npt.NDArray[np.float64]:
+    def altitude(self) -> npt.NDArray[np.floating]:
         """Get altitude.
 
         Automatically calculates altitude using :func:`units.pl_to_m` using ``level`` key.
@@ -1431,7 +1521,7 @@ class GeoVectorDataset(VectorDataset):
 
         Returns
         -------
-        npt.NDArray[np.float64]
+        npt.NDArray[np.floating]
             Altitude, [:math:`m`]
         """
         try:
@@ -1445,12 +1535,12 @@ class GeoVectorDataset(VectorDataset):
             return units.ft_to_m(self["altitude_ft"])
 
     @property
-    def air_pressure(self) -> npt.NDArray[np.float64]:
+    def air_pressure(self) -> npt.NDArray[np.floating]:
         """Get ``air_pressure`` values for points.
 
         Returns
         -------
-        npt.NDArray[np.float64]
+        npt.NDArray[np.floating]
             Point air pressure values, [:math:`Pa`]
         """
         try:
@@ -1459,12 +1549,12 @@ class GeoVectorDataset(VectorDataset):
             return 100.0 * self.level
 
     @property
-    def altitude_ft(self) -> npt.NDArray[np.float64]:
+    def altitude_ft(self) -> npt.NDArray[np.floating]:
         """Get altitude in feet.
 
         Returns
         -------
-        npt.NDArray[np.float64]
+        npt.NDArray[np.floating]
             Altitude, [:math:`ft`]
         """
         try:
@@ -1530,24 +1620,21 @@ class GeoVectorDataset(VectorDataset):
     # Utilities
     # ------------
 
-    def transform_crs(
-        self: GeoVectorDatasetType, crs: str, copy: bool = True
-    ) -> GeoVectorDatasetType:
+    def transform_crs(self, crs: str) -> tuple[npt.NDArray[np.floating], npt.NDArray[np.floating]]:
         """Transform trajectory data from one coordinate reference system (CRS) to another.
 
         Parameters
         ----------
         crs : str
             Target CRS. Passed into to :class:`pyproj.Transformer`. The source CRS
-            is inferred from the :attr:`attrs["crs"]` attribute.
+            is assumed to be EPSG:4326.
         copy : bool, optional
             Copy data on transformation. Defaults to True.
 
         Returns
         -------
-        GeoVectorDatasetType
-            Converted dataset with new coordinate reference system.
-            :attr:`attrs["crs"]` reflects new crs.
+        tuple[npt.NDArray[np.floating], npt.NDArray[np.floating]]
+            New x and y coordinates in the target CRS.
         """
         try:
             import pyproj
@@ -1559,21 +1646,16 @@ class GeoVectorDataset(VectorDataset):
                 pycontrails_optional_package="pyproj",
             )
 
-        transformer = pyproj.Transformer.from_crs(self.attrs["crs"], crs, always_xy=True)
-        lon, lat = transformer.transform(self["longitude"], self["latitude"])
+        crs_from = "EPSG:4326"
+        transformer = pyproj.Transformer.from_crs(crs_from, crs, always_xy=True)
+        return transformer.transform(self["longitude"], self["latitude"])
 
-        ret = self.copy() if copy else self
-
-        ret.update(longitude=lon, latitude=lat)
-        ret.attrs.update(crs=crs)
-        return ret
-
-    def T_isa(self) -> npt.NDArray[np.float64]:
+    def T_isa(self) -> npt.NDArray[np.floating]:
         """Calculate the ICAO standard atmosphere temperature at each point.
 
         Returns
         -------
-        npt.NDArray[np.float64]
+        npt.NDArray[np.floating]
             ISA temperature, [:math:`K`]
 
         See Also
@@ -1626,24 +1708,24 @@ class GeoVectorDataset(VectorDataset):
         self,
         mda: met_module.MetDataArray,
         *,
-        longitude: npt.NDArray[np.float64] | None = None,
-        latitude: npt.NDArray[np.float64] | None = None,
-        level: npt.NDArray[np.float64] | None = None,
+        longitude: npt.NDArray[np.floating] | None = None,
+        latitude: npt.NDArray[np.floating] | None = None,
+        level: npt.NDArray[np.floating] | None = None,
         time: npt.NDArray[np.datetime64] | None = None,
         use_indices: bool = False,
         **interp_kwargs: Any,
-    ) -> npt.NDArray[np.float64]:
+    ) -> npt.NDArray[np.floating]:
         """Intersect waypoints with MetDataArray.
 
         Parameters
         ----------
         mda : MetDataArray
             MetDataArray containing a meteorological variable at spatio-temporal coordinates.
-        longitude : npt.NDArray[np.float64], optional
+        longitude : npt.NDArray[np.floating], optional
             Override existing coordinates for met interpolation
-        latitude : npt.NDArray[np.float64], optional
+        latitude : npt.NDArray[np.floating], optional
             Override existing coordinates for met interpolation
-        level : npt.NDArray[np.float64], optional
+        level : npt.NDArray[np.floating], optional
             Override existing coordinates for met interpolation
         time : npt.NDArray[np.datetime64], optional
             Override existing coordinates for met interpolation
@@ -1662,7 +1744,7 @@ class GeoVectorDataset(VectorDataset):
 
         Returns
         -------
-        npt.NDArray[np.float64]
+        npt.NDArray[np.floating]
             Interpolated values
 
         Examples
@@ -1835,7 +1917,6 @@ class GeoVectorDataset(VectorDataset):
         latitude_buffer: tuple[float, float] = ...,
         level_buffer: tuple[float, float] = ...,
         time_buffer: tuple[np.timedelta64, np.timedelta64] = ...,
-        copy: bool = ...,
     ) -> met_module.MetDataset: ...
 
     @overload
@@ -1847,7 +1928,6 @@ class GeoVectorDataset(VectorDataset):
         latitude_buffer: tuple[float, float] = ...,
         level_buffer: tuple[float, float] = ...,
         time_buffer: tuple[np.timedelta64, np.timedelta64] = ...,
-        copy: bool = ...,
     ) -> met_module.MetDataArray: ...
 
     def downselect_met(
@@ -1861,9 +1941,12 @@ class GeoVectorDataset(VectorDataset):
             np.timedelta64(0, "h"),
             np.timedelta64(0, "h"),
         ),
-        copy: bool = True,
     ) -> met_module.MetDataType:
         """Downselect ``met`` to encompass a spatiotemporal region of the data.
+
+        .. versionchanged:: 0.54.5
+
+            Returned object is no longer copied.
 
         Parameters
         ----------
@@ -1889,8 +1972,6 @@ class GeoVectorDataset(VectorDataset):
             and ``time_buffer[1]`` on the high side.
             Units must be the same as class coordinates.
             Defaults to ``(np.timedelta64(0, "h"), np.timedelta64(0, "h"))``.
-        copy : bool
-            If returned object is a copy or view of the original. True by default.
 
         Returns
         -------
@@ -1931,20 +2012,20 @@ class GeoVectorDataset(VectorDataset):
             level=level_slice,
             time=time_slice,
         )
-        return type(met)(data, copy=copy)
+        return type(met)._from_fastpath(data)
 
     # ------------
     # I / O
     # ------------
 
     @classmethod
-    @overrides
+    @override
     def create_empty(
-        cls: type[GeoVectorDatasetType],
+        cls,
         keys: Iterable[str] | None = None,
         attrs: dict[str, Any] | None = None,
         **attrs_kwargs: Any,
-    ) -> GeoVectorDatasetType:
+    ) -> Self:
         keys = *cls.required_keys, "altitude", *(keys or ())
         return super().create_empty(keys, attrs, **attrs_kwargs)
 
@@ -1960,21 +2041,6 @@ class GeoVectorDataset(VectorDataset):
             Python representation of GeoJSON FeatureCollection
         """
         return json_utils.dataframe_to_geojson_points(self.dataframe)
-
-    def to_pseudo_mercator(self: GeoVectorDatasetType, copy: bool = True) -> GeoVectorDatasetType:
-        """Convert data from :attr:`attrs["crs"]` to Pseudo Mercator (EPSG:3857).
-
-        Parameters
-        ----------
-        copy : bool, optional
-            Copy data on transformation.
-            Defaults to True.
-
-        Returns
-        -------
-        GeoVectorDatasetType
-        """
-        return self.transform_crs("EPSG:3857", copy=copy)
 
     # ------------
     # Vector to grid
@@ -2050,7 +2116,7 @@ def vector_to_lon_lat_grid(
            ...,
            [1.97, 3.02, 1.84, ..., 2.37, 3.87, 2.09],
            [3.74, 1.6 , 4.01, ..., 4.6 , 4.27, 3.4 ],
-           [2.97, 0.12, 1.33, ..., 3.54, 0.74, 2.59]])
+           [2.97, 0.12, 1.33, ..., 3.54, 0.74, 2.59]], shape=(40, 40))
 
     >>> da.sum().item() == vector["foo"].sum()
     np.True_

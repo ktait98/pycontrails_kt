@@ -107,6 +107,7 @@ RelativeHumidity = MetVariable(
     long_name=met_var.RelativeHumidity.long_name,
     units="%",
     level_type=met_var.RelativeHumidity.level_type,
+    grib1_id=met_var.RelativeHumidity.grib1_id,
     ecmwf_id=met_var.RelativeHumidity.ecmwf_id,
     grib2_id=met_var.RelativeHumidity.grib2_id,
     description=(
@@ -217,6 +218,17 @@ CloudAreaFraction = MetVariable(
         " whole atmosphere column."
     ),
 )
+
+OzoneMassMixingRatio = MetVariable(
+    short_name="o3",
+    standard_name="mass_fraction_of_ozone_in_air",
+    long_name="Ozone mass mixing ratio",
+    level_type="isobaricInhPa",
+    units="kg kg**-1",
+    ecmwf_id=203,
+    description="This parameter is the mass of ozone per kilogram of air.",
+)
+
 
 PRESSURE_LEVEL_VARIABLES = [
     met_var.AirTemperature,

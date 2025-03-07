@@ -10,7 +10,7 @@ import xarray as xr
 
 import pycontrails
 from pycontrails.core.flight import Flight
-from pycontrails.core.met import MetDataset, standardize_variables
+from pycontrails.core.met import MetDataset
 from pycontrails.core.met_var import (
     AirTemperature,
     EastwardWind,
@@ -88,13 +88,16 @@ class ACCFParams(ModelParams):
     h2o_scaling: float = 1.0
     o3_scaling: float = 1.0
 
-    forecast_step: float = 6.0
+    forecast_step: float | None = None
 
     sep_ri_rw: bool = False
 
     climate_indicator: str = "ATR"
 
-    horizontal_resolution: float = 0.5
+    #: The horizontal resolution of the meteorological data in degrees.
+    #: If None, it will be inferred from the ``met`` dataset for :class:`MetDataset`
+    #: source, otherwise it will be set to 0.5.
+    horizontal_resolution: float | None = None
 
     emission_scenario: str = "pulse"
 
@@ -115,6 +118,8 @@ class ACCFParams(ModelParams):
     nox_ei: str = "TTV"
 
     PMO: bool = False
+
+    unit_K_per_kg_fuel: bool = False
 
 
 class ACCF(Model):
@@ -146,15 +151,12 @@ class ACCF(Model):
         SpecificHumidity,
         ecmwf.PotentialVorticity,
         Geopotential,
-        RelativeHumidity,
+        (RelativeHumidity, ecmwf.RelativeHumidity),
         NorthwardWind,
         EastwardWind,
-        ecmwf.PotentialVorticity,
     )
     sur_variables = (ecmwf.SurfaceSolarDownwardRadiation, ecmwf.TopNetThermalRadiation)
     default_params = ACCFParams
-
-    short_vars = frozenset(v.short_name for v in (*met_variables, *sur_variables))
 
     # This variable won't get used since we are not writing the output
     # anywhere, but the library will complain if it's not defined
@@ -168,7 +170,13 @@ class ACCF(Model):
         **params_kwargs: Any,
     ) -> None:
         # Normalize ECMWF variables
-        met = standardize_variables(met, self.met_variables)
+        variables = self.ecmwf_met_variables()
+        met = met.standardize_variables(variables)
+
+        # If relative humidity is in percentage, convert to a proportion
+        if met["relative_humidity"].attrs.get("units") == "%":
+            met.data["relative_humidity"] /= 100.0
+            met.data["relative_humidity"].attrs["units"] = "1"
 
         # Ignore humidity scaling warning
         with warnings.catch_warnings():
@@ -177,7 +185,7 @@ class ACCF(Model):
 
         if surface:
             surface = surface.copy()
-            surface = standardize_variables(surface, self.sur_variables)
+            surface = surface.standardize_variables(self.sur_variables)
             surface.data = _rad_instantaneous_to_accumulated(surface.data)
             self.surface = surface
 
@@ -231,18 +239,21 @@ class ACCF(Model):
             if hasattr(self, "surface"):
                 self.surface = self.source.downselect_met(self.surface)
 
-        if isinstance(self.source, MetDataset):
-            # Overwrite horizontal resolution to match met
-            longitude = self.source.data["longitude"].values
-            if longitude.size > 1:
-                hres = abs(longitude[1] - longitude[0])
-                self.params["horizontal_resolution"] = float(hres)
-
-            else:
+        if self.params["horizontal_resolution"] is None:
+            if isinstance(self.source, MetDataset):
+                # Overwrite horizontal resolution to match met
+                longitude = self.source.data["longitude"].values
                 latitude = self.source.data["latitude"].values
-                if latitude.size > 1:
+                if longitude.size > 1:
+                    hres = abs(longitude[1] - longitude[0])
+                    self.params["horizontal_resolution"] = float(hres)
+                elif latitude.size > 1:
                     hres = abs(latitude[1] - latitude[0])
                     self.params["horizontal_resolution"] = float(hres)
+                else:
+                    self.params["horizontal_resolution"] = 0.5
+            else:
+                self.params["horizontal_resolution"] = 0.5
 
         p_settings = _get_accf_config(self.params)
 
@@ -267,10 +278,14 @@ class ACCF(Model):
         aCCFs, _ = clim_imp.get_xarray()
 
         # assign ACCF outputs to source
+        skip = {
+            v[0].short_name if isinstance(v, tuple) else v.short_name
+            for v in (*self.met_variables, *self.sur_variables)
+        }
         maCCFs = MetDataset(aCCFs)
         for key, arr in maCCFs.data.items():
             # skip met variables
-            if key in self.short_vars:
+            if key in skip:
                 continue
 
             assert isinstance(key, str)
@@ -292,7 +307,12 @@ class ACCF(Model):
         # It also needs variables to have the ECMWF short name
         if isinstance(self.met, MetDataset):
             ds_met = self.met.data.transpose("time", "level", "latitude", "longitude")
-            name_dict = {v.standard_name: v.short_name for v in self.met_variables}
+            name_dict = {
+                v[0].standard_name if isinstance(v, tuple) else v.standard_name: v[0].short_name
+                if isinstance(v, tuple)
+                else v.short_name
+                for v in self.met_variables
+            }
             ds_met = ds_met.rename(name_dict)
         else:
             ds_met = None
@@ -340,7 +360,7 @@ def _get_accf_config(params: dict[str, Any]) -> dict[str, Any]:
         "horizontal_resolution": params["horizontal_resolution"],
         "forecast_step": params["forecast_step"],
         "NOx_aCCF": True,
-        "NOx&inverse_EIs": params["nox_ei"],
+        "NOx_EI&F_km": params["nox_ei"],
         "output_format": "netCDF",
         "mean": False,
         "std": False,
@@ -361,6 +381,7 @@ def _get_accf_config(params: dict[str, Any]) -> dict[str, Any]:
             "H2O": params["h2o_scaling"],
             "O3": params["o3_scaling"],
         },
+        "unit_K/kg(fuel)": params["unit_K_per_kg_fuel"],
         "PCFA": params["pfca"],
         "PCFA-ISSR": {
             "rhi_threshold": params["issr_rhi_threshold"],

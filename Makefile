@@ -24,8 +24,8 @@ pip-install:
 	python -m pip install -U pip wheel
 	python -m pip install -e ".[complete]"
 
-	# these still must be installed manually for Python < 3.10
-	# -pip install -e ".[open3d]"
+	# open3d wheels not available for latest python versions; install manually
+	# pip install -e ".[open3d]"
 
 # development installation
 dev-install: pip-install
@@ -218,8 +218,10 @@ nb-check-links:
 	python -m pytest --check-links \
 		--check-links-ignore "https://doi.org/10.1021/acs.est.9b05608" \
 		--check-links-ignore "https://doi.org/10.1021/acs.est.2c05781" \
+		--check-links-ignore "https://doi.org/10.1175/JAMC-D-11-0242.1" \
 		--check-links-ignore "https://github.com/contrailcirrus/pycontrails-bada" \
 		--check-links-ignore "https://ourairports.com" \
+		--check-links-ignore "https://www.ncei.noaa.gov/products/weather-climate-models/global-forecast" \
 		docs/notebooks/*.ipynb
 
 # Execute all notebooks in docs

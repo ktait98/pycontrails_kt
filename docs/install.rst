@@ -27,8 +27,7 @@ With Python 3.10 or later, install the latest release from PyPI using ``pip``:
     # install with all optional dependencies
     $ pip install "pycontrails[complete]"
 
-Wheels are currently built for python 3.10 - 3.13 on Linux, macOS, and Windows. The python 3.13
-wheels are not yet tested in CI/CD and not all runtime dependencies are available for python 3.13.
+Wheels are currently built and tested for python 3.10 - 3.13 on Linux, macOS, and Windows.
 
 Install the latest development version directly from GitHub:
 
@@ -92,9 +91,36 @@ BADA
 `pycontrails-bada <https://github.com/contrailcirrus/pycontrails-bada>`__ is an extension to
 interface with `BADA <https://www.eurocontrol.int/model/bada>`__ aircraft performance data.
 
+Reach out to `info@contrails.org <mailto:info@contrails.org>`__ to request access.
+
+Once provided access, install using:
+
+1. Follow the instructions for your platform to install the `gcloud CLI <https://cloud.google.com/sdk/docs/install>`__
+2. Login to `gcloud`. For alternate auth methods, see `Google Artifact Registry keyring docs <https://cloud.google.com/artifact-registry/docs/python/authentication#keyring>`__
+
 .. code-block:: bash
 
-    pip install "pycontrails-bada @ git+ssh://git@github.com/contrailcirrus/pycontrails-bada.git"
+    gcloud auth login
+
+3. Install `keyring <https://pypi.org/project/keyring/>`__ for Google Artifact Registry
+
+.. code-block:: bash
+
+    pip install keyring keyrings.google-artifactregistry-auth
+
+4. Install ``pycontrails-bada`` package:
+
+.. code-block:: bash
+
+    pip install --index-url https://us-central1-python.pkg.dev/contrails-301217/pycontrails/simple \
+        pycontrails-bada
+
+.. code-block:: bash
+
+    # or at a tag
+    pip install --index-url https://us-central1-python.pkg.dev/contrails-301217/pycontrails/simple \
+        "pycontrails-bada==0.6.0"
+
 
 Cirium
 ~~~~~~
@@ -113,9 +139,8 @@ to the `Cirium <https://www.cirium.com/>`__ database of jet engines.
 ACCF
 ~~~~
 
-Interface to DLR / UMadrid `ACCF model <https://gmd.copernicus.org/preprints/gmd-2022-203/>`__
-using a forked version of the `climaccf repository <https://github.com/dlr-pa/climaccf>`__.
+Interface to DLR / UMadrid `ACCF model <https://gmd.copernicus.org/preprints/gmd-2022-203/>`__.
 
 .. code-block:: bash
 
-    pip install "climaccf @ git+ssh://git@github.com/contrailcirrus/climaccf.git"
+    pip install "climaccf @ git+ssh://git@github.com/dlr-pa/climaccf"

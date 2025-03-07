@@ -16,7 +16,7 @@ from scipy import signal
 from pycontrails import Flight, GeoVectorDataset, MetDataArray, MetDataset, SAFBlend, VectorDataset
 from pycontrails.core import flight
 from pycontrails.models.issr import ISSR
-from pycontrails.physics import constants, units
+from pycontrails.physics import constants, jet, units
 
 ##########
 # Fixtures
@@ -70,17 +70,6 @@ def test_flight_init(fl: Flight) -> None:
 
     assert isinstance(fl.level, np.ndarray)
     assert isinstance(fl.air_pressure, np.ndarray)
-
-
-def test_flight_crs(flight_data: pd.DataFrame) -> None:
-    fl = Flight(flight_data)
-
-    # crs defaults to "EPSG:4326"
-    assert fl.attrs["crs"] == "EPSG:4326"
-
-    # crs maintained as attr
-    fl = Flight(flight_data, crs="EPSG:3857")
-    assert fl.attrs["crs"] == "EPSG:3857"
 
 
 def test_flight_creation() -> None:
@@ -176,7 +165,6 @@ def test_flight_empty() -> None:
     assert len(fl.air_pressure) == 0
     assert len(fl.level) == 0
 
-    assert fl.attrs["crs"] == "EPSG:4326"
     assert isinstance(fl.constants, dict)
     assert fl.constants == fl.attrs
 
@@ -438,25 +426,103 @@ def test_altitude_interpolation(fl: Flight) -> None:
     assert _check_rocd(fl1)
     assert _check_rocd(fl2)
 
-    # test more aggresive altitude interpolation
+    # Test different interpolation conditions
+
+    # SCENARIO 1: If cruise over 2 h with small altitude change, set change to mid-point
+    alt_ft = np.array([35000.0, 36000.0, 36000.0])
+    time = pd.to_datetime(["2000-01-01 00:00:00", "2000-01-01 04:00:00", "2000-01-01 04:05:00"])
     fl_alt = Flight(
-        longitude=np.linspace(0, 10, 10),
-        latitude=np.linspace(0, 10, 10),
-        time=pd.date_range("2000-01-01 00:00:00", "2000-01-01 05:00:00", periods=10),
-        altitude=np.array([0, 11000, 5000, 9000, 9000, 11000, 5000, 11000, 11000, 0]),
+        longitude=np.linspace(0, 10, 3),
+        latitude=np.linspace(0, 10, 3),
+        time=time,
+        altitude=units.ft_to_m(alt_ft),
     )
 
-    # resample to 1 min
     fl10 = fl_alt.resample_and_fill("1min")
-
-    # confirm that rocd is appropriate
+    index_sep = np.argwhere(fl10["time"] == pd.to_datetime("2000-01-01 02:00:00"))[0][0]
+    np.testing.assert_array_almost_equal(fl10.altitude_ft[:index_sep], 35000.0, decimal=0)
+    np.testing.assert_array_almost_equal(fl10.altitude_ft[index_sep + 1 :], 36000.0, decimal=0)
     assert _check_rocd(fl10)
 
-    # resample to 5 minutes
-    # confirm that all values exist in previous resampling
-    fl11 = fl_alt.resample_and_fill("5min")
+    # SCENARIO 2: If large time gap and altitude difference, climb until desired altitude and cruise
+    alt_ft = np.array([5000.0, 30000.0, 30000.0])
+    time = pd.to_datetime(["2000-01-01 00:00:00", "2000-01-01 01:00:00", "2000-01-01 01:05:00"])
+    fl_alt = Flight(
+        longitude=np.linspace(0, 10, 3),
+        latitude=np.linspace(0, 10, 3),
+        time=time,
+        altitude=units.ft_to_m(alt_ft),
+    )
+
+    fl11 = fl_alt.resample_and_fill("1min")
+
+    # Takes around 10 minutes to climb to next recorded altitude (Nominal ROCD = 2500 ft/min)
+    index_sep = np.argwhere(fl11["time"] == pd.to_datetime("2000-01-01 00:10:00"))[0][0]
+    np.testing.assert_array_almost_equal(fl11.altitude_ft[index_sep + 1 :], 30000.0, decimal=0)
     assert _check_rocd(fl11)
-    assert np.isin(fl11["altitude"], fl10["altitude"]).all()
+
+    # SCENARIO 3: If shallow climb (0 < rocd < 500 ft/min), assume climb in next time step
+    alt_ft = np.array([30000.0, 31000.0, 31000.0])
+    time = pd.to_datetime(["2000-01-01 00:00:00", "2000-01-01 00:05:00", "2000-01-01 00:10:00"])
+    fl_alt = Flight(
+        longitude=np.linspace(0, 10, 3),
+        latitude=np.linspace(0, 10, 3),
+        time=time,
+        altitude=units.ft_to_m(alt_ft),
+    )
+    fl12 = fl_alt.resample_and_fill("1min")
+    assert fl12.altitude_ft[0] == 30000.0
+    np.testing.assert_array_almost_equal(fl12.altitude_ft[1:], 31000.0, decimal=0)
+    assert _check_rocd(fl12)
+
+    # SCENARIO 4: If large time gap and altitude difference, assume descent towards the end
+    alt_ft = np.array([30000.0, 5000.0, 5000.0])
+    time = pd.to_datetime(["2000-01-01 00:00:00", "2000-01-01 01:00:00", "2000-01-01 01:05:00"])
+    fl_alt = Flight(
+        longitude=np.linspace(0, 10, 3),
+        latitude=np.linspace(0, 10, 3),
+        time=time,
+        altitude=units.ft_to_m(alt_ft),
+    )
+    fl13 = fl_alt.resample_and_fill("1min")
+
+    # Takes less than 10 minutes to descent to next recorded altitude (Nominal ROCD = 2500 ft/min)
+    index_sep = np.argwhere(fl13["time"] == pd.to_datetime("2000-01-01 00:50:00"))[0][0]
+    np.testing.assert_array_almost_equal(fl13.altitude_ft[:index_sep], 30000.0, decimal=0)
+    assert _check_rocd(fl13)
+
+    # SCENARIO 5: If shallow descent (-250 < rocd < 0 ft/min), then assume descent in last step.
+    alt_ft = np.array([31000.0, 30000.0, 30000.0])
+    time = pd.to_datetime(["2000-01-01 00:00:00", "2000-01-01 00:05:00", "2000-01-01 00:10:00"])
+    fl_alt = Flight(
+        longitude=np.linspace(0, 10, 3),
+        latitude=np.linspace(0, 10, 3),
+        time=time,
+        altitude=units.ft_to_m(alt_ft),
+    )
+    fl14 = fl_alt.resample_and_fill("1min")
+    np.testing.assert_array_almost_equal(fl14.altitude_ft[:5], 31000.0, decimal=0)
+    np.testing.assert_array_almost_equal(fl14.altitude_ft[-6:], 30000.0, decimal=0)
+    assert _check_rocd(fl14)
+
+    # SCENARIO 6: Test unrealistic scenario without cruise phase for long time periods
+    alt_ft = np.array([5000.0, 5000.0])
+    time = pd.to_datetime(["2000-01-01 00:00:00", "2000-01-01 01:30:00"])
+    fl_alt = Flight(
+        longitude=np.linspace(0, 10, 2),
+        latitude=np.linspace(0, 10, 2),
+        time=time,
+        altitude=units.ft_to_m(alt_ft),
+    )
+    fl15 = fl_alt.resample_and_fill("1min")
+
+    # Takes less than 10 minutes to climb and descent assumed cruising altitude
+    index_sep_1 = np.argwhere(fl15["time"] == pd.to_datetime("2000-01-01 00:10:00"))[0][0]
+    index_sep_2 = np.argwhere(fl15["time"] == pd.to_datetime("2000-01-01 00:50:00"))[0][0]
+    np.testing.assert_array_almost_equal(
+        fl15.altitude_ft[index_sep_1 + 1 : index_sep_2], 30000.0, decimal=0
+    )
+    assert _check_rocd(fl15)
 
     # test altitude interpolation with level
     fl_lev = Flight(
@@ -467,68 +533,31 @@ def test_altitude_interpolation(fl: Flight) -> None:
     )
 
     # resample to 1 min
-    fl13 = fl_lev.resample_and_fill("1min")
-    assert "level" not in fl13
-    assert _check_rocd(fl13)
+    fl16 = fl_lev.resample_and_fill("1min")
+    assert "level" not in fl16
+    assert _check_rocd(fl16)
 
     # test nominal rocd
-    fl14 = fl_alt.resample_and_fill("1min", nominal_rocd=30)
-    assert _check_rocd(fl14, nominal_rocd=30)
+    fl_alt = Flight(
+        longitude=np.linspace(0, 10, 10),
+        latitude=np.linspace(0, 10, 10),
+        time=pd.date_range("2000-01-01 00:00:00", "2000-01-01 05:00:00", periods=10),
+        altitude=np.array([0, 11000, 5000, 9000, 9000, 11000, 5000, 11000, 11000, 0]),
+    )
 
-    # test warning with low nominal rocd
-    with pytest.warns(UserWarning, match="Rate of climb/descent values greater than nominal"):
-        fl15 = fl_alt.resample_and_fill("1min", nominal_rocd=1)
-        assert not _check_rocd(fl15, nominal_rocd=1)
+    fl17 = fl_alt.resample_and_fill("1min", nominal_rocd=30)
+    assert _check_rocd(fl17, nominal_rocd=30)
 
     # test `drop` kwarg
     fl_alt["extrakey"] = np.linspace(0, 10, 10)
     fl_alt["level"] = fl_alt.level
-    fl16 = fl_alt.resample_and_fill("1min", drop=False)
-    assert "extrakey" in fl16
-    assert np.any(np.isnan(fl16["extrakey"]))
-    assert "level" not in fl16
+    fl19 = fl_alt.resample_and_fill("1min", drop=False)
+    assert "extrakey" in fl19
+    assert np.any(np.isnan(fl19["extrakey"]))
+    assert "level" not in fl19
 
-    fl17 = fl_alt.resample_and_fill("1min")
-    assert "extrakey" not in fl17
-
-
-def test_step_climb_interpolation() -> None:
-    """Check the ROCD of the interpolated altitude."""
-
-    def _check_rocd(_fl: Flight, nominal_rocd: float = constants.nominal_rocd) -> np.bool_:
-        """Check rate of climb/descent."""
-        dt = np.diff(_fl["time"], append=np.datetime64("NaT")) / np.timedelta64(1, "s")
-        dalt = np.diff(_fl.altitude, append=np.nan)
-        rocd = np.abs(dalt / dt)
-        return np.all(rocd[:-1] < 2 * nominal_rocd)
-
-    # test more aggressive altitude interpolation
-    fl = Flight(
-        longitude=np.linspace(0, 10, 5),
-        latitude=np.linspace(0, 10, 5),
-        time=pd.DatetimeIndex(
-            [
-                "1/1/2020 10:00:00",
-                "1/1/2020 11:00:00",
-                "1/1/2020 15:00:00",
-                "1/1/2020 16:00:00",
-                "1/1/2020 20:00:00",
-            ]
-        ),
-        altitude=np.array([0, 5000, 10000, 9000, 5000]),
-    )
-
-    fl1 = fl.resample_and_fill()
-    assert _check_rocd(fl1)
-    # The first segment's climb should be at the start
-    assert fl1["altitude"][1] > 0
-    # The second segment's climb should be in the middle
-    assert fl1["altitude"][61] == pytest.approx(5000.0, abs=1e-9)
-    assert fl1["altitude"][180] == pytest.approx(5000.0, abs=1e-9)
-    assert fl1["altitude"][181] > 5000.0
-    # Both descent's should happen at end of segment
-    assert fl1["altitude"][301] == pytest.approx(10000.0, abs=1e-9)
-    assert fl1["altitude"][361] == pytest.approx(9000.0, abs=1e-9)
+    fl20 = fl_alt.resample_and_fill("1min")
+    assert "extrakey" not in fl20
 
 
 def test_geojson_methods(fl: Flight, rng: np.random.Generator) -> None:
@@ -579,30 +608,6 @@ def test_to_traffic(fl: Flight) -> None:
     assert fl.duration == tr.duration
 
 
-def test_crs(fl: Flight, met_issr: MetDataset, rng: np.random.Generator) -> None:
-    fl2 = fl.to_pseudo_mercator()
-    assert fl.attrs["crs"] == "EPSG:4326"
-    assert fl2.attrs["crs"] == "EPSG:3857"
-
-    assert np.all(fl.data["altitude"] == fl2.data["altitude"])
-    assert np.all(fl.data["time"] == fl2.data["time"])
-    assert np.all(fl.data["latitude"] != fl2.data["latitude"])
-    assert np.all(fl.data["longitude"] != fl2.data["longitude"])
-
-    with pytest.raises(NotImplementedError):
-        _ = fl2.length
-    fl2.update(issr=rng.integers(0, 2, len(fl2)))
-    with pytest.raises(NotImplementedError, match="Only implemented for EPSG:4326"):
-        fl2.length_met("issr")
-    with pytest.raises(NotImplementedError, match="Only implemented for EPSG:4326"):
-        fl2.proportion_met("issr")
-    with pytest.raises(AttributeError, match="has no attribute 'interpolate'"):
-        fl2.intersect_met(met_issr)
-
-    with pytest.raises(KeyError, match="Column key does not exist in data"):
-        fl.length_met("key")  # key not in fl.data
-
-
 def test_antimeridian_jump() -> None:
     df = pd.DataFrame(
         {
@@ -615,15 +620,6 @@ def test_antimeridian_jump() -> None:
     )
 
     fl = Flight(df)
-    d = fl.to_geojson_multilinestring("issr", split_antimeridian=True)
-    issr_feature = d["features"][1]
-    assert len(issr_feature["geometry"]["coordinates"]) == 2
-
-    d = fl.to_geojson_multilinestring("issr", split_antimeridian=False)
-    issr_feature = d["features"][1]
-    assert len(issr_feature["geometry"]["coordinates"]) == 1
-
-    fl = fl.to_pseudo_mercator()
     d = fl.to_geojson_multilinestring("issr", split_antimeridian=True)
     issr_feature = d["features"][1]
     assert len(issr_feature["geometry"]["coordinates"]) == 2
@@ -1264,23 +1260,26 @@ def test_flight_slots(flight_fake: Flight) -> None:
         flight_fake.foo = "bar"
 
 
-@pytest.mark.parametrize("method", ["copy", "filter"])
+@pytest.mark.parametrize("method", ["copy", "filter", "resample"])
 def test_method_preserves_fuel(flight_fake: Flight, method: str) -> None:
-    """Ensure fuel is preserved for the copy and filter methods."""
+    """Ensure fuel is preserved for the copy, filter, and resample_and_fill methods."""
 
     flight_fake.fuel = SAFBlend(15.0)
 
     if method == "copy":
         out = flight_fake.copy()
-    else:
-        assert method == "filter"
+    elif method == "filter":
         mask = np.ones(len(flight_fake), dtype=bool)
         mask[::3] = False
         out = flight_fake.filter(mask)
+    else:
+        assert method == "resample"
+        out = flight_fake.resample_and_fill("50s")
 
     assert isinstance(out, Flight)
     assert hasattr(out, "fuel")
     assert out.fuel is flight_fake.fuel
+    assert out.fuel == SAFBlend(15.0)
 
 
 def test_resample_and_fill_short_flight() -> None:
@@ -1359,3 +1358,51 @@ def test_rocd_hydrostatic_equation() -> None:
     np.testing.assert_array_almost_equal(
         rocd_corr[:-1], [1005.8, 1932.4, 2751.9, 3014.3], decimal=1
     )
+
+
+class TestLoadFactorEstimates:
+    def test_normal_times(self) -> None:
+        origin_airport_icao = "WSSS"
+        first_waypoint_time = pd.to_datetime("2024-06-01 09:21:48")
+        lf = jet.aircraft_load_factor(origin_airport_icao, first_waypoint_time)
+        assert lf == pytest.approx(0.824, abs=1e-3)
+
+    def test_date_out_of_bounds_future(self) -> None:
+        origin_airport_icao = "WSSS"
+        first_waypoint_time = pd.to_datetime("2035-06-01 09:21:48")
+        lf = jet.aircraft_load_factor(origin_airport_icao, first_waypoint_time)
+        assert lf == pytest.approx(0.824, abs=1e-3)
+
+    def test_date_out_of_bounds_past(self) -> None:
+        origin_airport_icao = "WSSS"
+        first_waypoint_time = pd.to_datetime("2016-06-15 17:39:27")
+        lf = jet.aircraft_load_factor(origin_airport_icao, first_waypoint_time)
+        assert lf == pytest.approx(0.821, abs=1e-3)
+
+    def test_no_date(self) -> None:
+        origin_airport_icao = "WSSS"
+        lf = jet.aircraft_load_factor(origin_airport_icao, None)
+        assert lf == pytest.approx(0.833, abs=1e-3)
+
+    def test_no_airport(self) -> None:
+        first_waypoint_time = pd.to_datetime("2016-06-15 17:39:27")
+        lf = jet.aircraft_load_factor(None, first_waypoint_time)
+        assert lf == pytest.approx(0.844, abs=1e-3)
+
+    def test_erroneous_airport(self) -> None:
+        first_waypoint_time = pd.to_datetime("2016-06-15 17:39:27")
+        origin_airport_icao = "!REF"
+        lf = jet.aircraft_load_factor(origin_airport_icao, first_waypoint_time)
+        assert lf == pytest.approx(0.844, abs=1e-3)
+
+    def test_covid_period(self) -> None:
+        origin_airport_icao = "KJFK"
+        first_waypoint_time = pd.to_datetime("2020-03-24 00:30:24")
+        lf = jet.aircraft_load_factor(origin_airport_icao, first_waypoint_time)
+        assert lf == pytest.approx(0.439, abs=1e-3)
+
+    def test_freighter(self) -> None:
+        origin_airport_icao = "KJFK"
+        first_waypoint_time = pd.to_datetime("2020-03-24 00:30:24")
+        lf = jet.aircraft_load_factor(origin_airport_icao, first_waypoint_time, freighter=True)
+        assert lf == pytest.approx(0.446, abs=1e-3)

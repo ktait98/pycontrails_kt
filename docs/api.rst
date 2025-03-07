@@ -164,7 +164,7 @@ Dry Advection
 ACCF
 """"
 
-    This model is a this interface over the DLR / UMadrid `climaccf <https://github.com/dlr-pa/climaccf>`__ package.
+    This model is an interface over the DLR / UMadrid `climaccf <https://github.com/dlr-pa/climaccf>`__ package.
     See :ref:`accf-install` for more information.
 
 .. autosummary::

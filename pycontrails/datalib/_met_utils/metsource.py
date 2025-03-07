@@ -175,13 +175,16 @@ def parse_pressure_levels(
 
     out = arr.tolist()
     if supported is None:
-        return out
+        return out  # type: ignore[return-value]
 
-    if missing := set(out).difference(supported):
-        msg = f"Pressure levels {sorted(missing)} are not supported. Supported levels: {supported}"
+    if missing := set(out).difference(supported):  # type: ignore[arg-type]
+        msg = (
+            f"Pressure levels {sorted(missing)} are not supported. "  # type: ignore[type-var]
+            f"Supported levels: {supported}"
+        )
         raise ValueError(msg)
 
-    return out
+    return out  # type: ignore[return-value]
 
 
 def parse_variables(variables: VariableInput, supported: list[MetVariable]) -> list[MetVariable]:
@@ -262,7 +265,7 @@ def _find_match(
 
     # list of MetVariable options
     # here we extract the first MetVariable in var that is supported
-    elif isinstance(var, list | tuple):
+    if isinstance(var, list | tuple):
         for v in var:
             # sanity check since we don't support other types as lists
             if not isinstance(v, MetVariable):
@@ -347,7 +350,7 @@ def round_hour(time: datetime, hour: int) -> datetime:
 class MetDataSource(abc.ABC):
     """Abstract class for wrapping meteorology data sources."""
 
-    __slots__ = ("timesteps", "variables", "pressure_levels", "grid", "paths")
+    __slots__ = ("grid", "paths", "pressure_levels", "timesteps", "variables")
 
     #: List of individual timesteps from data source derived from :attr:`time`
     #: Use :func:`parse_time` to handle :class:`TimeInput`.
@@ -641,7 +644,7 @@ class MetDataSource(abc.ABC):
 
                 - chunks: {"time": 1}
                 - engine: "netcdf4"
-                - parallel: True
+                - parallel: False
 
         Returns
         -------

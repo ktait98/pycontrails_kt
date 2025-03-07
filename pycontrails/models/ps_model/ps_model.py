@@ -5,13 +5,18 @@ from __future__ import annotations
 import dataclasses
 import functools
 import pathlib
+import sys
 from collections.abc import Mapping
-from typing import Any, NoReturn, overload
+from typing import Any
+
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    from typing_extensions import override
 
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-from overrides import overrides
 
 from pycontrails.core import flight
 from pycontrails.core.aircraft_performance import (
@@ -22,7 +27,7 @@ from pycontrails.core.aircraft_performance import (
 )
 from pycontrails.core.flight import Flight
 from pycontrails.core.met import MetDataset
-from pycontrails.core.met_var import AirTemperature, EastwardWind, NorthwardWind
+from pycontrails.core.met_var import AirTemperature, EastwardWind, MetVariable, NorthwardWind
 from pycontrails.models.ps_model import ps_operational_limits as ps_lims
 from pycontrails.models.ps_model.ps_aircraft_params import (
     PSAircraftEngineParams,
@@ -45,13 +50,6 @@ class PSFlightParams(AircraftPerformanceParams):
     #: efficiency to always exceed this value.
     eta_over_eta_b_min: float | None = 0.5
 
-    #: Account for "in-service" engine deterioration between maintenance cycles.
-    #: Default value is set to +2.5% increase in fuel consumption.
-    # Reference:
-    # Gurrola Arrieta, M.D.J., Botez, R.M. and Lasne, A., 2024. An Engine Deterioration Model for
-    # Predicting Fuel Consumption Impact in a Regional Aircraft. Aerospace, 11(6), p.426.
-    engine_deterioration_factor: float = 0.025
-
 
 class PSFlight(AircraftPerformance):
     """Simulate aircraft performance using Poll-Schumann (PS) model.
@@ -64,11 +62,15 @@ class PSFlight(AircraftPerformance):
     Poll & Schumann (2022). An estimation method for the fuel burn and other performance
     characteristics of civil transport aircraft. Part 3 Generalisation to cover climb,
     descent and holding. Aero. J., submitted.
+
+    See Also
+    --------
+    pycontrails.physics.jet.aircraft_load_factor
     """
 
     name = "PSFlight"
     long_name = "Poll-Schumann Aircraft Performance Model"
-    met_variables = (AirTemperature,)
+    met_variables: tuple[MetVariable, ...] = (AirTemperature,)
     optional_met_variables = EastwardWind, NorthwardWind
     default_params = PSFlightParams
 
@@ -115,27 +117,11 @@ class PSFlight(AircraftPerformance):
             raise KeyError(msg)
         return False
 
-    @overload
-    def eval(self, source: Flight, **params: Any) -> Flight: ...
-
-    @overload
-    def eval(self, source: None = ..., **params: Any) -> NoReturn: ...
-
-    @overrides
-    def eval(self, source: Flight | None = None, **params: Any) -> Flight:
-        self.update_params(params)
-        self.set_source(source)
-        self.source = self.require_source_type(Flight)
-        self.downselect_met()
-        self.set_source_met()
-
-        # Calculate true airspeed if not included on source
-        true_airspeed = self.ensure_true_airspeed_on_source().copy()
-        true_airspeed[true_airspeed == 0.0] = np.nan
-
+    @override
+    def eval_flight(self, fl: Flight) -> Flight:
         # Ensure aircraft type is available
         try:
-            aircraft_type = self.source.attrs["aircraft_type"]
+            aircraft_type = fl.get_constant("aircraft_type")
         except KeyError as exc:
             msg = "`aircraft_type` required on flight attrs"
             raise KeyError(msg) from exc
@@ -148,29 +134,32 @@ class PSFlight(AircraftPerformance):
             raise KeyError(msg) from exc
 
         # Set flight attributes based on engine, if they aren't already defined
-        self.source.attrs.setdefault("aircraft_performance_model", self.name)
-        self.source.attrs.setdefault("aircraft_type_ps", atyp_ps)
-        self.source.attrs.setdefault("n_engine", aircraft_params.n_engine)
+        fl.attrs.setdefault("aircraft_performance_model", self.name)
+        fl.attrs.setdefault("aircraft_type_ps", atyp_ps)
+        fl.attrs.setdefault("n_engine", aircraft_params.n_engine)
 
-        self.source.attrs.setdefault("wingspan", aircraft_params.wing_span)
-        self.source.attrs.setdefault("max_mach", aircraft_params.max_mach_num)
-        self.source.attrs.setdefault("max_altitude", units.ft_to_m(aircraft_params.fl_max * 100.0))
-        self.source.attrs.setdefault("n_engine", aircraft_params.n_engine)
+        fl.attrs.setdefault("wingspan", aircraft_params.wing_span)
+        fl.attrs.setdefault("max_mach", aircraft_params.max_mach_num)
+        fl.attrs.setdefault("max_altitude", units.ft_to_m(aircraft_params.fl_max * 100.0))
+        fl.attrs.setdefault("n_engine", aircraft_params.n_engine)
 
-        amass_oew = self.source.attrs.get("amass_oew", aircraft_params.amass_oew)
-        amass_mtow = self.source.attrs.get("amass_mtow", aircraft_params.amass_mtow)
-        amass_mpl = self.source.attrs.get("amass_mpl", aircraft_params.amass_mpl)
-        load_factor = self.source.attrs.get("load_factor", DEFAULT_LOAD_FACTOR)
-        takeoff_mass = self.source.attrs.get("takeoff_mass")
-        q_fuel = self.source.fuel.q_fuel
+        amass_oew = fl.attrs.get("amass_oew", aircraft_params.amass_oew)
+        amass_mtow = fl.attrs.get("amass_mtow", aircraft_params.amass_mtow)
+        amass_mpl = fl.attrs.get("amass_mpl", aircraft_params.amass_mpl)
+        load_factor = fl.attrs.get("load_factor", DEFAULT_LOAD_FACTOR)
+        takeoff_mass = fl.attrs.get("takeoff_mass")
+        q_fuel = fl.fuel.q_fuel
+
+        true_airspeed = fl["true_airspeed"]  # attached in PSFlight.eval
+        true_airspeed = np.where(true_airspeed == 0.0, np.nan, true_airspeed)
 
         # Run the simulation
         aircraft_performance = self.simulate_fuel_and_performance(
             aircraft_type=atyp_ps,
-            altitude_ft=self.source.altitude_ft,
-            time=self.source["time"],
+            altitude_ft=fl.altitude_ft,
+            time=fl["time"],
             true_airspeed=true_airspeed,
-            air_temperature=self.source["air_temperature"],
+            air_temperature=fl["air_temperature"],
             aircraft_mass=self.get_source_param("aircraft_mass", None),
             thrust=self.get_source_param("thrust", None),
             engine_efficiency=self.get_source_param("engine_efficiency", None),
@@ -194,27 +183,27 @@ class PSFlight(AircraftPerformance):
             "thrust",
             "rocd",
         ):
-            self.source.setdefault(var, getattr(aircraft_performance, var))
+            fl.setdefault(var, getattr(aircraft_performance, var))
 
         self._cleanup_indices()
 
-        self.source.attrs["total_fuel_burn"] = np.nansum(aircraft_performance.fuel_burn).item()
+        fl.attrs["total_fuel_burn"] = np.nansum(aircraft_performance.fuel_burn).item()
 
-        return self.source
+        return fl
 
-    @overrides
+    @override
     def calculate_aircraft_performance(
         self,
         *,
         aircraft_type: str,
-        altitude_ft: npt.NDArray[np.float64],
-        air_temperature: npt.NDArray[np.float64],
+        altitude_ft: npt.NDArray[np.floating],
+        air_temperature: npt.NDArray[np.floating],
         time: npt.NDArray[np.datetime64] | None,
-        true_airspeed: npt.NDArray[np.float64] | float | None,
-        aircraft_mass: npt.NDArray[np.float64] | float,
-        engine_efficiency: npt.NDArray[np.float64] | float | None,
-        fuel_flow: npt.NDArray[np.float64] | float | None,
-        thrust: npt.NDArray[np.float64] | float | None,
+        true_airspeed: npt.NDArray[np.floating] | float | None,
+        aircraft_mass: npt.NDArray[np.floating] | float,
+        engine_efficiency: npt.NDArray[np.floating] | float | None,
+        fuel_flow: npt.NDArray[np.floating] | float | None,
+        thrust: npt.NDArray[np.floating] | float | None,
         q_fuel: float,
         **kwargs: Any,
     ) -> AircraftPerformanceData:
@@ -249,8 +238,8 @@ class PSFlight(AircraftPerformance):
         rn = reynolds_number(atyp_param.wing_surface_area, mach_num, air_temperature, air_pressure)
 
         # Allow array or None time
-        dv_dt: npt.NDArray[np.float64] | float
-        theta: npt.NDArray[np.float64] | float
+        dv_dt: npt.NDArray[np.floating] | float
+        theta: npt.NDArray[np.floating] | float
         if time is None:
             # Assume a nominal cruising state
             dt_sec = None
@@ -763,7 +752,7 @@ def overall_propulsion_efficiency(
     c_t_eta_b: ArrayOrFloat,
     atyp_param: PSAircraftEngineParams,
     eta_over_eta_b_min: float | None = None,
-) -> npt.NDArray[np.float64]:
+) -> npt.NDArray[np.floating]:
     """Calculate overall propulsion efficiency.
 
     Parameters
@@ -783,7 +772,7 @@ def overall_propulsion_efficiency(
 
     Returns
     -------
-    npt.NDArray[np.float64]
+    npt.NDArray[np.floating]
         Overall propulsion efficiency
     """
     eta_over_eta_b = propulsion_efficiency_over_max_propulsion_efficiency(mach_num, c_t, c_t_eta_b)
@@ -799,7 +788,7 @@ def propulsion_efficiency_over_max_propulsion_efficiency(
     mach_num: ArrayOrFloat,
     c_t: ArrayOrFloat,
     c_t_eta_b: ArrayOrFloat,
-) -> npt.NDArray[np.float64]:
+) -> npt.NDArray[np.floating]:
     """Calculate ratio of OPE to maximum OPE that can be attained for a given Mach number.
 
     Parameters
@@ -813,7 +802,7 @@ def propulsion_efficiency_over_max_propulsion_efficiency(
 
     Returns
     -------
-    npt.NDArray[np.float64]
+    npt.NDArray[np.floating]
         Ratio of OPE to maximum OPE, ``eta / eta_b``
 
     Notes
@@ -823,7 +812,7 @@ def propulsion_efficiency_over_max_propulsion_efficiency(
     """
     c_t_over_c_t_eta_b = c_t / c_t_eta_b
 
-    sigma = np.where(mach_num < 0.4, 1.3 * (0.4 - mach_num), 0.0)
+    sigma = np.where(mach_num < 0.4, 1.3 * (0.4 - mach_num), np.float32(0.0))  # avoid promotion
 
     eta_over_eta_b_low = (
         10.0 * (1.0 + 0.8 * (sigma - 0.43) - 0.6027 * sigma * 0.43) * c_t_over_c_t_eta_b

@@ -384,7 +384,7 @@ class GOES:
            [277.24512, 277.45377, 278.18408, ..., 274.6369 , 274.01093,
             274.06308],
            [276.8278 , 277.14078, 277.7146 , ..., 274.6369 , 273.9066 ,
-            274.16742]], dtype=float32)
+            274.16742]], shape=(500, 500), dtype=float32)
 
     """
 
@@ -745,8 +745,8 @@ def to_ash(da: xr.DataArray, convention: str = "SEVIRI") -> npt.NDArray[np.float
 
 
 def _clip_and_scale(
-    arr: npt.NDArray[np.float64], low: float, high: float
-) -> npt.NDArray[np.float64]:
+    arr: npt.NDArray[np.floating], low: float, high: float
+) -> npt.NDArray[np.floating]:
     """Clip array and rescale to the interval [0, 1].
 
     Array is first clipped to the interval [low, high] and then linearly rescaled
@@ -757,7 +757,7 @@ def _clip_and_scale(
 
     Parameters
     ----------
-    arr : npt.NDArray[np.float64]
+    arr : npt.NDArray[np.floating]
         Array to clip and scale.
     low : float
         Lower clipping bound.
@@ -766,7 +766,7 @@ def _clip_and_scale(
 
     Returns
     -------
-    npt.NDArray[np.float64]
+    npt.NDArray[np.floating]
         Clipped and scaled array.
     """
     return (arr.clip(low, high) - low) / (high - low)

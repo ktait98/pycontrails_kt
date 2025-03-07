@@ -1,6 +1,218 @@
 # Changelog
 
-## v0.53.2 (unreleased)
+## 0.54.8 (unreleased)
+
+### Internals
+
+- Update the `pycontrails.physics.static` CSV files to include newly released global and regional passenger and cargo load factor data from IATA (Oct-2024 to Dec-2024).
+- Attach `n_ice_per_m_0` and `f_surv` to the downwash flight computed in the `Cocip` runtime. This data is now saved as part of the `Cocip` output.
+- Rename and modify `contrail_properties.ice_particle_number` to `contrail_properties.initial_ice_particle_number`.
+
+## v0.54.7
+
+### Features
+
+- Add helper `classmethods` to `Model`, `Cocip`, and `CocipGrid` for generating lists of required variables from specific data sources.
+- Add a `ValidateTrajectoryHandler` to the `spire` module to validate spire ADS-B data. This work is experimental and will be improved in future releases.
+- Update Unterstrasser (2016)'s parameterised model of the contrail ice crystal survival fraction to the latest version (Lottermoser & Unterstrasser, 2025). This update:
+  - improves the goodness of fit between the parameterised model and LES, and
+  - expands the parameter space for application to very low and very high nvPM inputs, different fuel types (where the EI H2Os are different), and higher ambient temperatures (up to 235 K) to accommodate for contrails formed by liquid hydrogen aircraft.
+
+### Breaking changes
+
+- The `MetDataset.standardize_variables` method now returns a new `MetDataset` rather than modifying the existing dataset in place. To retain the previous behavior, use `MetDataset.standardize_variables(..., inplace=True)`.
+
+### Fixes
+
+- Change naming convention for eastward and northward wind fields in `AircraftPerformance` models for consistency with the `Cocip` and `DryAdvection` models. Fields on the `source` are now named `u_wind` and `v_wind` instead of `eastward_wind` and `northward_wind`. Under some paths of computation, this avoids a redundant interpolation.
+- Fix the `AircraftPerformance.ensure_true_airspeed_on_source` method in the case when the `met` attr is None and the `fill_with_groundspeed` parameter is enabled.
+
+### Internals
+
+- Make `pycontrails` compatible with `pandas 2.0` and `pandas 2.1`.
+- Avoid auto-promotion of float32 to float64 within the `Emissions` model run-time.
+- Add convenience `VectorDataset.get_constant` method.
+
+## v0.54.6
+
+### Features
+
+- Add support for generic (model-agnostic) meteorology data to `Cocip` and `CocipGrid`.
+
+- Add two new parameters to the `DryAdvection` model.
+  - If the `verbose_outputs` parameter is enabled, additional wind-shear data is included in the output.
+  - If the `include_source_in_output` parameter is enabled, the source data with any of the intermediate artifacts (e.g., interpolated met data, wind-shear data, etc.) is included in the output.
+
+  Both parameters are disabled by default.
+
+### Fixes
+
+- Update the CDS URL referenced throughout pycontrails from ``https://cds-beta.climate.copernicus.eu`` to ``https://cds.climate.copernicus.eu``.
+
+### Internals
+
+- Suppress mypy `return-value` errors for functions in `geo.py` where mypy fails to correctly infer return types of numpy ufuncs applied to xarray objects.
+- Change `AircraftPerformance` and downstream implementations for better support in running over `Fleet` sources. The runtime of `PSFlight` remains the same.
+
+## v0.54.5
+
+### Features
+
+- This release brings a number of very minor performance improvements to the low-level pycontrails data structures (`VectorDataset` and `MetDataset`). Cumulatively, these changes should bring in a small but nontrivial speedup (~5%) when running a model such as `Cocip` or `DryAdvection` on a single `Flight` source.
+  - Core `Flight` methods such as `copy`, `filter`, and `downselect_met` are now ~10x faster for typical use cases.
+  - Converting between `Fleet` and `Flight` instances via `Fleet.from_seq` and `Fleet.to_flight_list` are also ~5x faster.
+- Implement low-memory met-downselection logic in `DryAdvection`. This is the same logic used in `CocipGrid` to reduce memory consumption by only loading the necessary time slices of the `met` data into memory. If `met` is already loaded into memory, this change will have no effect.
+
+### Breaking Changes
+
+- Remove the `copy` parameter from `GeovectorDataset.downselect_met`. This method always returns a view of the original dataset.
+- Remove the `validate` parameter in  the `MetDataArray` constructor. Input data is now always validated.
+
+### Fixes
+
+- Make slightly more explicit when data is copied in the `VectorDataset` constructor: data is now always shallow-copied, and the `copy` parameter governs whether to copy the underlying arrays.
+- Call `downselect_met` in `DryAdvection.eval`. (This was previously forgotten.)
+- Fix minor bug in `CocipGrid` downselect met logic introduced in v0.54.4. This bug may have caused some met slices to be reloaded when running `CocipGrid.eval` with lazily-loaded `met` and `rad` data.
+
+### Internals
+
+- Add internal `VectorDataset._from_fastpath` and `MetDataset._from_fastpath` class methods to skip data validation.
+- Define `__slots__` on `MetBase`, `MetDataset`, `MetDataArray`, and `AttrDict`.
+- When `MetDataset` and `MetDataArray` shared a common implementation, move the implementation to `MetBase`. This was the case for the `copy`, `downselect`, and `wrap_longitude` methods.
+
+## v0.54.4
+
+### Features
+
+- Improve the `_altitude_interpolation` function used within `Flight.resample_and_fill` and ensure that it is consistent with the [existing GAIA publication](https://acp.copernicus.org/articles/24/725/2024/) The function `_altitude_interpolation` now accounts for various scenarios. For example:
+
+  1. Flight will automatically climb to an assumed cruise altitude if the first and next known waypoints are at very low altitudes with a large time gap.
+  1. If there are large time gaps between known waypoints with a small altitude difference, then the flight will climb at the mid-point of the segment.
+  1. If there are large time gaps and positive altitude difference, then the flight will climb at the start of its interpolation until the known cruising altitude and start its cruise phase.
+  1. If there are large time gaps and negative altitude difference, then the flight will continue cruising and only starts to descend towards the end of the interpolation.
+  1. If there is a shallow climb (ROCD < 500 ft/min), then always assume that the flight will climb at the next time step.
+  1. If there is a shallow descent (-250 < ROCD < 0 ft/min), then always assume that the flight will descend at the final time step.
+
+  Conditions (3) to (6) are based on the logic that the aircraft will generally prefer to climb to a higher altitude as early as possible, and descend to a lower altitude as late as possible, because a higher altitude can reduce drag and fuel consumption.
+
+### Breaking changes
+
+- Remove the optional input parameter `climb_descend_at_end` in `Flight.resample_and_fill`. See the description of the new `_altitude_interpolation` function for the rationale behind this change.
+- Remove the `copy` argument from `Fleet.from_seq`. This argument was redundant and not used effectively in the implementation. The `Fleet.from_seq` method always returns a copy of the input sequence.
+
+### Fixes
+
+- Fix the `ERA5` interface when making a pressure-level request with a single pressure level. This change accommodates CDS-Beta server behavior. Previously, a ValueError was raised in this case.
+- Bypass the ValueError raised by `dask.array.gradient` when the input array is not correctly chunk along the level dimension. Previously, `Cocip` would raise an error when computing tau cirrus in the case that the `met` data had single chunks along the level dimension.
+- Fix the `CocipGrid` met downselection process to accommodate cases where `dt_integration` is as large as the time step of the met data. Previously, due to out-of-bounds interpolation, the output of `CocipGrid(met=met, rad=rad, dt_integration="1 hour")` was zero everywhere when the `met` and `rad` data had a time step of 1 hour.
+- By default, don't interpolate air temperature when running the `DryAdvection` model in a point-wise manner (no wind-shear simulation).
+- Use native python types (as opposed to `numpy` scalars) in the `PSAircraftEngineParams` dataclass.
+- Ensure the `PSGrid` model maintains the precision of the `source`. Previously, float32 precision was lost per [NEP 50](https://numpy.org/neps/nep-0050-scalar-promotion.html).
+- Fix `Fleet.resample_and_fill` when the the "flight_id" field is included on `Fleet.data` (as opposed to `Fleet.fl_attrs`). Previously, this would raise a ValueError.
+- Use the supplied `nominal_rocd` parameter in `Flight.resample_and_fill` rather than `constants.nominal_rocd` (the default value of this parameter).
+
+### Internals
+
+- Add new `AdvectionBuffers` dataclass to override the zero-like values used in `ModelParams` with the buffer previously used in `CocipParams`. This is now a base class for `CocipParams` and `DryAdvectionParams`. In particular, the `DryAdvection` now uses nonzero values for the met downselect buffers.
+- Change the order of advected points returned by `DryAdvection` to be consistent with the input order at each time step.
+- Add the `RUF` ruleset for linting and formatting the codebase.
+- Update type hints for `numpy` 2.2 compatibility. Additional changes may be required after the next iteration of the `numpy` 2.2 series.
+- Relax the tolerance passed into `scipy.optimize.newton` in `ps_nominal_grid` to avoid some convergence warnings. (These warnings were more distracting than informative.)
+- Remove the `_verify_altitude` check in `Flight.resample_and_fill`. This was often triggered by a flight with corrupt waypoints (ie, independent from the logic in `Flight.resample_and_fill`).
+
+## v0.54.3
+
+### Breaking changes
+
+- Update the default load factor from 70% to 83% to be consistent with historical data. This is used whenever an aircraft performance model is run without a specified load factor.
+- By default, the `CocipGrid.create_source` static method will return latitude values from -90 to 90 degrees. This change is motivated by the new advection scheme used near the poles. Previously, this method returned latitude values from -80 to 80 degrees.
+
+### Features
+
+- Create new function `ps_grid.ps_nominal_optimize_mach` which computes the optimal mach number given a set of operating conditions.
+- Add a new `jet.aircraft_load_factor` function to estimate aircraft (passenger/cargo) load factor based on historical monthly and regional load factors provided by IATA. This improves upon the default load factor assumption. Historical load factor databases will be continuously updated as new data is released.
+- Use a 2D Cartesian-like plane to advect particles near the poles (>80° in latitude) to avoid numerical instabilities and singularities caused by convergence of meridians. This new advection scheme is used for contrail advection in the `Cocip`, `CocipGrid`, and `DryAdvection` models. See the `geo.advect_horizontal` function for more details.
+
+### Fixes
+
+- Ensure the fuel type is preserved when calling `Flight.resample_and_fill`.
+- Update the CLIMaCCF dependency to pull the head of the main branch in [CLIMaCCF](https://github.com/dlr-pa/climaccf). Update the installation instructions.
+- Update the `ACCFParams.forecast_step` to None, which allows CLIMaCCF to automatically determine the forecast step based on the `met` data.
+- Update the `ACCF` NOx parameter for the latest CLIMaCCF version.
+- Ensure a custom "horizontal_resolution" param passed into `ACCF` is not overwritten.
+- Remove duplicated variable in `ACCF.met_variables`.
+- Allow the `ACCF` model to accept relative humidity as a percentage or as a proportion.
+- Include `ecmwf.RelativeHumidity` in `ACCF.met_variables` so that `ERA5(..., variables=ACCF.met_variables)` no longer raises an error.
+
+### Internals
+
+- Improve computation of mach limits to accept vectorized input/output.
+- Test against python 3.13 in the GitHub Actions CI. Use python 3.13 in the docs and doctest workflows.
+- Publish to PyPI using [trusted publishing](https://docs.pypi.org/trusted-publishers/using-a-publisher/).
+- Update `pycontrails-bada` installation instructions. Install `pycontrails-bada` from GCP artifact repository in the test workflow.
+- Floor the pycontrails version when running the docs workflow. This ensures that the [hosted documentation](https://py.contrails.org) references the last stable release.
+- Update literature and bibliography in the documentation.
+- Move the `engine_deterioration_factor` from `PSFlightParams` to `AircraftPerformanceParams` so it can be used by both the PS model and BADA.
+- Include `engine_deterioration_factor` in `AircraftPerformanceGridParams`.
+
+## v0.54.2
+
+### Features
+
+- Add `cache_download` parameter to the `GFSForecast` interface. When set to `True`, downloaded grib data is cached locally. This is consistent with the behavior of the `ERA5ModelLevel` and `HRESModelLevel` interfaces.
+
+### Fixes
+
+- Update GFS variable names "uswrf" -> "suswrf" and "ulwrf" -> "sulwrf". This accommodates a breaking change introduced in [eccodes 2.38](https://confluence.ecmwf.int/display/MTG2US/Changes+in+ecCodes+version+2.38.0+compared+to+the+previous+version#ChangesinecCodesversion2.38.0comparedtothepreviousversion-Changedshortnames).
+
+### Internals
+
+- Remove `overrides` dependency. Require `typing-extensions` for python < 3.12.
+- Upgrade some type hints for more modern python language features.
+
+## v0.54.1
+
+### Features
+
+- Add [CoCiP Grid notebook](https://py.contrails.org/notebooks/CoCiPGrid.html) example to documentation.
+- Implement `PSFlight.eval` on a `Fleet` source.
+
+### Breaking changes
+
+- Remove `attrs["crs"]` usage from `GeoVectorDataset` and child classes (`Flight`, `Fleet`). All spatial data is assumed to be EPSG:4326 (WGS84). This was previously assumed implicitly, but now the `crs` attribute is removed from the `attrs` dictionary.
+- Change the return type of `GeoVectorDataset.transform_crs` to a pair of numpy arrays representing `x` and `y` coordinates in the target CRS.
+- Remove deprecated `MetDataset.variables` property in favor of `MetDataset.indexes`.
+- Remove `**kwargs` in `MetDataArray` constructor.
+- Rename `ARCOERA5` to `ERA5ARCO` for consistency with the `ERA5` and `ERA5ModelLevel` interfaces.
+
+### Fixes
+
+- Fix the integration time step in `CocipGrid.calc_evolve_one_step`. The previous implementation assumed a time interval of `params["dt_integration"]`. This may not be the case for all `source` parameters (for example, this could occur if running `CocipGrid` over a collection of ADS-B waypoints).
+- Raise an exception in constructing `MetDataset(ds, copy=False)` when `ds["level"]` has float32 dtype. Per interpolation conventions, all coordinate variables must have float64 dtype. (This was previously enforced in longitude and latitude, but was overlooked in the level coordinate.)
+- Allow `AircraftPerformance.ensure_true_airspeed_on_source` to use `eastward_wind` and `northward_wind` fields on the `source` if available. This is useful when the `source` has already been interpolated to met data.
+
+## v0.54.0
+
+### Features
+
+- Perform model-level to pressure-level conversion in-house instead of relying on `metview`. This update has several advantages:
+  - The `ARCOERA5` and `ERA5ModelLevel` interfaces no longer require `metview` to be installed. Similarly, grib files and the associated tooling can also largely be avoided.
+  - The computation is performed using `xarray` and `dask` tooling, which means the result can be computed lazily if desired.
+  - The computation is defined using `numpy` operations (some of which release the GIL) and can be parallelized using threading through `dask` (this is the default behavior).
+  - The computation is generally a bit faster than the `metview` implementation (this depends on the exact chunking of the model level meteorology data). This chunking can be tuned by the user to optimize runtime performance or memory usage.
+
+  See the `ml_to_pl` function for low-level details.
+
+- Update the `ARCOERA5` and `ERA5ModelLevel` interfaces to use the new model-level to pressure-level conversion. The ERA5 model level data is now downloaded as the netcdf format instead of grib. This format change decreases the download size.
+
+### Breaking changes
+
+- Rename `levels` -> `model_levels` in the `ARCOERA5` and `ERA5ModelLevel` constructors. Rename `cache_grib` -> `cache_download`.
+- Rename `pressure_levels_at_model_levels` -> `model_level_reference_pressure`. Add a new `model_level_pressure` method that requires surface pressure data.
+
+### Fixes
+
+- Update `ERA5ModelLevel` for the new CDS-Beta server.
 
 ### Internals
 

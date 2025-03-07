@@ -4,14 +4,20 @@ from __future__ import annotations
 
 import abc
 import dataclasses
+import sys
 import warnings
 from typing import Any, Generic, NoReturn, overload
 
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    from typing_extensions import override
+
 import numpy as np
 import numpy.typing as npt
-from overrides import overrides
 
 from pycontrails.core import flight, fuel
+from pycontrails.core.fleet import Fleet
 from pycontrails.core.flight import Flight
 from pycontrails.core.met import MetDataset
 from pycontrails.core.models import Model, ModelParams, interpolate_met
@@ -20,7 +26,9 @@ from pycontrails.physics import jet
 from pycontrails.utils.types import ArrayOrFloat
 
 #: Default load factor for aircraft performance models.
-DEFAULT_LOAD_FACTOR = 0.7
+#: See :func:`pycontrails.physics.jet.aircraft_load_factor`
+#: for a higher precision approach to estimating the load factor.
+DEFAULT_LOAD_FACTOR = 0.83
 
 
 # --------------------------------------
@@ -29,7 +37,19 @@ DEFAULT_LOAD_FACTOR = 0.7
 
 
 @dataclasses.dataclass
-class AircraftPerformanceParams(ModelParams):
+class CommonAircraftPerformanceParams:
+    """Params for :class:`AircraftPerformanceParams` and :class:`AircraftPerformanceGridParams`."""
+
+    #: Account for "in-service" engine deterioration between maintenance cycles.
+    #: Default value is set to +2.5% increase in fuel consumption.
+    #: Reference:
+    #: Gurrola Arrieta, M.D.J., Botez, R.M. and Lasne, A., 2024. An Engine Deterioration Model for
+    #: Predicting Fuel Consumption Impact in a Regional Aircraft. Aerospace, 11(6), p.426.
+    engine_deterioration_factor: float = 0.025
+
+
+@dataclasses.dataclass
+class AircraftPerformanceParams(ModelParams, CommonAircraftPerformanceParams):
     """Parameters for :class:`AircraftPerformance`."""
 
     #: Whether to correct fuel flow to ensure it remains within
@@ -51,6 +71,8 @@ class AircraftPerformanceParams(ModelParams):
     #: level with zero wind when computing true airspeed. In other words,
     #: approximate low-altitude true airspeed with the ground speed. Enabling
     #: this does NOT remove any NaN values in the ``met`` data itself.
+    #: In the case that ``met`` is not provided, any missing values are
+    #: filled with zero wind.
     fill_low_altitude_with_zero_wind: bool = False
 
 
@@ -76,17 +98,51 @@ class AircraftPerformance(Model):
 
     source: Flight
 
-    @abc.abstractmethod
+    @overload
+    def eval(self, source: Fleet, **params: Any) -> Fleet: ...
+
     @overload
     def eval(self, source: Flight, **params: Any) -> Flight: ...
 
-    @abc.abstractmethod
     @overload
     def eval(self, source: None = ..., **params: Any) -> NoReturn: ...
 
-    @abc.abstractmethod
     def eval(self, source: Flight | None = None, **params: Any) -> Flight:
         """Evaluate the aircraft performance model.
+
+        Parameters
+        ----------
+        source : Flight
+            Flight trajectory to evaluate. Can be a :class:`Flight` or :class:`Fleet`.
+        params : Any
+            Override :attr:`params` with keyword arguments.
+
+        Returns
+        -------
+        Flight
+            Flight trajectory with aircraft performance data.
+        """
+        self.update_params(params)
+        self.set_source(source)
+        self.source = self.require_source_type(Flight)
+        self.downselect_met()
+        self.set_source_met()
+        self._cleanup_indices()
+
+        # Calculate true airspeed if not included on source
+        self.ensure_true_airspeed_on_source()
+
+        if isinstance(self.source, Fleet):
+            fls = [self.eval_flight(fl) for fl in self.source.to_flight_list()]
+            self.source = Fleet.from_seq(fls, attrs=self.source.attrs, broadcast_numeric=False)
+            return self.source
+
+        self.source = self.eval_flight(self.source)
+        return self.source
+
+    @abc.abstractmethod
+    def eval_flight(self, fl: Flight) -> Flight:
+        """Evaluate the aircraft performance model on a single flight trajectory.
 
         The implementing model adds the following fields to the source flight:
 
@@ -104,21 +160,9 @@ class AircraftPerformance(Model):
         - ``max_mach``: maximum Mach number
         - ``max_altitude``: maximum altitude, [:math:`m`]
         - ``total_fuel_burn``: total fuel burn, [:math:`kg`]
-
-        Parameters
-        ----------
-        source : Flight
-            Flight trajectory to evaluate.
-        params : Any
-            Override :attr:`params` with keyword arguments.
-
-        Returns
-        -------
-        Flight
-            Flight trajectory with aircraft performance data.
         """
 
-    @overrides
+    @override
     def set_source_met(self, *args: Any, **kwargs: Any) -> None:
         fill_with_isa = self.params["fill_low_altitude_with_isa_temperature"]
         if fill_with_isa and (self.met is None or "air_temperature" not in self.met):
@@ -139,14 +183,14 @@ class AircraftPerformance(Model):
         self,
         *,
         aircraft_type: str,
-        altitude_ft: npt.NDArray[np.float64],
+        altitude_ft: npt.NDArray[np.floating],
         time: npt.NDArray[np.datetime64],
-        true_airspeed: npt.NDArray[np.float64],
-        air_temperature: npt.NDArray[np.float64],
-        aircraft_mass: npt.NDArray[np.float64] | float | None,
-        thrust: npt.NDArray[np.float64] | float | None,
-        engine_efficiency: npt.NDArray[np.float64] | float | None,
-        fuel_flow: npt.NDArray[np.float64] | float | None,
+        true_airspeed: npt.NDArray[np.floating],
+        air_temperature: npt.NDArray[np.floating],
+        aircraft_mass: npt.NDArray[np.floating] | float | None,
+        thrust: npt.NDArray[np.floating] | float | None,
+        engine_efficiency: npt.NDArray[np.floating] | float | None,
+        fuel_flow: npt.NDArray[np.floating] | float | None,
         q_fuel: float,
         n_iter: int,
         amass_oew: float,
@@ -168,21 +212,21 @@ class AircraftPerformance(Model):
         ----------
         aircraft_type: str
             Aircraft type designator used to query the underlying model database.
-        altitude_ft: npt.NDArray[np.float64]
+        altitude_ft: npt.NDArray[np.floating]
             Altitude at each waypoint, [:math:`ft`]
         time: npt.NDArray[np.datetime64]
             Waypoint time in ``np.datetime64`` format.
-        true_airspeed: npt.NDArray[np.float64]
+        true_airspeed: npt.NDArray[np.floating]
             True airspeed for each waypoint, [:math:`m s^{-1}`]
-        air_temperature : npt.NDArray[np.float64]
+        air_temperature : npt.NDArray[np.floating]
             Ambient temperature for each waypoint, [:math:`K`]
-        aircraft_mass : npt.NDArray[np.float64] | float | None
+        aircraft_mass : npt.NDArray[np.floating] | float | None
             Override the aircraft_mass at each waypoint, [:math:`kg`].
-        thrust : npt.NDArray[np.float64] | float | None
+        thrust : npt.NDArray[np.floating] | float | None
             Override the thrust setting at each waypoint, [:math: `N`].
-        engine_efficiency : npt.NDArray[np.float64] | float | None
+        engine_efficiency : npt.NDArray[np.floating] | float | None
             Override the engine efficiency at each waypoint.
-        fuel_flow : npt.NDArray[np.float64] | float | None
+        fuel_flow : npt.NDArray[np.floating] | float | None
             Override the fuel flow at each waypoint, [:math:`kg s^{-1}`].
         q_fuel : float
             Lower calorific value (LCV) of fuel, [:math:`J \ kg_{fuel}^{-1}`].
@@ -256,14 +300,14 @@ class AircraftPerformance(Model):
         self,
         *,
         aircraft_type: str,
-        altitude_ft: npt.NDArray[np.float64],
+        altitude_ft: npt.NDArray[np.floating],
         time: npt.NDArray[np.datetime64],
-        true_airspeed: npt.NDArray[np.float64],
-        air_temperature: npt.NDArray[np.float64],
-        aircraft_mass: npt.NDArray[np.float64] | float,
-        thrust: npt.NDArray[np.float64] | float | None,
-        engine_efficiency: npt.NDArray[np.float64] | float | None,
-        fuel_flow: npt.NDArray[np.float64] | float | None,
+        true_airspeed: npt.NDArray[np.floating],
+        air_temperature: npt.NDArray[np.floating],
+        aircraft_mass: npt.NDArray[np.floating] | float,
+        thrust: npt.NDArray[np.floating] | float | None,
+        engine_efficiency: npt.NDArray[np.floating] | float | None,
+        fuel_flow: npt.NDArray[np.floating] | float | None,
         q_fuel: float,
         **kwargs: Any,
     ) -> AircraftPerformanceData:
@@ -308,13 +352,13 @@ class AircraftPerformance(Model):
         self,
         *,
         aircraft_type: str,
-        altitude_ft: npt.NDArray[np.float64],
+        altitude_ft: npt.NDArray[np.floating],
         time: npt.NDArray[np.datetime64],
-        true_airspeed: npt.NDArray[np.float64],
-        air_temperature: npt.NDArray[np.float64],
-        thrust: npt.NDArray[np.float64] | float | None,
-        engine_efficiency: npt.NDArray[np.float64] | float | None,
-        fuel_flow: npt.NDArray[np.float64] | float | None,
+        true_airspeed: npt.NDArray[np.floating],
+        air_temperature: npt.NDArray[np.floating],
+        thrust: npt.NDArray[np.floating] | float | None,
+        engine_efficiency: npt.NDArray[np.floating] | float | None,
+        fuel_flow: npt.NDArray[np.floating] | float | None,
         q_fuel: float,
         n_iter: int,
         amass_oew: float,
@@ -327,7 +371,7 @@ class AircraftPerformance(Model):
         # Variable aircraft_mass will change dynamically after each iteration
         # Set the initial aircraft mass depending on a possible load factor
 
-        aircraft_mass: npt.NDArray[np.float64] | float
+        aircraft_mass: npt.NDArray[np.floating] | float
         if takeoff_mass is not None:
             aircraft_mass = takeoff_mass
         else:
@@ -387,14 +431,14 @@ class AircraftPerformance(Model):
         self,
         *,
         aircraft_type: str,
-        altitude_ft: npt.NDArray[np.float64],
-        air_temperature: npt.NDArray[np.float64],
+        altitude_ft: npt.NDArray[np.floating],
+        air_temperature: npt.NDArray[np.floating],
         time: npt.NDArray[np.datetime64] | None,
-        true_airspeed: npt.NDArray[np.float64] | float | None,
-        aircraft_mass: npt.NDArray[np.float64] | float,
-        engine_efficiency: npt.NDArray[np.float64] | float | None,
-        fuel_flow: npt.NDArray[np.float64] | float | None,
-        thrust: npt.NDArray[np.float64] | float | None,
+        true_airspeed: npt.NDArray[np.floating] | float | None,
+        aircraft_mass: npt.NDArray[np.floating] | float,
+        engine_efficiency: npt.NDArray[np.floating] | float | None,
+        fuel_flow: npt.NDArray[np.floating] | float | None,
+        thrust: npt.NDArray[np.floating] | float | None,
         q_fuel: float,
         **kwargs: Any,
     ) -> AircraftPerformanceData:
@@ -417,24 +461,24 @@ class AircraftPerformance(Model):
         ----------
         aircraft_type : str
             Used to query the underlying model database for aircraft engine parameters.
-        altitude_ft : npt.NDArray[np.float64]
+        altitude_ft : npt.NDArray[np.floating]
             Altitude at each waypoint, [:math:`ft`]
-        air_temperature : npt.NDArray[np.float64]
+        air_temperature : npt.NDArray[np.floating]
             Ambient temperature for each waypoint, [:math:`K`]
         time: npt.NDArray[np.datetime64] | None
             Waypoint time in ``np.datetime64`` format. If None, only drag force
             will is used in thrust calculations (ie, no vertical change and constant
             horizontal change). In addition, aircraft is assumed to be in cruise.
-        true_airspeed : npt.NDArray[np.float64] | float | None
+        true_airspeed : npt.NDArray[np.floating] | float | None
             True airspeed for each waypoint, [:math:`m s^{-1}`].
             If None, a nominal value is used.
-        aircraft_mass : npt.NDArray[np.float64] | float
+        aircraft_mass : npt.NDArray[np.floating] | float
             Aircraft mass for each waypoint, [:math:`kg`].
-        engine_efficiency : npt.NDArray[np.float64] | float | None
+        engine_efficiency : npt.NDArray[np.floating] | float | None
             Override the engine efficiency at each waypoint.
-        fuel_flow : npt.NDArray[np.float64] | float | None
+        fuel_flow : npt.NDArray[np.floating] | float | None
             Override the fuel flow at each waypoint, [:math:`kg s^{-1}`].
-        thrust : npt.NDArray[np.float64] | float | None
+        thrust : npt.NDArray[np.floating] | float | None
             Override the thrust setting at each waypoint, [:math: `N`].
         q_fuel : float
             Lower calorific value (LCV) of fuel, [:math:`J \ kg_{fuel}^{-1}`].
@@ -447,12 +491,12 @@ class AircraftPerformance(Model):
             Derived performance metrics at each waypoint.
         """
 
-    def ensure_true_airspeed_on_source(self) -> npt.NDArray[np.float64]:
+    def ensure_true_airspeed_on_source(self) -> npt.NDArray[np.floating]:
         """Add ``true_airspeed`` field to :attr:`source` data if not already present.
 
         Returns
         -------
-        npt.NDArray[np.float64]
+        npt.NDArray[np.floating]
             True airspeed, [:math:`m s^{-1}`]. If ``true_airspeed`` is already present
             on :attr:`source`, this is returned directly. Otherwise, it is calculated
             using :meth:`Flight.segment_true_airspeed`.
@@ -467,10 +511,12 @@ class AircraftPerformance(Model):
             tas[cond] = self.source.segment_groundspeed()[cond]
             return tas
 
-        met_incomplete = (
-            self.met is None or "eastward_wind" not in self.met or "northward_wind" not in self.met
+        # Use current cocip convention: eastward_wind on met, u_wind on source
+        wind_available = ("u_wind" in self.source and "v_wind" in self.source) or (
+            self.met is not None and "eastward_wind" in self.met and "northward_wind" in self.met
         )
-        if met_incomplete:
+
+        if not wind_available:
             if fill_with_groundspeed:
                 tas = self.source.segment_groundspeed()
                 self.source["true_airspeed"] = tas
@@ -483,12 +529,16 @@ class AircraftPerformance(Model):
             )
             raise ValueError(msg)
 
-        u = interpolate_met(self.met, self.source, "eastward_wind", **self.interp_kwargs)
-        v = interpolate_met(self.met, self.source, "northward_wind", **self.interp_kwargs)
+        u = interpolate_met(self.met, self.source, "eastward_wind", "u_wind", **self.interp_kwargs)
+        v = interpolate_met(self.met, self.source, "northward_wind", "v_wind", **self.interp_kwargs)
 
         if fill_with_groundspeed:
-            met_level_max = self.met.data["level"][-1].item()  # type: ignore[union-attr]
-            cond = self.source.level > met_level_max
+            if self.met is None:
+                cond = np.isnan(u) & np.isnan(v)
+            else:
+                met_level_max = self.met.data["level"][-1].item()  # type: ignore[union-attr]
+                cond = self.source.level > met_level_max
+
             # We DON'T overwrite the original u and v arrays already attached to the source
             u = np.where(cond, 0.0, u)
             v = np.where(cond, 0.0, v)
@@ -504,30 +554,30 @@ class AircraftPerformanceData:
 
     Parameters
     ----------
-    fuel_flow : npt.NDArray[np.float64]
+    fuel_flow : npt.NDArray[np.floating]
         Fuel mass flow rate for each waypoint, [:math:`kg s^{-1}`]
-    aircraft_mass : npt.NDArray[np.float64]
+    aircraft_mass : npt.NDArray[np.floating]
         Aircraft mass for each waypoint, [:math:`kg`]
-    true_airspeed : npt.NDArray[np.float64]
+    true_airspeed : npt.NDArray[np.floating]
         True airspeed at each waypoint, [:math: `m s^{-1}`]
-    fuel_burn: npt.NDArray[np.float64]
+    fuel_burn: npt.NDArray[np.floating]
         Fuel consumption for each waypoint, [:math:`kg`]. Set to an array of
         all nan values if it cannot be computed (ie, working with gridpoints).
-    thrust: npt.NDArray[np.float64]
+    thrust: npt.NDArray[np.floating]
         Thrust force, [:math:`N`]
-    engine_efficiency: npt.NDArray[np.float64]
+    engine_efficiency: npt.NDArray[np.floating]
         Overall propulsion efficiency for each waypoint
-    rocd : npt.NDArray[np.float64]
+    rocd : npt.NDArray[np.floating]
         Rate of climb and descent, [:math:`ft min^{-1}`]
     """
 
-    fuel_flow: npt.NDArray[np.float64]
-    aircraft_mass: npt.NDArray[np.float64]
-    true_airspeed: npt.NDArray[np.float64]
-    fuel_burn: npt.NDArray[np.float64]
-    thrust: npt.NDArray[np.float64]
-    engine_efficiency: npt.NDArray[np.float64]
-    rocd: npt.NDArray[np.float64]
+    fuel_flow: npt.NDArray[np.floating]
+    aircraft_mass: npt.NDArray[np.floating]
+    true_airspeed: npt.NDArray[np.floating]
+    fuel_burn: npt.NDArray[np.floating]
+    thrust: npt.NDArray[np.floating]
+    engine_efficiency: npt.NDArray[np.floating]
+    rocd: npt.NDArray[np.floating]
 
 
 # --------------------------------
@@ -536,7 +586,7 @@ class AircraftPerformanceData:
 
 
 @dataclasses.dataclass
-class AircraftPerformanceGridParams(ModelParams):
+class AircraftPerformanceGridParams(ModelParams, CommonAircraftPerformanceParams):
     """Parameters for :class:`AircraftPerformanceGrid`."""
 
     #: Fuel type
@@ -614,28 +664,3 @@ def _fill_low_altitude_with_isa_temperature(vector: GeoVectorDataset, met_level_
 
     t_isa = vector.T_isa()
     air_temperature[cond] = t_isa[cond]
-
-
-def _fill_low_altitude_tas_with_true_groundspeed(fl: Flight, met_level_max: float) -> None:
-    """Fill low-altitude NaN values in ``true_airspeed`` with ground speed.
-
-    The ``true_airspeed`` param is assumed to have been computed by
-    interpolating against a gridded wind field that did not necessarily
-    extend to the surface. This function fills points below the lowest
-    altitude in the gridded data with ground speed values.
-
-    This function operates in-place and modifies the ``true_airspeed`` field.
-
-    Parameters
-    ----------
-    fl : Flight
-        Flight instance associated with the ``true_airspeed`` data.
-    met_level_max : float
-        The maximum level in the met data, [:math:`hPa`].
-    """
-    tas = fl["true_airspeed"]
-    is_nan = np.isnan(tas)
-    low_alt = fl.level > met_level_max
-    cond = is_nan & low_alt
-
-    tas[cond] = fl.segment_groundspeed()[cond]
