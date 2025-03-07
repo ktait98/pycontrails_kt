@@ -18,8 +18,8 @@ FLPATH=$(shell nf-config --prefix)
 # We have to guess that nf-config libs are in /lib and not /lib64, nf-config has no --libdir
 LPATH=${CLPATH}:${FLPATH}/lib
 
-RUNDIR=/user/work/${USER}/pycontrails_kt/pycontrails/
-DATADIR=/projects/Impact_of_aviation_on_climate/Kieran2024/
+RUNDIR=/home/ktait98/GPAT2025/pycontrails_kt/pycontrails/
+DATADIR=/home/ktait98/GPAT2025/pycontrails_kt/pycontrails/models/gpat/data/
 
 #Anything relying on PHONY will ALWAYS be rebuilt when make us run
 PHONY:
@@ -54,11 +54,11 @@ download_files: create_dirs
 boxm: create_dirs download_files boxm.f90 Makefile
 	${FCOMP} -cpp -o boxm boxm.f90 ${FFLAG} ${FLIBS} ${CLIBS} -DPYCONTRAILSDIR=${RUNDIR}
 
-boxm_clean: create_dirs download_files boxm_clean.f90 Makefile
-	${FCOMP} -cpp -o boxm_clean boxm_clean.f90 ${FFLAG} ${FLIBS} ${CLIBS} -DPYCONTRAILSDIR=${RUNDIR}
+# boxm_clean: create_dirs download_files boxm_clean.f90 Makefile
+# 	${FCOMP} -cpp -o boxm_clean boxm_clean.f90 ${FFLAG} ${FLIBS} ${CLIBS} -DPYCONTRAILSDIR=${RUNDIR}
 
-boxm_orig: boxm_orig.for Makefile
-	${FCOMP} -o boxm_orig boxm_orig.for ${FFLAG} ${FLIBS} ${CLIBS}
+# boxm_orig: boxm_orig.for Makefile
+# 	${FCOMP} -o boxm_orig boxm_orig.for ${FFLAG} ${FLIBS} ${CLIBS}
 
 # Clean target to remove the executable and directories
 .PHONY: clean
