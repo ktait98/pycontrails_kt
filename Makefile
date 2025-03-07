@@ -78,6 +78,10 @@ lint:
 format:
 	ruff format pycontrails tests docs
 
+fix-lint:
+	ruff check pycontrails tests docs --fix
+	ruff format pycontrails tests docs
+
 # https://taplo.tamasfe.dev/
 taplo:
 	taplo format pyproject.toml --option indent_string='    '

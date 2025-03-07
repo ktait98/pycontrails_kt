@@ -1,7 +1,8 @@
-#!/usr/bin/env python
+"""Run GPAT script."""
 
 import numpy as np
 import pandas as pd
+
 from pycontrails.models.gpat.gpat import GPAT
 
 # flight trajectory parameters

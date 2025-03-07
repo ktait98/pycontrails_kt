@@ -52,7 +52,7 @@ class TestValidateTrajectorySet:
     """Test the different exceptions raised by the ``ValidateTrajectoryHandler``."""
 
     @pytest.fixture(autouse=True)
-    def setup(self):
+    def _setup(self):
         self.vth = ValidateTrajectoryHandler()
 
     def test_set_empty(self) -> None:
