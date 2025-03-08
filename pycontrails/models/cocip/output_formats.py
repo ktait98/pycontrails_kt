@@ -1608,7 +1608,7 @@ def contrails_to_hi_res_grid(
         contrail_segment = GeoVectorDataset(
             pd.concat([heads_t[cols_req].loc[i], tails_t[cols_req].loc[i]], axis=1).T, copy=True
         )
-        
+
         segment_grid = segment_property_to_hi_res_grid(
             contrail_segment, var_name=var_name, spatial_grid_res=spatial_grid_res
         )
@@ -1709,10 +1709,10 @@ def segment_property_to_hi_res_grid(
     lat_edges = np.concatenate(
         [contrail_segment["lat_edge_l"], contrail_segment["lat_edge_r"]], axis=0
     )
-    #print(f"longitude edges {lon_edges}, latitude edges {lat_edges}")
+    # print(f"longitude edges {lon_edges}, latitude edges {lat_edges}")
 
     spatial_bbox = geo.spatial_bounding_box(lon_edges, lat_edges, buffer=0.01)
-    #print(spatial_bbox)
+    # print(spatial_bbox)
     segment_grid = _initialise_longitude_latitude_grid(spatial_bbox, spatial_grid_res)
 
     # Calculate gridded contrail segment properties
@@ -1906,10 +1906,10 @@ def _add_segment_to_main_grid(main_grid: xr.DataArray, segment_grid: xr.DataArra
             "Contrail segment ignored as it is outside spatial bounding box of the main grid. "
         )
     else:
-        #print(segment_grid)
+        # print(segment_grid)
         # print(lon_main)
         # print(lat_main)
-        #print(lon_segment_grid[0], lon_segment_grid[-1], lat_segment_grid[0], lat_segment_grid[-1])
+        # print(lon_segment_grid[0], lon_segment_grid[-1], lat_segment_grid[0], lat_segment_grid[-1])
         # print(main_grid_arr[ix_:ix, iy_:iy].shape, subgrid_arr.shape)
         main_grid_arr[ix_:ix, iy_:iy] = main_grid_arr[ix_:ix, iy_:iy] + subgrid_arr
 

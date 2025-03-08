@@ -25,8 +25,8 @@ plume_params = {
     "depth": 50.0,  # initial plume depth, [m]
     "width": 50.0,  # initial plume width, [m]
     "shear": 0.01,  # wind shear [1/s]
-    "hres_pl": 0.05, # horizontal resolution of the plume [deg]
-    "vres_pl": 500, # vertical resolution of the plume [m]
+    "hres_pl": 0.05,  # horizontal resolution of the plume [deg]
+    "vres_pl": 500,  # vertical resolution of the plume [m]
 }
 
 # chemistry sim parameters
@@ -43,12 +43,9 @@ sim_params = {
     "northward_wind": 0.0,  # m/s
     "lagrangian_tendency_of_air_pressure": 0.0,  # m/s
     "species_in": np.array(["NO", "NO2", "CO"]),
-    "species_out": np.array(["O3", "NO2", "NO",
-                            "NO3", "HNO3", "PAN",
-                            "HONO", "HO2", "OH",
-                            "H2O2", "CO", "HCHO",
-                            "CH4"
-                            ]),
+    "species_out": np.array(
+        ["O3", "NO2", "NO", "NO3", "HNO3", "PAN", "HONO", "HO2", "OH", "H2O2", "CO", "HCHO", "CH4"]
+    ),
 }
 
 gpat = GPAT(fl_params, plume_params, sim_params)
