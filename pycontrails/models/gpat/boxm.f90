@@ -72,12 +72,12 @@ CONTAINS
 
     SUBROUTINE OPEN_NC(JOB_ID)
         IMPLICIT NONE
-        CHARACTER(LEN=256) :: JOB_ID
+        CHARACTER(LEN=256) :: JOB_ID, BASE_PATH
 
-        PRINT *, JOB_ID
+        BASE_PATH = '/home/ktait98/GPAT2025/pycontrails_kt/pycontrails/models/gpat/data/inputs/'
 
         ! OPEN BOXM INPUT NC
-        IERR = NF90_OPEN('inputs/'//TRIM(JOB_ID)//'/boxm_ds.nc', NF90_WRITE, NCID)
+        IERR = NF90_OPEN(TRIM(BASE_PATH)//TRIM(JOB_ID)//'/boxm_ds.nc', NF90_WRITE, NCID)
         IF (IERR /= NF90_NOERR) THEN
             PRINT *, NF90_STRERROR(IERR)
         END IF

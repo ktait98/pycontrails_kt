@@ -66,8 +66,7 @@ def plume_to_grid(
     is_in_time = plumes_t["time"] == time
     if not np.all(is_in_time):
         warnings.warn(
-            f"Plume segments have inconsistent times. Waypoints that are not in {time}"
-            f" are removed."
+            f"Plume segments have inconsistent times. Waypoints that are not in {time} are removed."
         )
         plumes_t = plumes_t.filter(is_in_time)
 
@@ -270,12 +269,6 @@ def plume_edges(
     """
     dlon = units.m_to_longitude_distance(width * sin_a * 0.5, lat)
     dlat = units.m_to_latitude_distance(width * cos_a * 0.5)
-
-    # # Handle right angles
-    # if np.isclose(sin_a, 0):
-    #     dlon = np.zeros_like(dlon)
-    # if np.isclose(cos_a, 0):
-    #     dlat = np.zeros_like(dlat)
 
     lon_edge_l = lon - dlon
     lat_edge_l = lat + dlat

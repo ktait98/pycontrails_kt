@@ -61,7 +61,7 @@ class PlumeParams:
     )  # maximum age of the plume
     depth: float = 50.0  # initial plume depth, [m]
     width: float = 50.0  # initial plume width, [m]
-    shear: float = 0.01  # wind shear [1/s]
+    verbose_outputs: bool = False  # verbose outputs
     hres_pl: float = 0.01  # horizontal resolution of the plume, [deg]
     vres_pl: float = 500  # vertical resolution of the plume [m]
     n_slices: int = 10  # number of slices
@@ -855,7 +855,6 @@ class GPAT(Model):
                     "width",
                     "heading",
                     "sigma_yy",
-                    "sigma_zz",
                 ]
             ],
             on=["flight_id", "waypoint"],
@@ -1487,7 +1486,7 @@ def gen_boxm_orig_input(data_path, cell_chem_ds, job_id):
         "PAN",
         "MPAN",
     ]:
-        boxm_input.write(f"{cell_chem_ds["bg_chem"].sel(species=s).item()}\n")
+        boxm_input.write(f"{cell_chem_ds['bg_chem'].sel(species=s).item()}\n")
 
     boxm_input.close()
 
@@ -1874,7 +1873,6 @@ def parse_args():
     parser.add_argument("--max_age", type=str, help="Maximum age of the plume in hours")
     parser.add_argument("--depth", type=float, help="Initial plume depth in meters")
     parser.add_argument("--width", type=float, help="Initial plume width in meters")
-    parser.add_argument("--shear", type=float, help="Wind shear in 1/s")
     parser.add_argument(
         "--hres_pl", type=float, help="Horizontal resolution of the plume in degrees"
     )
@@ -1956,8 +1954,6 @@ def update_plume_params_from_args(params, args):
         params.depth = args.depth
     if args.width:
         params.width = args.width
-    if args.shear:
-        params.shear = args.shear
     if args.hres_pl:
         params.hres_pl = args.hres_pl
     if args.vres_pl:

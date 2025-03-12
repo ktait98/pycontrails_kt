@@ -72,8 +72,6 @@ class DryAdvectionParams(models.AdvectionBuffers):
     #: source points as well as evolved points.
     include_source_in_output: bool = False
 
-    shear: float | None = None
-
 
 class DryAdvection(models.Model):
     """Simulate "dry advection" of an emissions plume with an elliptical cross section.
@@ -165,7 +163,6 @@ class DryAdvection(models.Model):
         sedimentation_rate = self.params["sedimentation_rate"]
         dz_m = self.params["dz_m"]
         max_depth = self.params["max_depth"]
-        shear = self.params["shear"]
         verbose_outputs = self.params["verbose_outputs"]
 
         source_time = self.source["time"]
@@ -179,6 +176,7 @@ class DryAdvection(models.Model):
         evolved = []
         for t in timesteps:
             filt = (source_time < t) & (source_time >= t - dt_integration)
+
             vector1 = vector2 + self.source.filter(filt, copy=False)
 
             t0 = vector1["time"].min()
@@ -192,7 +190,6 @@ class DryAdvection(models.Model):
                 sedimentation_rate=sedimentation_rate,
                 dz_m=dz_m,
                 max_depth=max_depth,
-                shear=shear,
                 verbose_outputs=verbose_outputs,
                 **interp_kwargs,
             )
@@ -228,6 +225,7 @@ class DryAdvection(models.Model):
             true north, [:math:`\deg`].
         - ``width``: Initial plume width, [:math:`m`].
         - ``depth``: Initial plume depth, [:math:`m`].
+        - ``sigma_yy``: All zeros for variance in cross-wind direction.
         - ``sigma_yz``: All zeros for cross-term term in covariance matrix of plume.
 
         Returns
@@ -265,11 +263,9 @@ class DryAdvection(models.Model):
 
             self.source[key] = np.full_like(self.source["longitude"], val)
 
-        columns.extend(["azimuth", "width", "depth", "sigma_yz", "area_eff"])
+        columns.extend(["azimuth", "width", "depth", "sigma_yy", "sigma_yz", "area_eff"])
         self.source["sigma_yy"] = np.zeros_like(self.source["longitude"])
-        self.source["sigma_zz"] = np.zeros_like(self.source["longitude"])
         self.source["sigma_yz"] = np.zeros_like(self.source["longitude"])
-        self.source["dsn_dz"] = np.zeros_like(self.source["longitude"])
         width = self.source["width"]
         depth = self.source["depth"]
         self.source["area_eff"] = contrail_properties.plume_effective_cross_sectional_area(
@@ -389,7 +385,6 @@ def _calc_geometry(
     dz_m: float,
     dt: npt.NDArray[np.timedelta64] | np.timedelta64,
     max_depth: float | None,
-    shear: float | None,
     verbose_outputs: bool,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Calculate wind-shear-derived geometry of evolved plume.
@@ -418,18 +413,15 @@ def _calc_geometry(
     sigma_yz = vector["sigma_yz"]
     area_eff = vector["area_eff"]
 
-    if shear is not None:
-        dsn_dz = np.full_like(u_wind, shear)
-    else:
-        dsn_dz = wind_shear.wind_shear_normal(
-            u_wind_top=u_wind,
-            u_wind_btm=u_wind_lower,
-            v_wind_top=v_wind,
-            v_wind_btm=v_wind_lower,
-            cos_a=cos_a,
-            sin_a=sin_a,
-            dz=dz_m,
-        )
+    dsn_dz = wind_shear.wind_shear_normal(
+        u_wind_top=u_wind,
+        u_wind_btm=u_wind_lower,
+        v_wind_top=v_wind,
+        v_wind_btm=v_wind_lower,
+        cos_a=cos_a,
+        sin_a=sin_a,
+        dz=dz_m,
+    )
 
     dT_dz = thermo.T_potential_gradient(
         air_temperature,
@@ -504,7 +496,7 @@ def _calc_geometry(
         lats1=latitude_head_t2,
     )
 
-    return azimuth_2, width_2, depth_2, sigma_yy_2, sigma_zz_2, sigma_yz_2, area_eff_2, dsn_dz
+    return azimuth_2, width_2, depth_2, sigma_yy_2, sigma_yz_2, area_eff_2
 
 
 def _evolve_one_step(
@@ -515,7 +507,6 @@ def _evolve_one_step(
     sedimentation_rate: float,
     dz_m: float,
     max_depth: float | None,
-    shear: float | None,
     verbose_outputs: bool,
     **interp_kwargs: Any,
 ) -> GeoVectorDataset:
@@ -559,23 +550,18 @@ def _evolve_one_step(
         return out
 
     # Attach wind-shear-derived geometry to output vector
-    azimuth_2, width_2, depth_2, sigma_yy_2, sigma_zz_2, sigma_yz_2, area_eff_2, dsn_dz = (
-        _calc_geometry(
-            vector,
-            dz_m,
-            dt,
-            max_depth,
-            shear,  # type: ignore[arg-type]
-        )
+    azimuth_2, width_2, depth_2, sigma_yy_2, sigma_yz_2, area_eff_2 = _calc_geometry(
+        vector,
+        dz_m=dz_m,
+        dt=dt,  # type: ignore[arg-type]
+        max_depth=max_depth,  # type: ignore[arg-type]
+        verbose_outputs=verbose_outputs,
     )
-
     out["azimuth"] = azimuth_2
     out["width"] = width_2
     out["depth"] = depth_2
     out["sigma_yy"] = sigma_yy_2
-    out["sigma_zz"] = sigma_zz_2
     out["sigma_yz"] = sigma_yz_2
     out["area_eff"] = area_eff_2
-    out["dsn_dz"] = dsn_dz
 
     return out
