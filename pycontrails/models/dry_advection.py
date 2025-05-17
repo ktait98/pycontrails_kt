@@ -263,9 +263,10 @@ class DryAdvection(models.Model):
 
             self.source[key] = np.full_like(self.source["longitude"], val)
 
-        columns.extend(["azimuth", "width", "depth", "sigma_yy", "sigma_yz", "area_eff"])
+        columns.extend(["azimuth", "width", "depth", "sigma_yy", "sigma_yz", "sigma_zz", "area_eff"])
         self.source["sigma_yy"] = np.zeros_like(self.source["longitude"])
         self.source["sigma_yz"] = np.zeros_like(self.source["longitude"])
+        self.source["sigma_zz"] = np.zeros_like(self.source["longitude"])
         width = self.source["width"]
         depth = self.source["depth"]
         self.source["area_eff"] = contrail_properties.plume_effective_cross_sectional_area(
@@ -496,7 +497,7 @@ def _calc_geometry(
         lats1=latitude_head_t2,
     )
 
-    return azimuth_2, width_2, depth_2, sigma_yy_2, sigma_yz_2, area_eff_2
+    return azimuth_2, width_2, depth_2, sigma_yy_2, sigma_yz_2, sigma_zz_2, area_eff_2
 
 
 def _evolve_one_step(
@@ -550,7 +551,7 @@ def _evolve_one_step(
         return out
 
     # Attach wind-shear-derived geometry to output vector
-    azimuth_2, width_2, depth_2, sigma_yy_2, sigma_yz_2, area_eff_2 = _calc_geometry(
+    azimuth_2, width_2, depth_2, sigma_yy_2, sigma_yz_2, sigma_zz_2, area_eff_2 = _calc_geometry(
         vector,
         dz_m=dz_m,
         dt=dt,  # type: ignore[arg-type]
@@ -561,6 +562,7 @@ def _evolve_one_step(
     out["width"] = width_2
     out["depth"] = depth_2
     out["sigma_yy"] = sigma_yy_2
+    out["sigma_zz"] = sigma_zz_2
     out["sigma_yz"] = sigma_yz_2
     out["area_eff"] = area_eff_2
 
