@@ -1,65 +1,7 @@
-MODULE BOXM
-    USE NETCDF
-    IMPLICIT NONE
+MODULE FILE_IO
+CONTAINS
 
-    INTEGER :: IOSTAT
-    REAL :: PI, TIME1, TSTORE, DTS
-
-    INTEGER :: NTS, NCELL, NS, NS_OUT
-    INTEGER :: NTC, NPC, NPP, NFL, NEMI
-    INTEGER :: S, CELL, TS
-    INTEGER :: I, SPECIES_INDEX, JOBID 
-
-    INTEGER :: NCID, DIMID_TIME, DIMID_CELL, DIMID_NS, DIMID_NEMI
-    INTEGER :: DIMID_NPP, DIMID_NPC, DIMID_NTC, DIMID_NFL
-    INTEGER, PRIVATE :: VARID_TIME, VARID_LEVEL, VARID_LON, VARID_LAT, VARID_PRESSURE, VARID_ALT
-    INTEGER, PRIVATE :: VARID_SPECIES, VARID_EMI_SPECIES, VARID_BG_CHEM
-    INTEGER, PRIVATE :: VARID_TEMP, VARID_M, VARID_H2O, VARID_O2, VARID_N2, VARID_SZA, VARID_EMI
-    
-    INTEGER :: VARID_Y, VARID_J, VARID_DJ, VARID_RC, VARID_FL
-    INTEGER, PRIVATE :: IERR
-
-    CHARACTER(LEN=256) :: JOB_ID
-
-    ! DEFINE MET INPUTS
-    DOUBLE PRECISION, ALLOCATABLE :: TIME(:), LEVEL(:), LON(:), LAT(:), TEMP(:), PRESSURE(:), ALT(:)
-    CHARACTER(LEN=80), ALLOCATABLE :: SPECIES(:), EMI_SPECIES(:)
-    DOUBLE PRECISION, ALLOCATABLE :: EMI(:,:), EMIP(:,:), BG_CHEM(:,:)
-    DOUBLE PRECISION, ALLOCATABLE :: M(:), H2O(:), O2(:), N2(:), SZA(:)
-
-    ! DEFINE CHEM VARIABLES
-    DOUBLE PRECISION, ALLOCATABLE :: Y(:,:), YP(:,:), RC(:,:), J(:,:), DJ(:,:), FL(:,:)
-    DOUBLE PRECISION, ALLOCATABLE :: SOA(:), MOM(:), BR01(:), RO2(:), P(:), L(:), Y_PPB(:,:), EMI_PPB(:,:)
-    INTEGER, ALLOCATABLE :: SPECIES_OUT_NUM(:)
-
-    ! CHEMCO
-    ! SIMPLE RATE COEFFICIENT SCALARS
-    DOUBLE PRECISION, PRIVATE :: KRO2NO3,KDEC
-
-    ! COMPLEX RATE COEFFICIENT SCALARS
-    DOUBLE PRECISION, PRIVATE :: FCC,FCD,FC1,K2I,FC2,FC7,FC8,K9I,FC9,FC10,KI,K13I
-    DOUBLE PRECISION, PRIVATE :: FC13,FC14,FC15,FC16,FCX
-
-    ! SIMPLE RATE COEFFICIENT CELLS
-    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: KRO2NO,KAPNO,KRO2HO2,KAPHO2,KNO3AL,KALKOXY
-    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: KALKPXY,KIN,KOUT2604,KOUT4608,KOUT2631
-    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: KOUT2635,KOUT4610,KOUT2605,KOUT2630,KOUT2629
-    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: KOUT2632,KOUT2637,KOUT3612,KOUT3613,KOUT3442
-
-    ! COMPLEX RATE COEFFICIENT CELLS
-    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: KC0,KCI,KRC,FC,KFPAN,KD0,KDI,KRD,FD,KBPAN,K10
-    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: K1I,KR1,F1,KMT01,K20,KR2,Fa2,KMT02,K30,K3I
-    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: KR3,FC3,F3,KMT03,K40,K4I,KR4,FC4,Fa4,KMT04
-    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: KMT05,KMT06,K70,K7I,KR7,F7,KMT07,K80,K8I,KR8
-    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: F8,KMT08,K90,KR9,F9,KMT09,K100,K10I,KR10,F10
-    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: KMT10,K1,K3,K4,K2,KMT11,K0,F,KMT12,K130
-    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: KR13,F13,KMT13,K140,K14I,KR14,F14,KMT14,K150
-    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: K15I,KR15,F15,KMT15,K160,K16I,KR16,F16,KMT16
-    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: K170,K17I,KR17,FC17,F17,KMT17
-
-CONTAINS 
     ! PRE INTEGRATION
-
     SUBROUTINE CHECK(IERR, MSG)
         IMPLICIT NONE
         INTEGER, INTENT(IN) :: IERR
@@ -70,57 +12,130 @@ CONTAINS
         END IF
     END SUBROUTINE CHECK
 
-    SUBROUTINE OPEN_NC(JOB_ID)
+    SUBROUTINE OPEN_INPUT_NCS(JOB_ID)
         IMPLICIT NONE
-        CHARACTER(LEN=256) :: JOB_ID, BASE_PATH
+        CHARACTER(LEN=256), INTENT(IN) :: JOB_ID
+        CHARACTER(LEN=256) :: IN_PATH
 
-        BASE_PATH = '/home/ktait98/GPAT2025/pycontrails_kt/pycontrails/models/gpat/data/inputs/'
+        IN_PATH = '/home/ktait98/GPAT2025/pycontrails_kt/pycontrails/models/gpat/data/inputs/'
 
         ! OPEN BOXM INPUT NC
-        IERR = NF90_OPEN(TRIM(BASE_PATH)//TRIM(JOB_ID)//'/boxm_ds.nc', NF90_WRITE, NCID)
+        IERR = NF90_OPEN(TRIM(IN_PATH)//TRIM(JOB_ID)//'/boxm.nc', NF90_WRITE, BOXM_NCID)
         IF (IERR /= NF90_NOERR) THEN
             PRINT *, NF90_STRERROR(IERR)
         END IF
         CALL CHECK(IERR, 'ERROR: CANNOT OPEN BOXM.NC')
-    END SUBROUTINE OPEN_NC
 
-    SUBROUTINE GET_DIMS
+        ! OPEN FL INPUT NC
+        IERR = NF90_OPEN(TRIM(IN_PATH)//TRIM(JOB_ID)//'/fl.nc', NF90_WRITE, FL_NCID)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, NF90_STRERROR(IERR)
+        END IF
+        CALL CHECK(IERR, 'ERROR: CANNOT OPEN FL.NC')
+
+        ! OPEN PL INPUT NC
+        IERR = NF90_OPEN(TRIM(IN_PATH)//TRIM(JOB_ID)//'/pl.nc', NF90_WRITE, PL_NCID)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, NF90_STRERROR(IERR)
+        END IF
+        CALL CHECK(IERR, 'ERROR: CANNOT OPEN PL.NC')
+
+    END SUBROUTINE OPEN_INPUT_NCS
+
+    SUBROUTINE OPEN_OUTPUT_NCS(JOB_ID)
         IMPLICIT NONE
-        ! GET DIMIDS AND LENGTHS
-        IERR = NF90_INQ_DIMID(NCID, 'time', DIMID_TIME)
+        CHARACTER(LEN=256), INTENT(IN) :: JOB_ID
+        CHARACTER(LEN=256) :: OUT_PATH
+
+        OUT_PATH = '/home/ktait98/GPAT2025/pycontrails_kt/pycontrails/models/gpat/data/outputs/'
+
+        ! OPEN BOXM OUTPUT NC
+        IERR = NF90_OPEN(TRIM(OUT_PATH)//TRIM(JOB_ID)//'/boxm_out.nc', NF90_WRITE, BOXM_OUT_NCID)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, NF90_STRERROR(IERR)
+        END IF
+        CALL CHECK(IERR, 'ERROR: CANNOT OPEN BOXM_OUT.NC')
+
+        ! OPEN PATCH TABLE NC
+        IERR = NF90_OPEN(TRIM(OUT_PATH)//TRIM(JOB_ID)//'/patch_table.nc', NF90_WRITE, PATCH_TABLE_NCID)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, NF90_STRERROR(IERR)
+        END IF
+        CALL CHECK(IERR, 'ERROR: CANNOT OPEN PATCH_TABLE.NC')
+
+        ! OPEN PL OUTPUT NC
+        IERR = NF90_OPEN(TRIM(OUT_PATH)//TRIM(JOB_ID)//'/pl_out.nc', NF90_WRITE, PL_OUT_NCID)
+        IF (IERR /= NF90_NOERR) THEN
+            PRINT *, NF90_STRERROR(IERR)
+        END IF
+        CALL CHECK(IERR, 'ERROR: CANNOT OPEN PL_OUT.NC')
+
+    END SUBROUTINE OPEN_OUTPUT_NCS
+
+    SUBROUTINE GET_FL_DIMS
+        IMPLICIT NONE
+        ! GET FL DIMIDS AND LENGTHS
+        IERR = NF90_INQ_DIMID(FL_NCID, 'flight_id', DIMID_TIME)
+        CALL CHECK(IERR, 'ERROR: CANNOT GET FLIGHT_ID DIMID')
+        IERR = NF90_INQUIRE_DIMENSION(FL_NCID, DIMID_TIME, LEN=NTS)
+        CALL CHECK(IERR, 'ERROR: CANNOT GET FLIGHT_ID LENGTH')
+
+        IERR = NF90_INQ_DIMID(FL_NCID, 'waypoint', DIMID_WAYPOINT)
+        CALL CHECK(IERR, 'ERROR: CANNOT GET WAYPOINT DIMID')
+        IERR = NF90_INQUIRE_DIMENSION(FL_NCID, DIMID_WAYPOINT, LEN=NWAYPOINT)
+        CALL CHECK(IERR, 'ERROR: CANNOT GET WAYPOINT LENGTH')
+    
+    END SUBROUTINE GET_FL_DIMS
+
+    SUBROUTINE GET_PL_DIMS
+        IMPLICIT NONE
+        ! GET PL DIMIDS AND LENGTHS
+        IERR = NF90_INQ_DIMID(PL_NCID, 'flight_id', DIMID_TIME)
+        CALL CHECK(IERR, 'ERROR: CANNOT GET FLIGHT_ID DIMID')
+        IERR = NF90_INQUIRE_DIMENSION(PL_NCID, DIMID_TIME, LEN=NTS)
+        CALL CHECK(IERR, 'ERROR: CANNOT GET FLIGHT_ID LENGTH')
+
+        IERR = NF90_INQ_DIMID(PL_NCID, 'waypoint', DIMID_WAYPOINT)
+        CALL CHECK(IERR, 'ERROR: CANNOT GET WAYPOINT DIMID')
+        IERR = NF90_INQUIRE_DIMENSION(PL_NCID, DIMID_WAYPOINT, LEN=NWAYPOINT)
+        CALL CHECK(IERR, 'ERROR: CANNOT GET WAYPOINT LENGTH')
+
+        IERR = NF90_INQ_DIMID(PL_NCID, 'time', DIMID_TIME)
         CALL CHECK(IERR, 'ERROR: CANNOT GET TIME DIMID')
-        IERR = NF90_INQUIRE_DIMENSION(NCID, DIMID_TIME, LEN=NTS)
+        IERR = NF90_INQUIRE_DIMENSION(PL_NCID, DIMID_TIME, LEN=NTS)
         CALL CHECK(IERR, 'ERROR: CANNOT GET TIME LENGTH')
-        IERR = NF90_INQ_DIMID(NCID, 'cell', DIMID_CELL)
+
+        IERR = NF90_INQ_DIMID(PL_NCID, 'species', DIMID_CELL)
+        CALL CHECK(IERR, 'ERROR: CANNOT GET GRID_CELL DIMID')
+        IERR = NF90_INQUIRE_DIMENSION(PL_NCID, DIMID_CELL, LEN=NCELL)
+        CALL CHECK(IERR, 'ERROR: CANNOT GET GRID_CELL LENGTH')
+    END SUBROUTINE GET_PL_DIMS
+
+    SUBROUTINE GET_BOXM_DIMS
+        IMPLICIT NONE
+        ! GET BOXM DIMIDS AND LENGTHS
+        IERR = NF90_INQ_DIMID(BOXM_NCID, 'time', DIMID_TIME)
+        CALL CHECK(IERR, 'ERROR: CANNOT GET TIME DIMID')
+        IERR = NF90_INQUIRE_DIMENSION(BOXM_NCID, DIMID_TIME, LEN=NTS)
+        CALL CHECK(IERR, 'ERROR: CANNOT GET TIME LENGTH')
+
+        IERR = NF90_INQ_DIMID(BOXM_NCID, 'cell', DIMID_CELL)
         CALL CHECK(IERR, 'ERROR: CANNOT GET CELL DIMID')
-        IERR = NF90_INQUIRE_DIMENSION(NCID, DIMID_CELL, LEN=NCELL)
+        IERR = NF90_INQUIRE_DIMENSION(BOXM_NCID, DIMID_CELL, LEN=NCELL)
         CALL CHECK(IERR, 'ERROR: CANNOT GET CELL LENGTH')
-        IERR = NF90_INQ_DIMID(NCID, 'species', DIMID_NS)
+
+        IERR = NF90_INQ_DIMID(BOXM_NCID, 'species_in', DIMID_NS)
         CALL CHECK(IERR, 'ERROR: CANNOT GET NS DIMID')
-        IERR = NF90_INQUIRE_DIMENSION(NCID, DIMID_NS, LEN=NS)
+        IERR = NF90_INQUIRE_DIMENSION(BOXM_NCID, DIMID_NS, LEN=NS)
         CALL CHECK(IERR, 'ERROR: CANNOT GET NS LENGTH')
-        IERR = NF90_INQ_DIMID(NCID, 'emi_species', DIMID_NEMI)
+
+        IERR = NF90_INQ_DIMID(BOXM_NCID, 'species_out', DIMID_NEMI)
         CALL CHECK(IERR, 'ERROR: CANNOT GET NEMI DIMID')
-        IERR = NF90_INQUIRE_DIMENSION(NCID, DIMID_NEMI, LEN=NEMI)
+        IERR = NF90_INQUIRE_DIMENSION(BOXM_NCID, DIMID_NEMI, LEN=NEMI)
         CALL CHECK(IERR, 'ERROR: CANNOT GET NEMI LENGTH')
-        IERR = NF90_INQUIRE_ATTRIBUTE(NCID, NF90_GLOBAL, "species_out_num", LEN=NS_OUT)
+
+        IERR = NF90_INQUIRE_ATTRIBUTE(BOXM_NCID, NF90_GLOBAL, "species_out_num", LEN=NS_OUT)
         CALL CHECK(IERR, 'ERROR: CANNOT GET NS_OUT LENGTH')
-        ! IERR = NF90_INQ_DIMID(NCID, 'photol_params', DIMID_NPP) 
-        ! CALL CHECK(IERR, 'ERROR: CANNOT DEFINE NPP DIM')
-        ! IERR = NF90_INQUIRE_DIMENSION(NCID, DIMID_NPP, LEN=NPP)
-        ! CALL CHECK(IERR, 'ERROR: CANNOT DEFINE NPP DIM')
-        ! IERR = NF90_INQ_DIMID(NCID, 'photol_coeffs', DIMID_NPC)
-        ! CALL CHECK(IERR, 'ERROR: CANNOT DEFINE NPC DIM')
-        ! IERR = NF90_INQUIRE_DIMENSION(NCID, DIMID_NPC, LEN=NPC)
-        ! CALL CHECK(IERR, 'ERROR: CANNOT DEFINE NPC DIM')
-        ! IERR = NF90_INQ_DIMID(NCID, 'therm_coeffs', DIMID_NTC)
-        ! CALL CHECK(IERR, 'ERROR: CANNOT DEFINE NTC DIM')
-        ! IERR = NF90_INQUIRE_DIMENSION(NCID, DIMID_NTC, LEN=NTC)
-        ! CALL CHECK(IERR, 'ERROR: CANNOT DEFINE NTC DIM')
-        ! IERR = NF90_INQ_DIMID(NCID, 'flux_rates', DIMID_NFL)
-        ! CALL CHECK(IERR, 'ERROR: CANNOT DEFINE NFL DIM')
-        ! IERR = NF90_INQUIRE_DIMENSION(NCID, DIMID_NFL, LEN=NFL)
-        ! CALL CHECK(IERR, 'ERROR: CANNOT DEFINE NFL DIM')
 
         NPP = 57
         NPC = 96
@@ -129,7 +144,7 @@ CONTAINS
         
         TIME1 = 0.0
         TSTORE = 0.0
-    END SUBROUTINE GET_DIMS
+    END SUBROUTINE GET_BOXM_DIMS
 
     SUBROUTINE INIT_VARS
         IMPLICIT NONE
@@ -631,8 +646,9 @@ CONTAINS
     
     END SUBROUTINE INIT_VARS
 
-    SUBROUTINE GET_PRE_INT_VARIDS
+    SUBROUTINE GET_VARIDS
         IMPLICIT NONE
+        !!! PRE-INT !!!
         ! TIME
         IERR = NF90_INQ_VARID(NCID, 'time', VARID_TIME)
         CALL CHECK(IERR, 'ERROR: CANNOT GET TIME VARID')
@@ -676,10 +692,7 @@ CONTAINS
             ALLOCATE(BG_CHEM(NCELL,NS))
         END IF
 
-    END SUBROUTINE GET_PRE_INT_VARIDS
-
-    SUBROUTINE GET_INT_VARIDS
-        IMPLICIT NONE
+        !!! INT !!!
         ! TEMP
         IERR = NF90_INQ_VARID(NCID, 'air_temperature', VARID_TEMP)
         CALL CHECK(IERR, 'ERROR: CANNOT GET TEMP VARID')
@@ -753,7 +766,7 @@ CONTAINS
         !     ALLOCATE(FL(NCELL,NFL))
         ! END IF
 
-    END SUBROUTINE GET_INT_VARIDS
+    END SUBROUTINE GET_VARIDS
 
     SUBROUTINE GET_PRE_INT_VARS
         IMPLICIT NONE
@@ -785,6 +798,8 @@ CONTAINS
     SUBROUTINE GET_PRE_INT_ATTS
         IMPLICIT NONE
         ! ALLOCATE AND POPULATE CONSTANT INPUT ATTRIBUTES
+        IERR = NF90_GET_ATT(NCID, NF90_GLOBAL, 'ns', NS)
+
         IERR = NF90_GET_ATT(NCID, NF90_GLOBAL, 'dts', DTS)
         CALL CHECK(IERR, 'ERROR: CANNOT GET DTS ATTRIBUTE')
 
@@ -804,7 +819,6 @@ CONTAINS
     SUBROUTINE GET_INT_VARS(TS)
         IMPLICIT NONE
         INTEGER :: TS
-        INTEGER, DIMENSION(5) :: DIMIDS
         ! ALLOCATE AND POPULATE TIME-DEPENDENT INPUT VARIABLES
         IERR = NF90_GET_VAR(NCID, VARID_TEMP, TEMP, (/1, TS/), (/NCELL, 1/))
         CALL CHECK(IERR, 'ERROR: CANNOT GET TEMP ARRAY')
@@ -837,9 +851,81 @@ CONTAINS
         IERR = NF90_GET_VAR(NCID, VARID_EMI, EMI, (/1, 1, TS/), (/NCELL, NEMI, 1/))
         CALL CHECK(IERR, 'ERROR: CANNOT GET EMI ARRAY')
 
-        
-
     END SUBROUTINE GET_INT_VARS
+
+    ! POST INTEGRATION
+    SUBROUTINE DEALLOCATE
+        IMPLICIT NONE
+        
+        IERR = NF90_CLOSE(NCID)
+        CALL CHECK(IERR, 'NCID CLOSE FAILED')
+
+    END SUBROUTINE DEALLOCATE
+
+END MODULE FILE_IO
+
+MODULE PLUME_TO_GRID
+CONTAINS
+END MODULE PLUME_TO_GRID
+
+MODULE RUN_CHEM
+    USE NETCDF
+    IMPLICIT NONE
+
+    INTEGER :: IOSTAT
+    REAL :: PI, TIME1, TSTORE, DTS
+
+    INTEGER :: NTS, NCELL, NS, NS_OUT
+    INTEGER :: NTC, NPC, NPP, NFL, NEMI
+    INTEGER :: S, CELL, TS
+    INTEGER :: I, SPECIES_INDEX, JOBID 
+
+    INTEGER :: NCID, DIMID_TIME, DIMID_CELL, DIMID_NS, DIMID_NEMI
+    INTEGER, PRIVATE :: VARID_TIME, VARID_LEVEL, VARID_LON, VARID_LAT, VARID_PRESSURE, VARID_ALT
+    INTEGER, PRIVATE :: VARID_SPECIES, VARID_EMI_SPECIES, VARID_BG_CHEM
+    INTEGER, PRIVATE :: VARID_TEMP, VARID_M, VARID_H2O, VARID_O2, VARID_N2, VARID_SZA, VARID_EMI
+    
+    INTEGER :: VARID_Y, VARID_J, VARID_DJ, VARID_RC, VARID_FL
+    INTEGER, PRIVATE :: IERR
+
+    CHARACTER(LEN=256) :: JOB_ID
+
+    ! DEFINE BOXM INPUTS
+    DOUBLE PRECISION, ALLOCATABLE :: TIME(:), LEVEL(:), LON(:), LAT(:), TEMP(:), PRESSURE(:), ALT(:)
+    CHARACTER(LEN=80), ALLOCATABLE :: SPECIES(:), EMI_SPECIES(:)
+    DOUBLE PRECISION, ALLOCATABLE :: EMI(:,:), EMIP(:,:), BG_CHEM(:,:)
+    DOUBLE PRECISION, ALLOCATABLE :: M(:), H2O(:), O2(:), N2(:), SZA(:)
+
+    DOUBLE PRECISION, ALLOCATABLE :: Y(:,:), YP(:,:), RC(:,:), J(:,:), DJ(:,:), FL(:,:)
+    DOUBLE PRECISION, ALLOCATABLE :: SOA(:), MOM(:), BR01(:), RO2(:), P(:), L(:), Y_PPB(:,:), EMI_PPB(:,:)
+    INTEGER, ALLOCATABLE :: SPECIES_OUT_NUM(:)
+
+    ! CHEMCO
+    ! SIMPLE RATE COEFFICIENT SCALARS
+    DOUBLE PRECISION, PRIVATE :: KRO2NO3,KDEC
+
+    ! COMPLEX RATE COEFFICIENT SCALARS
+    DOUBLE PRECISION, PRIVATE :: FCC,FCD,FC1,K2I,FC2,FC7,FC8,K9I,FC9,FC10,KI,K13I
+    DOUBLE PRECISION, PRIVATE :: FC13,FC14,FC15,FC16,FCX
+
+    ! SIMPLE RATE COEFFICIENT CELLS
+    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: KRO2NO,KAPNO,KRO2HO2,KAPHO2,KNO3AL,KALKOXY
+    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: KALKPXY,KIN,KOUT2604,KOUT4608,KOUT2631
+    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: KOUT2635,KOUT4610,KOUT2605,KOUT2630,KOUT2629
+    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: KOUT2632,KOUT2637,KOUT3612,KOUT3613,KOUT3442
+
+    ! COMPLEX RATE COEFFICIENT CELLS
+    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: KC0,KCI,KRC,FC,KFPAN,KD0,KDI,KRD,FD,KBPAN,K10
+    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: K1I,KR1,F1,KMT01,K20,KR2,Fa2,KMT02,K30,K3I
+    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: KR3,FC3,F3,KMT03,K40,K4I,KR4,FC4,Fa4,KMT04
+    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: KMT05,KMT06,K70,K7I,KR7,F7,KMT07,K80,K8I,KR8
+    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: F8,KMT08,K90,KR9,F9,KMT09,K100,K10I,KR10,F10
+    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: KMT10,K1,K3,K4,K2,KMT11,K0,F,KMT12,K130
+    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: KR13,F13,KMT13,K140,K14I,KR14,F14,KMT14,K150
+    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: K15I,KR15,F15,KMT15,K160,K16I,KR16,F16,KMT16
+    DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:), PRIVATE :: K170,K17I,KR17,FC17,F17,KMT17
+
+CONTAINS 
 
     SUBROUTINE CALC_AEROSOL
         IMPLICIT NONE
@@ -5350,53 +5436,187 @@ CONTAINS
 
     END SUBROUTINE WRITE
     
-    ! POST INTEGRATION
-    SUBROUTINE DEALLOCATE
-        IMPLICIT NONE
-        
-        IERR = NF90_CLOSE(NCID)
-        CALL CHECK(IERR, 'NCID CLOSE FAILED')
-
-
-    END SUBROUTINE DEALLOCATE
-
-END MODULE BOXM
+END MODULE RUN_CHEM
 
 PROGRAM BOXM_RUN
-    USE BOXM
-    IMPLICIT NONE
+    !--------------------------------------------------------------------
+    ! BOXM_RUN – Main driver for the Box Model plume/grid coupling cycle
+    ! 
+    ! Controls dispersion, chemistry, and background coupling through 
+    ! nested timesteps: dispersion → chemistry substeps → backprojection.
+    !
+    ! TIME advances in dispersion increments (DT_DISP), and each dispersion
+    ! step can have multiple embedded chemistry substeps (DT_CHEM).
+    !--------------------------------------------------------------------
 
-    ! Retrieve the job_id from the command line
-    CALL getarg(1, JOB_ID)
+    TIME = 0.0D0
+    DO IDISP = 1, NDISP_STEPS
 
-    ! Call the subroutine to open the file with the job_id
-    CALL OPEN_NC(JOB_ID)      
+        ! ================================================================
+        ! 1. UPDATE PLUME GEOMETRY (DISPERSION)
+        ! ================================================================
+        !
+        ! Each plume segment’s position and shape evolve according to the 
+        ! dispersion model (wind, turbulence, shear, etc.).
+        ! After updating geometry, spatial overlap weights with the grid 
+        ! cells must be recomputed to reflect the new footprint.
+        !
+        ! UPDATE_PLUME_GEOMETRY → updates centroid, σx, σy, σz, etc.
+        ! COMPUTE_WEIGHTS        → builds or updates the weight list
+        !                          for mapping between plume and fine grid.
+        !---------------------------------------------------------------
+        DO SEG = 1, NSEG
+            IF (.NOT. ACTIVE_SEG(SEG,TIME)) CYCLE
+            CALL UPDATE_PLUME_GEOMETRY(PLUME_SEG(SEG), DT_DISP)
+            CALL COMPUTE_WEIGHTS(PLUME_SEG(SEG), GRID)
+        END DO
 
-    ! PRE-INTEGRATION
-    !CALL OPEN_NC(JOB_ID)
-    CALL GET_DIMS()
-    CALL INIT_VARS()
-    CALL GET_PRE_INT_VARIDS()
-    CALL GET_INT_VARIDS()
-    CALL GET_PRE_INT_VARS()
-    CALL GET_PRE_INT_ATTS()
 
-    ! INTEGRATION
-    DO TS = 1, NTS
-        IF (MOD(REAL(TS), 3600 / DTS) == 0) THEN
-            PRINT *, 'TS = ', TS, ' (Hour = ', TS * DTS / 3600, ')'
-        END IF
-        CALL GET_INT_VARS(TS)
-        CALL CALC_AEROSOL()
-        CALL CHEMCO()
-        CALL CALC_J()
-        CALL PHOTOL()
-        IF (TS /= 1) THEN
-            CALL DERIV(DTS)
-        END IF
-        CALL WRITE(DTS)
+        ! ================================================================
+        ! 2. CHEMISTRY SUBSTEPS
+        ! ================================================================
+        !
+        ! Within each dispersion step, perform multiple smaller chemistry
+        ! timesteps. This ensures the chemistry sees quasi-steady geometry.
+        !
+        ! The fine grid represents the local “mixing field” where overlapping
+        ! plumes interact chemically before results are mapped back.
+        !---------------------------------------------------------------
+        DO ICHEM = 1, N_CHEM_SUB
+
+            ! Reset fine grid concentrations and active flags each substep
+            FINE_MASS = 0.0D0
+            ACTIVE_FINE = .FALSE.
+
+            ! ------------------------------------------------------------
+            ! 2a. PROJECT PLUMES → FINE GRID
+            ! ------------------------------------------------------------
+            !
+            ! For each active plume segment, distribute its current species
+            ! mass or concentration to the fine grid using the precomputed
+            ! weight list (horizontal × vertical overlap fractions).
+            !
+            ! This aggregates all overlapping plumes into the fine grid field.
+            ! FINE_MASS(i, sp) accumulates Σ_j [ W(i,j) * PLUME_MASS(sp,j) ]
+            !------------------------------------------------------------
+            DO SEG = 1, NSEG
+                IF (.NOT. ACTIVE_SEG(SEG,TIME)) CYCLE
+                CALL PROJECT_PLUME_TO_GRID(PLUME_SEG(SEG), PLUME_MASS(:,SEG), FINE_MASS)
+            END DO
+
+
+            ! ------------------------------------------------------------
+            ! 2b. RUN CHEMISTRY ON FINE GRID
+            ! ------------------------------------------------------------
+            !
+            ! Solve the chemical system (gas-phase, aqueous, etc.) on the fine
+            ! grid, which now contains contributions from all plumes.
+            ! Chemistry can be non-linear, so this step produces the combined
+            ! “chemical tendency” including cross-plume interactions.
+            !
+            ! RUN_CHEMISTRY should update FINE_MASS(i,sp) in place over DT_CHEM.
+            ! ACTIVE_FINE mask identifies which fine cells contain active plumes.
+            !------------------------------------------------------------
+            CALL RUN_CHEMISTRY(FINE_MASS, ACTIVE_FINE, DT_CHEM)
+
+
+            ! ------------------------------------------------------------
+            ! 2c. BACKPROJECT FINE GRID → PLUMES
+            ! ------------------------------------------------------------
+            !
+            ! Using the same weight matrix (or its normalized transpose),
+            ! redistribute the updated fine grid fields back to each plume.
+            !
+            ! This step “harvests” the chemistry results from the grid and
+            ! embeds them back into each plume’s own concentration vector.
+            !
+            ! Ensures that each plume segment inherits the correct chemically
+            ! modified composition consistent with its overlap footprint.
+            !------------------------------------------------------------
+            DO SEG = 1, NSEG
+                IF (.NOT. ACTIVE_SEG(SEG,TIME)) CYCLE
+                CALL BACKPROJECT_GRID_TO_PLUME(PLUME_SEG(SEG), PLUME_MASS(:,SEG), FINE_MASS)
+            END DO
+
+
+            ! ------------------------------------------------------------
+            ! 2d. UPDATE COARSE BACKGROUND FIELD
+            ! ------------------------------------------------------------
+            !
+            ! Coarse background grid represents the larger-scale chemical field.
+            ! After chemistry and plume updates, reconcile the fine grid’s 
+            ! concentrations into the coarse background to capture long-term
+            ! mass conservation and slow background evolution.
+            !
+            ! This may involve:
+            !   - Averaging fine → coarse grid,
+            !   - Adding residual fine grid chemistry deltas,
+            !   - Maintaining mass closure.
+            !------------------------------------------------------------
+            CALL UPDATE_COARSE_BG(COARSE_MASS, FINE_MASS)
+
+            ! Advance chemistry time counter
+            TIME = TIME + DT_CHEM
+        END DO
+
+
+        ! ================================================================
+        ! 3. DEACTIVATE EXPIRED SEGMENTS
+        ! ================================================================
+        !
+        ! Once a plume segment has dispersed below significance or advected
+        ! outside the domain, it should be deactivated to save computation.
+        ! This routine clears its mass or marks it inactive in ACTIVE_SEG.
+        !---------------------------------------------------------------
+        CALL DEACTIVATE_OLD_SEGMENTS(PLUME_SEG, PLUME_MASS, TIME)
+
+
+        ! ================================================================
+        ! 4. OUTPUT AT REGULAR INTERVALS
+        ! ================================================================
+        !
+        ! Write the coarse background or diagnostic data to file for analysis.
+        ! Output frequency controlled by OUTPUT_EVERY (in dispersion steps).
+        !---------------------------------------------------------------
+        IF (MOD(IDISP, OUTPUT_EVERY) == 0) CALL WRITE_OUTPUT(COARSE_MASS, TIME)
+
     END DO
 
-    ! CALL DEALLOCATE()
-
 END PROGRAM BOXM_RUN
+
+! PROGRAM BOXM_RUN
+!     USE BOXM
+!     IMPLICIT NONE
+
+!     ! Retrieve the job_id from the command line
+!     CALL getarg(1, JOB_ID)
+
+!     ! Call the subroutine to open the file with the job_id
+!     CALL OPEN_NC(JOB_ID)
+
+!     ! PRE-INTEGRATION
+!     CALL GET_DIMS()
+!     CALL INIT_VARS()
+!     CALL GET_VARIDS()
+!     CALL GET_PRE_INT_VARS()
+!     CALL GET_PRE_INT_ATTS()
+
+!     ! INTEGRATION
+!     DO TS = 1, NTS
+!         IF (MOD(REAL(TS), 3600 / DTS) == 0) THEN
+!             PRINT *, 'TS = ', TS, ' (Hour = ', TS * DTS / 3600, ')'
+!         END IF
+!         CALL GET_INT_VARS(TS)
+!         CALL CALC_AEROSOL()
+!         CALL CHEMCO()
+!         CALL CALC_J()
+!         CALL PHOTOL()
+!         IF (TS /= 1) THEN
+!             CALL DERIV(DTS)
+!         END IF
+!         CALL WRITE(DTS)
+!     END DO
+
+!     ! CALL DEALLOCATE()
+
+! END PROGRAM BOXM_RUN
